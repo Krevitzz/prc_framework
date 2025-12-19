@@ -1,4 +1,6 @@
-stochastic.pystochastic.py"""
+
+
+"""
 operators/stochastic.py
 
 Opérateurs stochastiques pour le framework PRC.

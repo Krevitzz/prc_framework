@@ -24,33 +24,24 @@ from typing import Dict, List, Optional, Tuple
 from enum import Enum
 
 # Ajoute le projet au path
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
+current_file = Path(__file__).resolve()
+tests_dir = current_file.parent  # prc_framework/tests/
+prc_framework_dir = tests_dir.parent  # prc_framework/
+project_root = prc_framework_dir.parent  # au-dessus de prc_framework/
+core_dir = prc_framework_dir / 'core'  # prc_framework/core/
 
-from core import (InformationSpace, PRCKernel, EvolutionOperator)
+# Ajoute le chemin correct au sys.path
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# Import tous les opérateurs candidats
-from operators.diffusion import (
-        PureDiffusionOperator, AdaptiveDiffusionOperator,
-        MultiScaleDiffusionOperator, AnisotropicDiffusionOperator
-)
-from operators.hebbian import (
-        HebbianOperator, AntiHebbianOperator, NonlinearHebbianOperator,
-        CompetitiveHebbianOperator, OjaRuleOperator, BCMRuleOperator
-)
-from operators.stochastic import (
-        GaussianNoiseOperator, UniformNoiseOperator, LangevinOperator,
-        CorrelatedNoiseOperator, AnisotropicNoiseOperator, OrnsteinUhlenbeckOperator
-)
-from operators.nonlinear import (
-        ThresholdOperator, SaturationOperator, PolynomialOperator,
-        LogisticOperator, PowerLawOperator, RectifiedOperator,
-        ContrastEnhancementOperator, NormalizationOperator, WinnerTakeAllOperator
-)
-from operators.mixed import (
-        BalancedMixedOperator, ExplorativeOperator, CompetitiveOperator,
-        AdaptiveOperator, ParametricMixedOperator
-)
+try:
+    from prc_framework.core import InformationSpace, PRCKernel, EvolutionOperator
+    from prc_framework.core import IdentityOperator, ScalingOperator, CompositeOperator
+except ImportError as e:
+    print(f"❌ Erreur d'import: {e}")
+    print(f"   Chemin recherché: {project_root}")
+    print(f"   Dossier core existe: {core_dir.exists()}")
+    sys.exit(1)
 
 
 # ============================================================================
@@ -58,9 +49,9 @@ from operators.mixed import (
 # ============================================================================
 
 # Conditions initiales standard (OBLIGATOIRES)
-N_DOF_STANDARD = 5000 # Petit mais > 10
+N_DOF_STANDARD = 16  # Petit mais > 10
 EPSILON_INIT = 0.05  # ε << 1 pour perturbation initiale
-N_ITERATIONS_TEST = 10000  # Nombre d'itérations standard
+N_ITERATIONS_TEST = 100  # Nombre d'itérations standard
 SEED_STANDARD = 42  # Pour reproductibilité
 
 # Tolérances
@@ -116,6 +107,64 @@ class GammaValidation:
         """Vérifie si Γ est intéressant."""
         return any(t.status in [ValidationStatus.INTERESTING, ValidationStatus.EXCELLENT] 
                   for t in self.tests)
+
+
+# ============================================================================
+# OPÉRATEURS DE TEST DE BASE
+# ============================================================================
+
+# Création d'opérateurs de test basiques pour la démonstration
+
+class TestScalingOperator(EvolutionOperator):
+    """Opérateur de mise à l'échelle simple pour test."""
+    def __init__(self, alpha: float = 0.5):
+        self.alpha = alpha
+        
+    def apply(self, C: np.ndarray) -> np.ndarray:
+        """Applique C' = α·C + (1-α)·I."""
+        n = C.shape[0]
+        return self.alpha * C + (1 - self.alpha) * np.eye(n)
+    
+    def get_parameters(self) -> Dict:
+        return {"type": "TestScaling", "alpha": self.alpha}
+
+
+class TestRandomWalkOperator(EvolutionOperator):
+    """Opérateur de marche aléatoire pour test."""
+    def __init__(self, step_size: float = 0.01, seed: int = 42):
+        self.step_size = step_size
+        self.seed = seed
+        self.rng = np.random.RandomState(seed)
+        
+    def apply(self, C: np.ndarray) -> np.ndarray:
+        """Ajoute du bruit aux éléments hors diagonale."""
+        n = C.shape[0]
+        noise = self.rng.randn(n, n) * self.step_size
+        noise = (noise + noise.T) / 2  # Rend symétrique
+        np.fill_diagonal(noise, 0)      # Annule diagonale
+        C_new = C + noise
+        # Projette sur [-1, 1]
+        C_new = np.clip(C_new, -1, 1)
+        np.fill_diagonal(C_new, 1)      # Rétablit diagonale à 1
+        return C_new
+    
+    def get_parameters(self) -> Dict:
+        return {"type": "TestRandomWalk", "step_size": self.step_size, "seed": self.seed}
+
+
+class TestDecayOperator(EvolutionOperator):
+    """Opérateur de décay exponentiel pour test."""
+    def __init__(self, decay_rate: float = 0.1):
+        self.decay_rate = decay_rate
+        
+    def apply(self, C: np.ndarray) -> np.ndarray:
+        """Décay exponentiel vers l'identité: C' = I + (C-I)*exp(-decay_rate)."""
+        n = C.shape[0]
+        I = np.eye(n)
+        return I + (C - I) * np.exp(-self.decay_rate)
+    
+    def get_parameters(self) -> Dict:
+        return {"type": "TestDecay", "decay_rate": self.decay_rate}
 
 
 # ============================================================================
@@ -559,7 +608,7 @@ def validate_gamma(gamma: EvolutionOperator,
     Returns:
         GammaValidation avec tous les résultats
     """
-    gamma_name = gamma.get_parameters()["type"]
+    gamma_name = gamma.__class__.__name__
     
     if verbose:
         print(f"\n{'='*70}")
@@ -715,40 +764,19 @@ def run_full_protocol(operators_subset: Optional[List[str]] = None,
     print(f"  • Itérations = {N_ITERATIONS_TEST}")
     print(f"  • Seed = {SEED_STANDARD}")
     
-    # Liste tous les opérateurs candidats
+    # Liste des opérateurs de test de base
     all_operators = {
-        # Diffusion
-        "PureDiffusion": PureDiffusionOperator(alpha=0.02),
-        "AdaptiveDiffusion": AdaptiveDiffusionOperator(alpha_base=0.02),
-        "MultiScaleDiffusion": MultiScaleDiffusionOperator(scales=[2, 3]),
-        "AnisotropicDiffusion": AnisotropicDiffusionOperator(alpha_principal=0.02),
-        
-        # Hebbian
-        "Hebbian": HebbianOperator(beta=0.01),
-        "AntiHebbian": AntiHebbianOperator(beta=0.01),
-        "NonlinearHebbian": NonlinearHebbianOperator(beta=0.01),
-        "CompetitiveHebbian": CompetitiveHebbianOperator(beta_win=0.02, beta_lose=0.01),
-        "OjaRule": OjaRuleOperator(beta=0.01),
-        "BCMRule": BCMRuleOperator(beta=0.01),
-        
-        # Stochastic
-        "GaussianNoise": GaussianNoiseOperator(sigma=0.01, seed=SEED_STANDARD),
-        "UniformNoise": UniformNoiseOperator(sigma=0.01, seed=SEED_STANDARD),
-        "Langevin": LangevinOperator(alpha=0.01, temperature=0.1, seed=SEED_STANDARD),
-        "CorrelatedNoise": CorrelatedNoiseOperator(sigma=0.01, seed=SEED_STANDARD),
-        
-        # Nonlinear
-        "Threshold": ThresholdOperator(threshold=0.1),
-        "Saturation": SaturationOperator(beta=2.0),
-        "PowerLaw": PowerLawOperator(power=2.0),
-        "Rectified": RectifiedOperator(negative_slope=0.0),
-        "Normalization": NormalizationOperator(method="frobenius"),
-        
-        # Mixed
-        "BalancedMixed": BalancedMixedOperator(alpha_diffusion=0.01, beta_hebbian=0.01),
-        "Explorative": ExplorativeOperator(alpha_diffusion=0.02, sigma_noise=0.01, seed=SEED_STANDARD),
-        "Competitive": CompetitiveOperator(beta_win=0.02, k_winners=5),
-        "Adaptive": AdaptiveOperator(alpha_base=0.01, beta_base=0.01, seed=SEED_STANDARD),
+        "Identity": IdentityOperator(),
+        "Scaling_0.8": ScalingOperator(alpha=0.8),
+        "Scaling_0.5": ScalingOperator(alpha=0.5),
+        "Scaling_0.2": ScalingOperator(alpha=0.2),
+        "Composite": CompositeOperator([
+            ScalingOperator(alpha=0.9),
+            ScalingOperator(alpha=0.95)
+        ]),
+        "TestScaling": TestScalingOperator(alpha=0.5),
+        "TestRandomWalk": TestRandomWalkOperator(step_size=0.01, seed=SEED_STANDARD),
+        "TestDecay": TestDecayOperator(decay_rate=0.1),
     }
     
     # Filtre si subset spécifié
@@ -782,6 +810,8 @@ def run_full_protocol(operators_subset: Optional[List[str]] = None,
         
         except Exception as e:
             print(f"⚠️  ERREUR: {e}")
+            import traceback
+            traceback.print_exc()
     
     # Génère rapport final
     print("\n" + "="*70)

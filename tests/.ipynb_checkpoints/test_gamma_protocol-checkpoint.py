@@ -24,39 +24,32 @@ from typing import Dict, List, Optional, Tuple
 from enum import Enum
 
 # Ajoute le projet au path
-current_file = Path(__file__).resolve()
-tests_dir = current_file.parent  # prc_framework/tests/
-prc_framework_dir = tests_dir.parent  # prc_framework/
-project_root = prc_framework_dir.parent  # au-dessus de prc_framework/
-core_dir = prc_framework_dir / 'core'  # prc_framework/core/
+project_root = Path(__file__).parent
+sys.path.insert(0, str(project_root))
 
-# Ajoute le chemin correct au sys.path
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
-from prc_framework.core import InformationSpace, PRCKernel, EvolutionOperator
+from core import (InformationSpace, PRCKernel, EvolutionOperator)
 
 # Import tous les opérateurs candidats
-from prc_framework.operators.diffusion import (
-    PureDiffusionOperator, AdaptiveDiffusionOperator,
-    MultiScaleDiffusionOperator, AnisotropicDiffusionOperator
+from operators.diffusion import (
+        PureDiffusionOperator, AdaptiveDiffusionOperator,
+        MultiScaleDiffusionOperator, AnisotropicDiffusionOperator
 )
-from prc_framework.operators.hebbian import (
-    HebbianOperator, AntiHebbianOperator, NonlinearHebbianOperator,
-    CompetitiveHebbianOperator, OjaRuleOperator, BCMRuleOperator
+from operators.hebbian import (
+        HebbianOperator, AntiHebbianOperator, NonlinearHebbianOperator,
+        CompetitiveHebbianOperator, OjaRuleOperator, BCMRuleOperator
 )
-from prc_framework.operators.stochastic import (
-    GaussianNoiseOperator, UniformNoiseOperator, LangevinOperator,
-    CorrelatedNoiseOperator, AnisotropicNoiseOperator, OrnsteinUhlenbeckOperator
+from operators.stochastic import (
+        GaussianNoiseOperator, UniformNoiseOperator, LangevinOperator,
+        CorrelatedNoiseOperator, AnisotropicNoiseOperator, OrnsteinUhlenbeckOperator
 )
-from prc_framework.operators.nonlinear import (
-    ThresholdOperator, SaturationOperator, PolynomialOperator,
-    LogisticOperator, PowerLawOperator, RectifiedOperator,
-    ContrastEnhancementOperator, NormalizationOperator, WinnerTakeAllOperator
+from operators.nonlinear import (
+        ThresholdOperator, SaturationOperator, PolynomialOperator,
+        LogisticOperator, PowerLawOperator, RectifiedOperator,
+        ContrastEnhancementOperator, NormalizationOperator, WinnerTakeAllOperator
 )
-from prc_framework.operators.mixed import (
-    BalancedMixedOperator, ExplorativeOperator, CompetitiveOperator,
-    AdaptiveOperator, ParametricMixedOperator
+from operators.mixed import (
+        BalancedMixedOperator, ExplorativeOperator, CompetitiveOperator,
+        AdaptiveOperator, ParametricMixedOperator
 )
 
 
@@ -65,9 +58,9 @@ from prc_framework.operators.mixed import (
 # ============================================================================
 
 # Conditions initiales standard (OBLIGATOIRES)
-N_DOF_STANDARD = 16  # Petit mais > 10
+N_DOF_STANDARD = 5000 # Petit mais > 10
 EPSILON_INIT = 0.05  # ε << 1 pour perturbation initiale
-N_ITERATIONS_TEST = 100  # Nombre d'itérations standard
+N_ITERATIONS_TEST = 10000  # Nombre d'itérations standard
 SEED_STANDARD = 42  # Pour reproductibilité
 
 # Tolérances
