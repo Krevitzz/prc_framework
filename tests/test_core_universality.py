@@ -16,8 +16,10 @@ import numpy as np
 import sys
 from pathlib import Path
 
-# Ajoute le répertoire parent au path pour imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Ajoute le parent du dossier tests au path
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from core import (
     InformationSpace,
