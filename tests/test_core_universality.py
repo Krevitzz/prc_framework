@@ -16,12 +16,17 @@ import numpy as np
 import sys
 from pathlib import Path
 
-# Ajoute le parent du dossier tests au path
-project_root = Path(__file__).parent.parent
+current_file = Path(__file__).resolve()
+tests_dir = current_file.parent  # prc_framework/tests/
+prc_framework_dir = tests_dir.parent  # prc_framework/
+project_root = prc_framework_dir.parent  # au-dessus de prc_framework/
+core_dir = prc_framework_dir / 'core'  # prc_framework/core/
+
+# Ajoute le chemin correct au sys.path
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from core import (
+from prc_framework.core import (
     InformationSpace,
     EvolutionOperator,
     PRCKernel,
@@ -31,7 +36,6 @@ from core import (
     create_block_diagonal,
     create_exponential_decay,
 )
-
 
 # ============================================================================
 # TEST 1: INDÉPENDANCE DE REPRÉSENTATION
@@ -97,12 +101,11 @@ def test_no_physics_concepts():
     ]
     
     # Note: "force" retiré car ambiguïté avec "enforce" (imposer)
-    
     core_files = [
-        'core/information_space.py',
-        'core/evolution_operator.py',
-        'core/kernel.py',
-        'core/serialization.py',
+        core_dir / 'information_space.py',
+        core_dir / 'evolution_operator.py',
+        core_dir / 'kernel.py',
+        core_dir / 'serialization.py',
     ]
     
     violations = []
