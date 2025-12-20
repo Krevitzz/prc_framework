@@ -31,7 +31,7 @@ from operators.hebbian import OjaRuleOperator
 # CONFIGURATION
 # ============================================================================
 
-N_DOF = 500
+N_DOF = 50
 EPSILON = 0.05
 N_ITERATIONS = 1000
 BETA_OJA = 0.01
