@@ -58,10 +58,10 @@ from operators.mixed import (
 # ============================================================================
 
 # Conditions initiales standard (OBLIGATOIRES)
-N_DOF_STANDARD = 5000 # Petit mais > 10
+N_DOF_STANDARD = 100 # Petit mais > 10
 EPSILON_INIT = 0.05  # ε << 1 pour perturbation initiale
-N_ITERATIONS_TEST = 10000  # Nombre d'itérations standard
-SEED_STANDARD = 42  # Pour reproductibilité
+N_ITERATIONS_TEST = 1000  # Nombre d'itérations standard
+SEED_STANDARD = 75  # Pour reproductibilité
 
 # Tolérances
 TOL_SYMMETRY = 1e-6

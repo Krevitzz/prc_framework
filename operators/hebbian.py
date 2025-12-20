@@ -259,8 +259,71 @@ class CompetitiveHebbianOperator(ConstrainedOperator):
             "k_winners": self.k_winners
         }
 
-
 class OjaRuleOperator(ConstrainedOperator):
+    """
+    Règle d'Oja — version compatible PRC.
+
+    TRANSFORMATION:
+        C' = C + β * (C @ C - C ⊙ ||C_i||²)
+
+    AJUSTEMENTS PRC (non conceptuels):
+    - Normalisation relative (évite collapse numérique DOF-dépendant)
+    - Neutralisation du mode uniforme global (lisibilité structurelle)
+    - Beta intensif (β / N)
+
+    IMPORTANT:
+    - La compression rang-1 est CONSERVÉE
+    - Le collapse spectral est ATTENDU
+    - Cet opérateur reste un projecteur fort
+    """
+
+    def __init__(self, beta: float = 0.01):
+        assert beta > 0, "beta doit être strictement positif"
+        self.beta = beta
+
+    def _apply_unconstrained(self, C: np.ndarray) -> np.ndarray:
+        """
+        Applique la règle d'Oja (compatibilité PRC).
+        """
+        n = C.shape[0]
+
+        # ------------------------------------------------------------------
+        # 1. Transitivité quadratique
+        # ------------------------------------------------------------------
+        transitive = C @ C
+
+        # Neutralisation du mode uniforme (PRC)
+        uniform = np.ones((n, n)) / n
+        uniform_projection = np.trace(transitive @ uniform)
+        transitive = transitive - uniform_projection * uniform
+
+        # ------------------------------------------------------------------
+        # 2. Normalisation (relative, non destructive)
+        # ------------------------------------------------------------------
+        row_norms_sq = np.sum(C ** 2, axis=1, keepdims=True)
+        mean_norm_sq = np.mean(row_norms_sq)
+
+        normalization = C * (row_norms_sq / (mean_norm_sq + 1e-12))
+
+        # ------------------------------------------------------------------
+        # 3. Mise à jour (beta intensif)
+        # ------------------------------------------------------------------
+        beta_eff = self.beta / n
+        C_next = C + beta_eff * (transitive - normalization)
+
+        return C_next
+
+    def get_parameters(self) -> dict:
+        return {
+            "type": "OjaRule",
+            "beta": self.beta,
+            "notes": [
+                "compression forte attendue",
+                "projecteur spectral rang-1",
+                "compatible PRC (lisibilité, pas enrichissement)"
+            ]
+        }
+class OjaRuleOperatorold(ConstrainedOperator):
     """
     Règle d'Oja: renforcement avec normalisation.
     
