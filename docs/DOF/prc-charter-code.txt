@@ -1,0 +1,820 @@
+# CHARTE PRC 4.0 - VERSION OPÉRATIONNELLE
+
+```
+\DOCUMENT{
+  ID = PRC-CHARTER-CODE
+  VERSION = 4.0-OPERATIONAL
+  STATUS = normative
+  DATE = 2024-12-21
+  PURPOSE = "Référence pour génération d'entrées documentaires PRC"
+}
+```
+
+---
+
+## SECTION 0 : Statut et portée
+
+Ce document définit :
+1. La structure des niveaux (L0 à L4)
+2. Les templates pour chaque type d'entrée
+3. Les tags et leur signification opératoire
+4. Le workflow de validation/rejet
+
+**Usage** : Quand tu valides/rejettes, je génère une entrée conforme à ces templates.
+
+---
+
+## SECTION 1 : Hiérarchie des niveaux (CORRIGÉE)
+
+```
+\LEVELS{
+  L0 = ontological      # Axiomes immutables
+  L1 = epistemic        # Définitions abstraites (D, Γ)
+  L2 = theoretical      # Hypothèses testables
+  L3 = operative        # Toy models, tests, programmes
+  L4 = documentary      # Logs, résultats, analyses
+}
+```
+
+**Règle stricte** : Un élément L(n) ne peut référencer que L(n-1) ou inférieur.
+
+---
+
+## SECTION 2 : Conventions d'identification
+
+### 2.1 Structure ID
+
+**Format** : `TYPE-SUBTYPE-NNN`
+
+**Types principaux** :
+- `HYP` = Hypothesis (L2)
+- `TM` = Toy Model (L3)
+- `TEST` = Test Protocol (L3)
+- `LOG` = Log Entry (L4)
+- `RES` = Result Entry (L4)
+- `JOUR` = Journal Entry (L4)
+- `CON` = Constraint (L2, dérivée)
+
+**Sous-types standards** :
+- `GAM` = relatif à Γ
+- `D` = relatif à D
+- `PAT` = relatif aux patterns
+
+**Exemples** :
+```
+HYP-GAM-001    # Première hypothèse sur gamma
+TM-GAM-003     # Troisième toy model gamma
+TEST-GAM-007   # Septième protocole test gamma
+LOG-GAM-042    # 42ème entrée log gamma
+CON-GAM-001    # Première contrainte sur gamma
+```
+
+**Règle** : L'ID est **fixe**. Le statut change dans le champ STATUS, pas dans l'ID.
+
+### 2.2 Valeurs STATUS
+
+```
+\STATUS_VALUES{
+  WIP = "Work In Progress"
+  SURVIVES = "Non éliminée par les tests actuels"
+  REJECTED = "Hypothèse réfutée ou test échoué"
+}
+```
+
+---
+
+## SECTION 3 : Templates par niveau
+
+### 3.1 NIVEAU L0 - Axiomes (immutable)
+
+**Contenu** : 
+
+### \AXIOM{A1}
+
+```
+Il existe une dissymétrie informationnelle primitive,
+notée D, irréductible à toute cause plus fondamentale accessible.
+```
+
+### \AXIOM{A2}
+
+```
+Il existe un mécanisme de compensation locale,
+noté Γ, qui agit sur D.
+```
+
+### \AXIOM{A3}
+
+```
+Aucune transformation globale et stable Γ
+ne peut annuler D de manière complète.
+```
+
+**Pas de template** : Ces axiomes ne sont jamais modifiés.
+
+---
+
+### 3.2 NIVEAU L1 - Définitions épistémiques
+
+```
+\DEFINITION{
+  ID = DEF-[NAME]
+  LEVEL = L1
+  DEPENDENCIES = {
+    axioms = [list]
+  }
+  STATEMENT = {
+    [Description abstraite de l'entité définie]
+  }
+  NOTES = [optional clarifications]
+}
+```
+
+**Exemple** :
+```
+\DEFINITION{
+  ID = DEF-GAMMA
+  LEVEL = L1
+  DEPENDENCIES = {
+    axioms = [A2]
+  }
+  STATEMENT = {
+    Γ est un opérateur de compensation locale agissant sur D.
+    Γ transforme une configuration informationnelle C_t en C_{t+1}.
+  }
+  NOTES = {
+    - Γ n'optimise rien
+    - Γ n'a aucun but
+    - Γ est contraint (localité, efficacité limitée)
+  }
+}
+```
+
+**Interdictions L1** :
+- ❌ Aucune forme mathématique concrète (→ L2)
+- ❌ Aucun toy model (→ L3)
+- ❌ Aucune interprétation physique
+
+---
+
+### 3.3 NIVEAU L2 - Hypothèses théoriques
+
+```
+\HYPOTHESIS{
+  ID = HYP-[SUBTYPE]-NNN
+  LEVEL = L2
+  DEPENDENCIES = {
+    axioms = [list or empty]
+    definitions = [list or empty]
+    rejected_hypotheses = [list or empty]
+  }
+  STATEMENT = {
+    [Description libre de l'hypothèse testable]
+  }
+  STATUS = WIP | SURVIVES  | REJECTED
+  NOTES = [optional]
+}
+```
+
+**Exemple validé** :
+```
+\HYPOTHESIS{
+  ID = HYP-GAM-001
+  LEVEL = L2
+  DEPENDENCIES = {
+    definitions = [DEF-GAMMA]
+  }
+  STATEMENT = {
+    Il est autorisé de considérer des opérateurs Γ
+    dont l'action dépend d'un historique local fini,
+    afin d'évaluer si cette dépendance modifie
+    les modes d'échec observés.
+  }
+  STATUS = WIP
+}
+```
+
+**Après test (exemple rejeté)** :
+```
+\HYPOTHESIS{
+  ID = HYP-GAM-001
+  LEVEL = L2
+  DEPENDENCIES = {
+    definitions = [DEF-GAMMA]
+  }
+  STATEMENT = {
+    Γ peut être un opérateur markovien pur de la forme
+    C_{t+1} = f(C_t) sans dépendance aux états antérieurs.
+  }
+  STATUS = REJECTED
+  REJECTION_SUMMARY = {
+    Tous les candidats markoviens testés (GAM-001 à GAM-023)
+    convergent vers attracteurs triviaux ou explosent.
+  }
+}
+```
+
+**Interdictions L2** :
+- ❌ Pas de code
+- ❌ Pas de résultats numériques
+- ❌ Pas de toy model spécifique (→ L3)
+
+---
+
+### 3.4 NIVEAU L2 - Contraintes dérivées
+
+```
+\CONSTRAINT{
+  ID = CON-[SUBTYPE]-NNN
+  LEVEL = L2
+  DERIVED_FROM = [list of HYP IDs]
+  DEPENDENCIES = {
+    axioms = [list or empty]
+    definitions = [list or empty]
+    rejected_hypotheses = [list, required]
+  }
+  STATEMENT = {
+    [Énoncé de la contrainte déduite]
+  }
+  SCOPE = {
+    [Estimation de l'espace des possibles éliminé]
+  }
+  STATUS = WIP | SURVIVES 
+  NOTES = [optional]
+}
+```
+
+**Exemple** :
+```
+\CONSTRAINT{
+  ID = CON-GAM-001
+  LEVEL = L2
+  DERIVED_FROM = [HYP-GAM-001, HYP-GAM-002]
+  DEPENDENCIES = {
+    definitions = [DEF-GAMMA]
+    rejected_hypotheses = [HYP-GAM-001, HYP-GAM-002]
+  }
+  STATEMENT = {
+    Un opérateur Γ markovien pur ne peut satisfaire
+    simultanément les critères de non-trivialité,
+    diversité structurale et robustesse.
+  }
+  SCOPE = {
+    family = "Γ_markovian_pure"
+    estimated_elimination = "~40% de l'espace initial"
+  }
+  STATUS = WIP
+  NOTES = {
+    Cette contrainte force l'exploration vers Γ non-markoviens
+    ou Γ avec mécanismes de régulation.
+  }
+}
+```
+
+**Règle CON** : Jamais généré automatiquement. Toujours créé manuellement en discussion.
+
+---
+
+### 3.5 NIVEAU L3 - Toy Models
+
+```
+\TOY_MODEL{
+  ID = TM-[SUBTYPE]-NNN
+  LEVEL = L3
+  ASSOCIATED_HYPOTHESIS = HYP-XXX-NNN
+  
+  INPUT_SPACE = {
+    N_DOF = [integer]
+    C_init = [description]
+    ε = [float]
+    seed = [integer]
+    [other params]
+  }
+  
+  Γ_DESCRIPTION = {
+    name = [string]
+    type = [string]
+    parameters = {[param_name] = [value], ...}
+    form = [mathematical expression if applicable]
+  }
+  
+  EXPECTED_FAILURE_MODES = [
+    [mode1],
+    [mode2],
+    ...
+  ]
+  
+  STATUS = WIP | SURVIVES  | REJECTED
+  NOTES = [optional]
+}
+```
+
+**Exemple** :
+```
+\TOY_MODEL{
+  ID = TM-GAM-001
+  LEVEL = L3
+  ASSOCIATED_HYPOTHESIS = HYP-GAM-001
+  
+  INPUT_SPACE = {
+    N_DOF = 50
+    C_init = "I + ε·R"
+    ε = 0.05
+    seed = 42
+  }
+  
+  Γ_DESCRIPTION = {
+    name = "PureDiffusion"
+    type = "markovian_linear"
+    parameters = {
+      alpha = 0.02
+    }
+    form = "C_{t+1} = C_t + α(C_t @ C_t - n*C_t)"
+  }
+  
+  EXPECTED_FAILURE_MODES = [
+    trivial_convergence,
+    information_loss,
+    homogenization
+  ]
+  
+  STATUS = WIP
+}
+```
+
+**Interdictions L3 (TOY_MODEL)** :
+- ❌ `realism = forbidden` : Ne jamais interpréter comme vraie physique
+- ❌ Ne pas ajouter de détails domaine-spécifiques non justifiés
+- ❌ Ne pas valider par comparaison expérimentale
+- ✅ But : Échouer de manière informative pour éliminer familles
+
+---
+
+### 3.6 NIVEAU L3 - Test Protocols
+
+```
+\TEST{
+  ID = TEST-[SUBTYPE]-NNN
+  LEVEL = L3
+  TARGET = [TM-XXX-NNN or HYP-XXX-NNN]
+  
+  CRITERION = [single criterion name]
+  
+  THRESHOLD = {
+    [param] = [value]
+    ...
+  }
+  
+  PROCEDURE = {
+    [Description du protocole de test]
+  }
+  
+  STATUS = WIP | EXECUTED
+  NOTES = [optional]
+}
+```
+
+**Exemple** :
+```
+\TEST{
+  ID = TEST-GAM-001
+  LEVEL = L3
+  TARGET = TM-GAM-001
+  
+  CRITERION = "trivial_convergence"
+  
+  THRESHOLD = {
+    convergence_tol = 1e-6
+    trivial_distance = 0.1
+    max_iterations = 10000
+  }
+  
+  PROCEDURE = {
+    1. Initialiser C_0 selon INPUT_SPACE
+    2. Itérer Γ jusqu'à convergence ou max_iterations
+    3. Calculer distance(C_final, I)
+    4. Si distance < trivial_distance → REJET
+  }
+  
+  STATUS = EXECUTED
+}
+```
+
+**Critères disponibles (liste évolutive)** :
+- `symmetry` : Préservation symétrie C = C^T
+- `bounds` : Respect bornes [-1, 1]
+- `positivity` : Semi-définie positive
+- `trivial_convergence` : Convergence vers I ou 0
+- `information_loss` : Annihilation corrélations
+- `explosion` : Croissance non bornée
+- `structural_diversity` : Richesse topologique
+- `c0_dependence` : Dépendance conditions initiales
+- `cycle_detection` : Oscillations périodiques
+- `fixed_point_nontrivial` : Point fixe structuré
+
+**Règle TEST** : Un test = un critère unique à extraire.
+
+---
+
+### 3.7 NIVEAU L4 - Entries documentaires
+
+#### 3.7.1 LOG (sortie brute)
+
+```
+\LOG{
+  ID = LOG-[SUBTYPE]-NNN
+  DATE = YYYY-MM-DD
+  TYPE = test_output
+  TARGET = [TM-XXX-NNN or TEST-XXX-NNN]
+  
+  RAW_OUTPUT = {
+    [Données numériques brutes du programme]
+  }
+  
+  NOTES = [optional]
+}
+```
+
+**Exemple** :
+```
+\LOG{
+  ID = LOG-GAM-001
+  DATE = 2024-12-21
+  TYPE = test_output
+  TARGET = TM-GAM-001
+  
+  RAW_OUTPUT = {
+    iterations_completed = 10000
+    final_mean_correlation = 0.0023
+    symmetry_error = 2.3e-7
+    convergence_distance_to_I = 0.01
+    eigenvalues_final = [1.0, 0.98, 0.02, ...]
+  }
+}
+```
+
+---
+
+#### 3.7.2 RESULT (analyse)
+
+```
+\RESULT{
+  ID = RES-[SUBTYPE]-NNN
+  DATE = YYYY-MM-DD
+  TYPE = analysis
+  ORIGIN = [LOG-XXX-NNN]
+  TARGET = [TM-XXX-NNN]
+  
+  SUMMARY = {
+    [Interprétation des résultats bruts]
+  }
+  
+  VERDICT = {
+    criterion = [nom du critère testé]
+    outcome = PASS | FAIL
+    reason = [explication courte]
+  }
+  
+  STATUS = REJECTED | SURVIVES 
+  
+  IMPLICATIONS = [optional, pour HYP parente]
+}
+```
+
+**Exemple** :
+```
+\RESULT{
+  ID = RES-GAM-001
+  DATE = 2024-12-21
+  TYPE = analysis
+  ORIGIN = LOG-GAM-001
+  TARGET = TM-GAM-001
+  
+  SUMMARY = {
+    PureDiffusion(α=0.02) converge vers identité en 200 itérations.
+    Toute structure initiale est homogénéisée.
+    Pas de pattern émergent détecté.
+  }
+  
+  VERDICT = {
+    criterion = "trivial_convergence"
+    outcome = FAIL
+    reason = "Distance à I = 0.01 < seuil 0.1"
+  }
+  
+  STATUS = REJECTED
+  
+  IMPLICATIONS = {
+    TM-GAM-001 invalide.
+    Si toute famille markovienne échoue → HYP-GAM-001 rejetée.
+  }
+}
+```
+
+---
+
+#### 3.7.3 JOURNAL (discussion)
+
+```
+\JOURNAL{
+  ID = JOUR-NNN
+  DATE = YYYY-MM-DD
+  TYPE = discussion
+  TOPIC = [description courte]
+  
+  CONTENT = {
+    [Discussion libre sur hypothèses, résultats, directions]
+  }
+  
+  RELATED_ENTRIES = [list of IDs]
+  
+  NOTES = [optional]
+}
+```
+
+**Exemple** :
+```
+\JOURNAL{
+  ID = JOUR-001
+  DATE = 2024-12-21
+  TYPE = discussion
+  TOPIC = "Échec systématique famille markovienne"
+  
+  CONTENT = {
+    Les 23 candidats markoviens testés montrent un pattern commun :
+    - Convergence rapide (<500 iterations)
+    - Perte totale de diversité structurale
+    - Attracteurs triviaux (I ou structures uniformes)
+    
+    Hypothèse émergente : Γ markovien pur ne peut maintenir
+    information dans le temps sans mécanisme de régulation
+    ou mémoire d'états antérieurs.
+    
+    Prochaine direction : Tester Γ non-markovien ordre 1.
+  }
+  
+  RELATED_ENTRIES = [
+    HYP-GAM-001,
+    RES-GAM-001, RES-GAM-002, ..., RES-GAM-023,
+    CON-GAM-001
+  ]
+}
+```
+
+---
+
+## SECTION 4 : Organisation fichiers
+
+### 4.1 Structure arborescence
+
+```
+prc_documentation/
+├── hypotheses/
+│   ├── gamma.txt       # Toutes HYP-GAM-xxx
+│   ├── D.txt           # Toutes HYP-D-xxx
+│   └── patterns.txt    # Toutes HYP-PAT-xxx
+│
+├── toy_models/
+│   ├── gamma.txt       # Tous TM-GAM-xxx
+│   ├── D.txt           # Tous TM-D-xxx
+│   └── patterns.txt    # Tous TM-PAT-xxx
+│
+├── tests/
+│   ├── gamma.txt       # Tous TEST-GAM-xxx
+│   └── patterns.txt    # Tous TEST-PAT-xxx
+│
+├── constraints/
+│   └── derived.txt     # Tous CON-xxx
+│
+└── logs/
+    └── log.db          # Tous LOG, RES, JOUR (chronologique)
+```
+
+### 4.2 Contenu log.db
+
+**Format** : Entrées chronologiques (pas de regroupement par type).
+
+**Exemple** :
+```
+# log.db (ordre chronologique)
+
+\LOG{...}           # LOG-GAM-001, 2024-12-20
+\RESULT{...}        # RES-GAM-001, 2024-12-20
+\JOURNAL{...}       # JOUR-001, 2024-12-21
+\LOG{...}           # LOG-GAM-002, 2024-12-21
+\RESULT{...}        # RES-GAM-002, 2024-12-21
+...
+```
+
+**Règle** : Tous les types L4 cohabitent dans log.db.
+
+---
+
+## SECTION 5 : Workflow opératoire
+
+### 5.1 Cycle standard
+
+```
+1. Formulation hypothèse (HYP-XXX)
+   ↓
+2. Création toy models (TM-XXX-001, TM-XXX-002, ...)
+   ↓
+3. Définition protocoles test (TEST-XXX-001, ...)
+   ↓
+4. Exécution programmes → génération LOG-XXX
+   ↓
+5. Discussion résultats (humain)
+   ↓
+6. Tu valides/rejettes → je génère RES-XXX
+   ↓
+7. Si pertinent → création JOUR-XXX
+   ↓
+8. Si tous candidats échouent → HYP STATUS = REJECTED
+   ↓
+9. Discussion contraintes → création CON-XXX (manuel)
+   ↓
+10. Formulation nouvelle hypothèse (HYP-XXX+1)
+```
+
+### 5.2 Workflow validation
+
+**Étape 1** : Tu exécutes programme, obtiens résultats bruts.
+
+**Étape 2** : Tu me donnes résultats + ta lecture.
+
+**Étape 3** : On discute (JOUR si pertinent).
+
+**Étape 4** : Tu dis "je valide [verdict]".
+
+**Étape 5** : Je génère entrée(s) appropriée(s) en format structuré.
+
+**Étape 6** : Tu valides le format ou demandes modifications.
+
+**Étape 7** : Commit dans fichiers appropriés.
+
+---
+
+## SECTION 6 : Règles de génération (pour moi)
+
+### 6.1 Quand tu dis "valide/rejette X"
+
+**Je génère** :
+1. **Toujours** : Une entrée RESULT avec VERDICT
+2. **Si pertinent** : Mise à jour STATUS de TM ou HYP
+3. **Jamais automatiquement** : CONSTRAINT ou nouvelle HYPOTHESIS
+
+### 6.2 Quand tu demandes "génère entrée Y"
+
+**Je propose** :
+- Format structuré conforme aux templates
+- Champs obligatoires remplis
+- Champs optionnels si pertinent
+- **Un seul** fichier à la fois (pas 6-7 d'un coup)
+
+**Tu valides** ou demandes ajustements.
+
+### 6.3 Données brutes vs reformatage
+
+**Toutes les données** sont sauvegardées (logs raw).
+
+**Mais** : Seules données pertinentes sont reformatées en RES/JOUR pour compilation thèse.
+
+**Critère pertinence** : Tu décides au cas par cas.
+
+---
+
+## SECTION 7 : Tags - Définitions opératoires
+
+### 7.1 STATUS
+
+- `WIP` : En cours, pas encore testé
+- `SURVIVES ` :  "Non éliminée par les tests actuels"
+- `REJECTED` : Infirmé par test ou déduction
+
+### 7.2 LEVEL
+
+- `L0` : Axiomes (A1, A2, A3)
+- `L1` : Définitions abstraites (D, Γ)
+- `L2` : Hypothèses testables + contraintes dérivées
+- `L3` : Toy models + tests (code)
+- `L4` : Logs + résultats + discussions
+
+### 7.3 CRITERION (tests)
+
+**Liste évolutive** mais exemples standards :
+- `symmetry` : ||C - C^T|| < tol
+- `trivial_convergence` : distance(C_final, I) < threshold
+- `explosion` : ||C|| → ∞
+- `structural_diversity` : richesse topologique (rang, spectre, clusters)
+- `c0_dependence` : variabilité selon conditions initiales
+
+**Un test = un critère**.
+
+### 7.4 EXPECTED_FAILURE_MODES
+
+**Rôle** : Points d'arrêt du programme (pas la peine de calculer 20000 itérations si tout s'annule).
+
+**Exemples** :
+- `trivial_convergence` : Si convergence vers I détectée → stop
+- `information_loss` : Si corrélations < 1e-6 → stop
+- `explosion` : Si ||C|| > 100 → stop
+
+### 7.5 DEPENDENCIES
+
+**Format liste structurée** :
+```
+DEPENDENCIES = {
+  axioms = [A1, A2, ...]
+  definitions = [DEF-GAMMA, DEF-D, ...]
+  rejected_hypotheses = [HYP-XXX, HYP-YYY, ...]
+}
+```
+
+**Sémantique** :
+- `axioms` : Axiomes présupposés
+- `definitions` : Définitions utilisées
+- `rejected_hypotheses` : Rejets qui motivent cette entrée
+
+---
+
+## SECTION 8 : Interdictions par niveau
+
+### L0 (axiomes)
+- ✅ Énoncés ontologiques purs
+- ❌ Toute modification
+
+### L1 (définitions)
+- ✅ Descriptions abstraites de D et Γ
+- ❌ Formes mathématiques concrètes
+- ❌ Toy models
+- ❌ Concepts physiques
+
+### L2 (hypothèses)
+- ✅ Énoncés testables sur D ou Γ
+- ❌ Code
+- ❌ Résultats numériques
+- ❌ Interprétations physiques
+
+### L3 (opératoire)
+- ✅ Toy models + tests + code
+- ❌ Interprétation comme "vraie" physique
+- ❌ Ajout de détails réalistes non justifiés
+- ❌ Validation par comparaison expérimentale
+
+### L4 (documentaire)
+- ✅ Logs, résultats, discussions
+- ❌ Génération automatique de contraintes
+- ❌ Inférence automatique hypothèses
+- ❌ Narrative téléologique
+
+---
+
+## SECTION 9 : Compilation future (pour thèse)
+
+### 9.1 Format extraction
+
+**Markdown standard** avec références :
+
+```markdown
+L'hypothèse HYP-GAM-001 (Γ markovien pur) a été testée 
+via 23 toy models (TM-GAM-001 à TM-GAM-023).
+
+Résultat : Rejet systématique pour convergence triviale 
+(voir RES-GAM-001 à RES-GAM-023).
+
+Contrainte émergente CON-GAM-001 : Γ ne peut être 
+markovien pur sans mécanisme de régulation.
+```
+
+### 9.2 Requêtes principales
+
+Focus sur :
+- `STATUS = REJECTED` : Comprendre ce qui ne marche PAS
+- `STATUS = SURVIVES` : Comprendre ce qui persiste
+- `CON-xxx` : Contraintes émergentes (réduction espace possibles)
+- `JOUR-xxx` : Discussions entre-cycles (raisonnement)
+
+---
+
+## SECTION 10 : Méta-règle finale
+
+**Si une information n'a pas de tag approprié dans ces templates** :
+- ❌ Ne pas la forcer dans un tag inadapté
+- ✅ La discuter d'abord
+- ✅ Créer nouveau tag si nécessaire (discussion préalable)
+
+**Si doute sur niveau** :
+- Pose-moi la question avant de générer l'entrée
+
+**Si conflit entre templates** :
+- Ce document opérationnel prime sur charte 4.0 abstraite
+
+---
+
+## FIN CHARTE 4.0 OPÉRATIONNELLE
+
+**Ce document contient tout ce dont j'ai besoin pour :**
+1. Comprendre où placer chaque information
+2. Générer entrées conformes quand tu valides/rejettes
+3. Respecter séparation niveaux stricte
+4. Éviter notions parasites
