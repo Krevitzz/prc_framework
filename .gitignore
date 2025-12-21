@@ -7,3 +7,16 @@ tests/.ipynb_checkpoints/test_gamma_protocol-checkpoint.py
 /tests/.ipynb_checkpoints
 /tests/.ipynb_checkpoints
 tests/.ipynb_checkpoints/test_gamma_protocol-checkpoint.py
+core/__pycache__/__init__.cpython-313.pyc
+core/__pycache__/evolution_operator.cpython-313.pyc
+core/__pycache__/information_space.cpython-313.pyc
+core/__pycache__/kernel.cpython-313.pyc
+core/__pycache__/serialization.cpython-313.pyc
+operators/__pycache__/__init__.cpython-313.pyc
+operators/__pycache__/diffusion.cpython-313.pyc
+operators/__pycache__/gamma_hyp_001.cpython-313.pyc
+operators/__pycache__/hebbian.cpython-313.pyc
+operators/__pycache__/mixed.cpython-313.pyc
+operators/__pycache__/nonlinear.cpython-313.pyc
+operators/__pycache__/stochastic.cpython-313.pyc
+tests/__pycache__/test_gamma_protocol.cpython-313.pyc

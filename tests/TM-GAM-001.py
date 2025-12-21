@@ -543,7 +543,7 @@ if __name__ == "__main__":
         log_path = project_root / "prc_documentation" / "logs" / "log.db"
         log_path.parent.mkdir(parents=True, exist_ok=True)
         
-        with open(log_path, "a") as f:
+        with open(log_path, "a", encoding="utf-8") as f:
             f.write(log_entry)
         
         print(f"\n✅ LOG-GAM-001 sauvegardé dans {log_path}")
