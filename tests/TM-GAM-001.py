@@ -551,7 +551,7 @@ if __name__ == "__main__":
     # Code de sortie
     sys.exit(0 if results.global_status != ValidationStatus.FAIL_BLOCKING else 1)
 ```
-
+"""
 **Caractéristiques de l'approche hybride** :
 
 ✅ **Réutilisation propre** :
@@ -573,3 +573,4 @@ Tests L1 (invariants)
 Tests L2 (dynamique)
 ├─ Hérité : convergence
 └─ Nouveaux : diversity, beta_sensitivity ✨
+"""
