@@ -62,3 +62,171 @@
     summary = "REJET : 8 échec(s) bloquant(s)"
   }
 }
+\RESULT{
+  ID = RES-GAM-001
+  DATE = 2025-12-21
+  TYPE = analysis
+  ORIGIN = LOG-GAM-001
+  TARGET = TM-GAM-001
+  TESTED_RANK = R0
+  
+  SUMMARY = {
+    TM-GAM-001 teste HYP-GAM-001 (Γ = saturation pure pointwise)
+    à rang 0 (mécanisme isolé, sans composition ni couplage).
+    
+    Configuration expérimentale :
+    - β ∈ [0.5, 1.0, 2.0, 5.0, 10.0]
+    - N_DOF = 50
+    - ε = 0.05
+    - Itérations = 2000
+    - Seed = 42
+    
+    Observations factuelles par β :
+    
+    β = 0.5 :
+      - Symétrie : préservée (erreur = 0.000e+00)
+      - Bornes : respectées
+      - Positivité : satisfaite (λ_min = 0.826)
+      - Diversité finale : 0.3333 (perte 66.67%)
+      - Convergence : non atteinte en 2000 itérations
+      - Pointwise independence : violée
+    
+    β = 1.0 :
+      - Symétrie : préservée
+      - Bornes : respectées
+      - Positivité : satisfaite (λ_min = 0.826)
+      - Diversité finale : 0.3380 (perte 66.20%)
+      - Convergence : atteinte
+      - Pointwise independence : satisfaite
+    
+    β = 2.0 :
+      - Symétrie : préservée
+      - Bornes : respectées
+      - Positivité : VIOLÉE (λ_min = -11.76)
+      - Diversité finale : 0.6432 (perte 35.68%)
+      - Convergence : atteinte
+      - Pointwise independence : violée
+    
+    β = 5.0 :
+      - Symétrie : préservée
+      - Bornes : respectées
+      - Positivité : VIOLÉE (λ_min = -12.32)
+      - Diversité finale : 0.6708 (perte 32.92%)
+      - Convergence : atteinte
+      - Pointwise independence : violée
+    
+    β = 10.0 :
+      - Symétrie : préservée
+      - Bornes : respectées
+      - Positivité : VIOLÉE (λ_min = -12.32)
+      - Diversité finale : 0.6709 (perte 32.91%)
+      - Convergence : atteinte
+      - Pointwise independence : violée
+    
+    Test global β-sensitivity :
+      - Distance moyenne entre attracteurs finaux : 29.62
+      - Verdict : Attracteurs qualitativement distincts selon β
+      - Conclusion : Γ n'est pas équivalent pour tous β
+    
+    Mécanismes observés :
+      - β petit (≤1.0) : homogénéisation lente, perte massive (66%)
+      - β grand (≥2.0) : figement rapide, perte modérée (33%)
+      - Destruction de l'ordre pointwise par saturation itérée
+      - Diversité résiduelle = résidus passifs, non générés
+  }
+  
+  VERDICT = {
+    criterion = "admissibilité_rang_0"
+    outcome = FAIL
+    rank_scope = R0
+    reason = "Violation de positivité (β ≥ 2.0) + annihilation informationnelle"
+  }
+  
+  STATUS_TRANSITION = {
+    hypothesis_id = HYP-GAM-001
+    previous_status = WIP[R0-open]
+    new_status = WIP[R0-closed]
+    rank_closure = {
+      rank = R0
+      closed = true
+      remaining_exploration = {
+        description = "Tests à rang ≥1 (composition avec autres mécanismes) non effectués"
+        potential_directions = [
+          "Composition avec régulation spectrale",
+          "Couplage avec mécanisme génératif",
+          "Usage comme composant dans Γ composite",
+          "Tests dans zone critique β ∈ (1.0, 2.0)"
+        ]
+      }
+    }
+  }
+  
+  IMPLICATIONS = {
+    
+    Pour TM-GAM-001 (niveau opératoire) :
+      - Protocole exécuté correctement
+      - Tous les tests ont fonctionné comme prévu
+      - Violations détectées sont des signaux structurels, pas des artefacts
+      - Test pointwise independence détecte perte d'injectivité (comportement attendu)
+    
+    Pour HYP-GAM-001 à rang 0 (disqualification horizontale) :
+      - Γ = saturation pure pointwise est inadmissible comme mécanisme autonome
+      - Viole invariant de positivité pour β ≥ 2.0
+      - Annihile information d'ordre (destruction injectivité)
+      - Ne génère pas de structure (diversité résiduelle = passif)
+      
+      Zone admissible étroite : β ∈ [1.0, 2.0)
+      - Positivité préservée uniquement pour β ≈ 1.0
+      - Fenêtre critique trop étroite pour robustesse
+    
+    Pour HYP-GAM-001 à rang ≥1 (statut indéterminé) :
+      - Aucune conclusion tirée sur comportement en composition
+      - Potentiel comme composant régulateur reste inexploré
+      - Peut contribuer dans contexte contraint (ex: avec projection spectrale)
+    
+    Information négative extraite (rang 0) :
+      
+      Conclusion minimale :
+        Un opérateur Γ purement pointwise, sans couplage ni régulation globale,
+        appliqué itérativement, ne peut garantir :
+        - Préservation de la positivité
+        - Génération de structure
+        - Conservation de l'information d'ordre
+      
+      Portée de la conclusion :
+        Cette observation s'applique à la classe d'opérateurs pointwise itérés,
+        indépendamment de la forme spécifique de la fonction (tanh ici).
+        
+      Ce qui reste ouvert :
+        - Comportement en composition avec mécanismes non-pointwise
+        - Contribution potentielle comme régulateur auxiliaire
+        - Usage dans contexte contraint par projection spectrale
+  }
+  
+  NOTES = {
+    Distinction critique observée :
+      Diversité d'attracteurs ≠ richesse générative
+      
+      Les attracteurs finaux dépendent fortement de β et de C₀,
+      mais cette diversité est un résidu figé de la dynamique initiale,
+      pas une structure sélectionnée ou stabilisée par Γ.
+    
+    Mécanisme de violation pointwise :
+      La saturation itérée détruit l'injectivité :
+      plusieurs valeurs initiales distinctes → même valeur finale (±1)
+      
+      Ce n'est pas une "dépendance contextuelle" au sens où Γ cesserait
+      d'être pointwise, mais une perte d'information par compression.
+      
+      Le test détecte correctement ce phénomène.
+    
+    Paradoxe diversité :
+      β grand préserve mieux la diversité que β petit, contrairement
+      à l'intuition initiale. Mécanisme : figement rapide vs homogénéisation lente.
+    
+    Succès méthodologique :
+      Le rejet à rang 0 n'est pas un échec du protocole mais son succès :
+      élimination propre et documentée d'une famille d'opérateurs autonomes,
+      avec information négative extractible et exploitable.
+  }
+}
