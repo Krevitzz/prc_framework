@@ -1,0 +1,43 @@
+\CONSTRAINT{
+  ID = CON-GAM-001
+  LEVEL = L2
+  DERIVED_FROM = [HYP-GAM-001]
+  DEPENDENCIES = {
+    axioms = [A2, A3]
+    definitions = [DEF-GAMMA]
+    rejected_hypotheses = [HYP-GAM-001[R0]]
+  }
+  STATEMENT = {
+    Un opérateur Γ purement pointwise, sans couplage inter-éléments
+    ni régulation globale, ne peut constituer un mécanisme Γ autonome
+    admissible au sens PRC.
+    
+    Raisons factuelles :
+    1. Ne peut garantir la positivité de C sous itération
+    2. Annihile l'information d'ordre (perte d'injectivité)
+    3. Ne génère aucune structure (diversité = résidu passif)
+    4. Fenêtre d'admissibilité paramérique trop étroite
+  }
+  SCOPE = {
+    family = "Γ_pointwise_pur"
+    estimated_elimination = "Première contrainte, pas d'estimation globale"
+    rank_application = "R0 (mécanismes autonomes)"
+  }
+  STATUS = VALIDATED
+  NOTES = {
+    Cette contrainte ne s'applique qu'à rang 0 (isolation).
+    
+    Elle n'exclut PAS l'usage de transformations pointwise
+    comme composants dans Γ composite (rang ≥1).
+    
+    Exemples de directions restant ouvertes :
+    - Saturation + régulation spectrale
+    - Saturation + mécanisme génératif
+    - Saturation comme brique dans Γ composite
+    
+    Information positive :
+    La classe d'opérateurs pointwise purs est maintenant
+    documentée et caractérisée. Cette élimination réduit
+    l'espace des possibles de manière informative.
+  }
+}
