@@ -32,3 +32,49 @@
     - Statut à rang ≥1 : indéterminé
   }
 }
+\HYPOTHESIS{
+  ID = HYP-GAM-002
+  LEVEL = L2
+  EXPLORATION_RANK = R0
+  DEPENDENCIES = {
+    axioms = [A2, A3]
+    definitions = [DEF-GAMMA]
+    rejected_hypotheses = []
+  }
+  STATEMENT = {
+    Γ peut être défini comme un opérateur de diffusion pure
+    agissant directement sur C :
+    
+    C_{t+1} = C_t + α·(C_t² - n·C_t)
+    
+    où :
+    - C² = C_t @ C_t représente l'influence via chemins transitifs
+    - n = nombre de DOF (normalisation)
+    - α = taux de diffusion (contrôle vitesse de propagation)
+    
+    Cette forme propage les corrélations via transitivité mathématique
+    sans mécanisme de renforcement ni régulation.
+  }
+  STATUS = WIP[R0-open]
+  NOTES = {
+    - Paradigme fondamental : équation de diffusion
+    - Mécanisme orthogonal à saturation (propagation vs bornage)
+    - Pas de renforcement directionnel (contrairement à Hebbian)
+    - Compatible A3 : ne cherche pas à annuler D, propage l'information
+    
+    Différence avec HYP-GAM-001 :
+    - GAM-001 : opérateur pointwise (borne localement)
+    - GAM-002 : opérateur couplé (propage globalement)
+    
+    Modes d'échec attendus :
+    - Homogénéisation (toutes corrélations → valeur uniforme)
+    - Perte d'information par moyennage
+    - Possible explosion si α mal calibré
+    - Convergence vers attracteur trivial (corrélations uniformes)
+    
+    Questions à résoudre :
+    - La propagation pure peut-elle maintenir structure ?
+    - α critique : existe-t-il une fenêtre d'admissibilité ?
+    - Diversité finale : générée ou résidu passif ?
+  }
+}
