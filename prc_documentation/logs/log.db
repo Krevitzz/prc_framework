@@ -273,3 +273,77 @@
     CON-GAM-001
   ]
 }
+
+\LOG{
+  ID = LOG-GAM-002
+  DATE = 2025-12-22
+  TYPE = test_output
+  TARGET = TM-GAM-002
+  
+  RAW_OUTPUT = {
+    alpha_values = [0.005, 0.01, 0.02, 0.05, 0.1]
+    iterations = 2000
+    
+    # Tests par α
+
+    alpha_0.005 = {
+      symmetry_error = 0.000e+00
+      bounds_violation = 0.000
+      min_eigenvalue = 8.260e-01
+      transitive_coupling = 0.0000
+      diversity_final = 0.4103
+      diversity_loss = 58.97%
+      homogeneity_std = 0.0000
+    }
+
+    alpha_0.01 = {
+      symmetry_error = 0.000e+00
+      bounds_violation = 0.000
+      min_eigenvalue = 8.260e-01
+      transitive_coupling = 0.0000
+      diversity_final = 0.4103
+      diversity_loss = 58.97%
+      homogeneity_std = 0.0000
+    }
+
+    alpha_0.02 = {
+      symmetry_error = 0.000e+00
+      bounds_violation = 0.000
+      min_eigenvalue = 8.260e-01
+      transitive_coupling = 0.0000
+      diversity_final = 0.3333
+      diversity_loss = 66.67%
+      homogeneity_std = 0.0000
+    }
+
+    alpha_0.05 = {
+      symmetry_error = 0.000e+00
+      bounds_violation = 0.000
+      min_eigenvalue = -1.103e+01
+      transitive_coupling = 0.0000
+      diversity_final = 0.6855
+      diversity_loss = 31.45%
+      homogeneity_std = 0.9847
+    }
+
+    alpha_0.1 = {
+      symmetry_error = 0.000e+00
+      bounds_violation = 0.000
+      min_eigenvalue = -1.259e+01
+      transitive_coupling = 0.0000
+      diversity_final = 0.6732
+      diversity_loss = 32.68%
+      homogeneity_std = 0.9991
+    }
+
+    # Test global
+    alpha_sensitivity = {
+      mean_distance = 31.1734
+      status = "⭐ EXCELLENT"
+    }
+    
+    # Verdict
+    global_status = "❌ REJET IMMÉDIAT"
+    summary = "REJET : 8 échec(s) bloquant(s)"
+  }
+}
