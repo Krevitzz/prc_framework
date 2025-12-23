@@ -28,7 +28,7 @@ from core.state_preparation import prepare_state
 from core.kernel import run_kernel
 
 # Encodage D^(base)
-from encodings.rank2_symmetric import create_identity
+from D-encodings.rank2_symmetric import create_identity
 
 # Modificateurs D^(bruit)
 from modifiers.noise import add_gaussian_noise
