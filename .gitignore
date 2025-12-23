@@ -22,3 +22,6 @@ operators/__pycache__/stochastic.cpython-313.pyc
 tests/__pycache__/test_gamma_protocol.cpython-313.pyc
 operators/__pycache__/gamma_hyp_002.cpython-313.pyc
 core/.ipynb_checkpoints/kernel-checkpoint.py
+core/.ipynb_checkpoints/evolution_operator-checkpoint.py
+D-encodings/.ipynb_checkpoints/__init__-checkpoint.py
+D-encodings/.ipynb_checkpoints/rank2_symmetric-checkpoint.py

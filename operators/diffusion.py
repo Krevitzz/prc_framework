@@ -26,9 +26,6 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core import EvolutionOperator, ConstrainedOperator, enforce_correlation_invariants
-
-
 class PureDiffusionOperator(ConstrainedOperator):
     """
     Diffusion pure sur la matrice de corrélation.
