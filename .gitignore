@@ -34,3 +34,4 @@ D_encodings/__pycache__/verification_tests.cpython-313.pyc
 D_encodings/__pycache__/rank2_asymmetric.cpython-313.pyc
 D_encodings/__pycache__/exemples.cpython-313.pyc
 D_encodings/__pycache__/example_usage.cpython-313.pyc
+*.pyc
