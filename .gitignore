@@ -25,3 +25,10 @@ core/.ipynb_checkpoints/kernel-checkpoint.py
 core/.ipynb_checkpoints/evolution_operator-checkpoint.py
 D-encodings/.ipynb_checkpoints/__init__-checkpoint.py
 D-encodings/.ipynb_checkpoints/rank2_symmetric-checkpoint.py
+D_encodings/.ipynb_checkpoints/__init__-checkpoint.py
+D_encodings/.ipynb_checkpoints/rank2_symmetric-checkpoint.py
+D_encodings/__pycache__/__init__.cpython-313.pyc
+D_encodings/__pycache__/rank2_symmetric.cpython-313.pyc
+D_encodings/__pycache__/rank3_correlations.cpython-313.pyc
+D_encodings/__pycache__/verification_tests.cpython-313.pyc
+D_encodings/__pycache__/rank2_asymmetric.cpython-313.pyc
