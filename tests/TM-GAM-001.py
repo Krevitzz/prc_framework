@@ -155,8 +155,14 @@ def execute_single_run(beta, d_base_id, d_base_generator, d_base_params,
     
     try:
         # 1. Générer D^(base)
-        params_with_seed = {**d_base_params, 'seed': seed}
-        D_base = d_base_generator(**params_with_seed)
+        # Essayer d'abord avec seed, puis sans si ça échoue
+        try:
+            params_with_seed = {**d_base_params, 'seed': seed}
+            D_base = d_base_generator(**params_with_seed)
+        except TypeError:
+            # Le générateur ne prend pas de seed (ex: create_identity)
+            D_base = d_base_generator(**d_base_params)
+        
         print(f"✓ D^(base) généré: {d_base_id}, shape={D_base.shape}")
         
         # 2. Appliquer modifiers
