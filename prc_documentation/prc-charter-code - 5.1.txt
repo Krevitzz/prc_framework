@@ -1,0 +1,1688 @@
+# CHARTE PRC 5.1 - ARCHITECTURE DÉFINITIVE
+
+```
+\DOCUMENT{
+  ID = PRC-CHARTER-CODE
+  VERSION = 5.1-DEFINITIVE
+  STATUS = normative
+  DATE = 2025-12-22
+  PURPOSE = "Référence pour architecture PRC après refactoring complet"
+}
+```
+
+## SECTION 0 : axiomes du PRC
+### A1: Il existe une dissymétrie informationnelle primitive,
+notée D, irréductible à toute cause plus fondamentale accessible.
+
+### A2: Il existe un mécanisme d'interaction locale,
+noté Γ, qui agit sur D.
+
+### A3: Aucune transformation globale et stable Γ
+ne peut annuler D de manière complète.
+```
+
+
+## SECTION 1 : Hiérarchie des niveaux (INCHANGÉE)
+
+```
+\LEVELS{
+  L0 = ontological      # Axiomes immutables (A1, A2, A3)
+  L1 = epistemic        # Définitions abstraites (D, Γ)
+  L2 = theoretical      # Hypothèses testables
+  L3 = operative        # Toy models, tests, programmes
+  L4 = documentary      # Logs, résultats, analyses
+}
+```
+
+**Règle stricte** : Un élément L(n) ne peut référencer que L(n-1) ou inférieur.
+
+---
+
+## SECTION 2 : Architecture du core 
+
+### 2.1 Principe absolu
+
+**Le core PRC = 2 fonctions aveugles (et seulement 2)**
+
+Le core est un moteur d'exécution universel sans aucune logique conditionnelle sur le contenu des données qu'il manipule.
+
+### 2.2 Règles contractuelles du core
+
+#### RÈGLE K1 — Aveuglement total
+
+Le core :
+- ne connaît ni la forme de D
+- ni sa dimension
+- ni son rang
+- ni ses symétries
+- ni son interprétation
+
+Il manipule des objets opaques (np.ndarray).
+
+#### RÈGLE K2 — Procédure unique et invariante
+
+Le core applique toujours la même procédure :
+```
+load → apply → record → repeat
+```
+sans branchement dépendant de D ou Γ.
+
+#### RÈGLE K3 — Zéro validation sémantique
+
+Le core ne valide AUCUNE propriété du contenu :
+- pas de symétrie
+- pas de normalisation
+- pas de bornes
+- pas de conservation
+
+Toute validation est dans les TM, jamais dans le core
+
+#### RÈGLE K4 — Neutralité structurelle absolue
+
+Le core accepte tout ce que Γ accepte.
+
+Il n'impose :
+- ni forme
+- ni invariants
+- ni projections
+
+#### RÈGLE K5 — Séparation stricte exécution / interprétation
+
+Le core ne produit pas des résultats, il produit des données.
+
+Les résultats n'apparaissent que dans les TM via des pipelines d'analyse séparés.
+
+Les TM n’imposent aucune propriété à Γ ou D; ils évaluent empiriquement si l’application répétée de Γ conduit à une dégénérescence 
+structurelle (trivialité, effondrement de diversité, disparition systématique de symétries pré-existantes) ou à 
+l’émergence de régularités non triviales.
+
+### 2.3 Les 2 fonctions du core
+
+#### Fonction 1 : prepare_state
+
+**Signature** :
+```python
+def prepare_state(base: np.ndarray,
+                  modifiers: Optional[List[Callable]] = None) -> np.ndarray
+```
+
+**Responsabilité** :
+Composer un état D à partir d'une base et de modificateurs.
+
+**Aveuglement** :
+- Ne connaît ni la dimension de `base`
+- Ne connaît ni le contenu des `modifiers`
+- Ne connaît ni leur interprétation
+
+**Opération** :
+Application séquentielle aveugle : `state = modifier_n(...modifier_2(modifier_1(base)))`
+
+---
+
+#### Fonction 2 : run_kernel
+
+**Signature** :
+```python
+def run_kernel(initial_state: np.ndarray,
+               gamma: Callable[[np.ndarray], np.ndarray],
+               max_iterations: int = 10000,
+               convergence_check: Optional[Callable] = None,
+               record_history: bool = False) -> Generator
+```
+
+**Responsabilité** :
+Appliquer itérativement `state_{n+1} = gamma(state_n)`.
+
+**Aveuglement** :
+- Ne connaît ni `gamma` (juste l'applique)
+- Ne connaît ni `state` (juste le propage)
+- Ne connaît ni leur dimension, structure, ou interprétation
+
+**Opération** :
+Génération d'états successifs avec contrôle d'arrêt externe (TM).
+
+**Retour** :
+```python
+if record_history:
+    yield (iteration, state, history)
+else:
+    yield (iteration, state)
+```
+
+### 2.4 Ce qui N'est PAS dans le core
+
+❌ Validation de symétrie  
+❌ Validation de bornes  
+❌ Validation de positivité  
+❌ Enforcement de contraintes  
+❌ Classes d'état (State, etc.)  
+❌ Classes d'opérateurs (PureSaturation, etc.)  
+❌ Utilitaires de création (identity, uniform, etc.)  
+❌ Sérialisation  
+❌ Analyse  
+❌ Visualisation  
+
+**Tout cela va dans des modules séparés.**
+
+Section 2.5 "Localisation de la validation"
+```
+\VALIDATION_RULES{
+  core = none                  # Aucune validation
+  encodings = creation_only    # Validation à la création, pas après
+  modifiers = passthrough      # Aucune validation
+  operators = passthrough      # Aucune validation
+  tests = observation_only     # Détecte mais ne corrige jamais
+}
+
+---
+
+## SECTION 3 : Architecture des modules
+
+### 3.1 Structure arborescence
+
+```
+prc_framework/
+├── core/
+│   ├── __init__.py
+│   ├── state_preparation.py    # prepare_state()
+│   └── kernel.py                # run_kernel()
+│
+├── operators/
+│   ├── __init__.py
+│   └── gamma_hyp_XXX.py         # Définitions Γ
+│
+├── D_encodings/
+│   ├── __init__.py
+│   ├── rank2_symmetric.py       # Créateurs D^(base) symétriques
+│   ├── rank2_asymmetric.py      # Créateurs D^(base) asymétriques
+│   └── rank3_correlations.py    # Créateurs D^(base) rang 3
+│
+├── modifiers/
+│   ├── __init__.py
+│   ├── noise.py                 # D^(bruit)
+│   ├── constraints/             # D^(topo_x) - chargement d'une topologie pré-définie ou d'une contrainte agissant sur la topo de base
+│   └── plugins/                 # D^(plugin) - chargement d'un un plusieurs D^(topo_x) fixes
+│   └── domains/                 # D^(domain) - chargement d'un un plusieurs D^(plugin) fixes
+│
+├── tests/
+│   ├── utilities/               # Tests modulaires réutilisables
+│   │   ├── test_symmetry.py
+│   │   ├── test_bounds.py
+│   │   ├── test_diversity.py
+│   │   └── test_convergence.py
+│   │
+│   └── TM-GAM-XXX.py            # Toy models
+│
+└── prc_documentation/
+    ├── hypotheses/
+    │   └── gamma.txt
+    ├── constraints/
+    │   └── derived.txt
+    └── logs/
+        └── log.db
+```
+\ARBORESCENCE_STATUS{
+  mandatory = true
+  any_deviation = invalid_framework
+}
+
+### 3.2 Responsabilités par module
+
+| Module | Responsabilité | Présuppositions |
+|--------|---------------|-----------------|
+| `core/` | Exécution aveugle | Aucune |
+| `operators/` | Définitions Γ | Γ-spécifiques |
+| `encodings/` | Créateurs D^(base) | D-spécifiques (explicites) |
+| `modifiers/` | Transformations D | Modifier-spécifiques |
+| `tests/utilities/` | Tests réutilisables | Test-spécifiques |
+| `tests/TM-*.py` | Orchestration | TM-spécifiques |
+
+---
+
+## SECTION 4 : Nomenclature des états D 
+
+### 4.1 Types de D
+
+Le framework distingue plusieurs types d'états D, tous représentés comme `np.ndarray` mais avec des origines différentes.
+
+#### D^(base)
+
+**Définition** : Champ des possibles maximal pour un test donné.
+
+**Exemples** :
+- D^(base) symétrique rang 2 : matrice NxN symétrique
+- D^(base) asymétrique rang 2 : matrice NxN asymétrique
+- D^(base) rang 3 : tenseur NxNxN
+
+**Localisation** : Défini dans `D_encodings/`
+
+**Usage** :
+```python
+from encodings.rank2_symmetric import create_identity
+D_base = create_identity(n_dof=50)
+```
+
+---
+
+#### D^(bruit)
+
+**Définition** : Variations aléatoires appliquées sur D^(base).
+
+**But** : Tester la robustesse/stabilité des patterns émergents.
+
+**Exemples** :
+- Bruit Gaussien : `add_gaussian_noise(sigma=0.05)`
+- Bruit uniforme : `add_uniform_noise(amplitude=0.01)`
+
+**Localisation** : Défini dans `modifiers/noise.py`
+
+**Usage** :
+```python
+from modifiers.noise import add_gaussian_noise
+D_final = prepare_state(D_base, [add_gaussian_noise(sigma=0.05)])
+```
+
+---
+
+#### D^(topo_x)
+
+**Définition** : Contraintes expérimentales restreignant les DOF, patterns pré-identifiés injectés dans D^(base)
+
+**But** : Simuler l'effet de contraintes physiqu.
+
+**Exemples (placeholders)** :
+- Double fente : réduction corrélations trans-barrière
+- Périodicité : contrainte topologique
+
+**Localisation** : Défini dans `modifiers/constraints.py`
+
+**Note** : Toute la rétro-ingénierie réalité → information reste à faire.
+
+---
+
+#### D^(plugin)
+
+**Définition** : un ou plusieurs pattern identifiés comme étant ascociés à unr observable (lois, objet, etc).
+
+**But** : Tester la persistance de patterns connus.
+
+**Exemples ** :
+- Plugin gravitation
+- Plugin inertie
+- Plugin champ électromagnétique
+
+**Localisation** : `modifiers/plugins/`
+
+**Note** : Nécessite d'abord identification de Γ viables et outils de reconnaissance de patterns.
+
+---
+
+#### D^(domaine)
+
+**Définition** : Compilation pré-remplie de plusieurs plugins.
+
+**Exemples ** :
+- D^(mécanique classique) = gravitation + inertie + ...
+- D^(électromagnétisme) = charge + champ + ...
+
+**Localisation** : `modifiers/domains/`
+
+---
+
+### 4.2 Composition de D dans un TM
+
+**Principe** : Appel séquentiel de `prepare_state()` avec liste de modifiers.
+
+**Exemple** :
+```python
+from core.state_preparation import prepare_state
+from encodings.rank2_symmetric import create_identity
+from modifiers.noise import add_gaussian_noise
+
+D_base = create_identity(50)
+D_final = prepare_state(D_base, [
+    add_gaussian_noise(sigma=0.05),      # D^(bruit)
+])
+```
+
+**Note** : Le core (`prepare_state`) ne connaît rien des modifiers, il les applique aveuglément.
+
+---
+
+## SECTION 5 : Conventions d'identification 
+
+### 5.1 Structure ID
+
+**Format** : `TYPE-SUBTYPE-NNN`
+
+**Types principaux** :
+- `HYP` = Hypothesis (L2)
+- `TM` = Toy Model (L3)
+- `TEST` = Test Protocol (L3) 
+- `LOG` = Log Entry (L4)
+- `RES` = Result Entry (L4)
+- `JOUR` = Journal Entry (L4)
+- `CON` = Constraint (L2, dérivée)
+
+**Sous-types standards** :
+- `GAM` = relatif à Γ
+- `D` = relatif à D
+- `PAT` = relatif aux patterns
+
+### 5.2 Valeurs STATUS
+
+```
+\STATUS_VALUES{
+  WIP = "Work In Progress"
+    - WIP[R0-open] : Exploration rang 0 en cours
+    - WIP[R0-closed] : Rang 0 terminé, rang ≥1 non testé
+    - WIP[Rn-open] : Exploration rang n en cours
+  
+  SURVIVES = "Non éliminée par les tests actuels"
+    - SURVIVES[R0] : Persiste à rang 0
+    - SURVIVES[Rn] : Persiste à rang n
+  
+  REJECTED = "Hypothèse réfutée ou test échoué"
+    - REJECTED[R0] : Éliminée comme mécanisme autonome
+    - REJECTED[Rn] : Éliminée à rang n
+    - REJECTED[GLOBAL] : Éliminée définitivement tous rangs
+}
+```
+
+*note* une hypothèse de rang 1 peut contenir une plusieurs hypthèse de type WIP[R0-open].
+
+---
+
+## SECTION 6 : Templates par niveau 
+
+### 6.0 NIVEAU L0 - Axiomes (immutable)
+
+**Contenu** :
+- A1: Il existe une dissymétrie informationnelle primitive, notée D, irréductible à toute cause plus fondamentale accessible.
+- A2: Il existe un mécanisme d'interaction locale, noté Γ, qui agit sur D.
+- A3: Aucune transformation globale et stable Γ ne peut annuler D de manière complète. Cet axiome est plus un filtre épistémique d'un interdit mathématique, les Gamma qui annulent complètement D sont non pertinents expérimentalement.
+
+**Pas de template** : Ces axiomes ne sont jamais modifiés.
+
+### 6.1 NIVEAU L1 - Définitions épistémiques
+
+```
+\DEFINITION{
+  ID = DEF-[NAME]
+  LEVEL = L1
+  DEPENDENCIES = {
+    axioms = [list]
+  }
+  STATEMENT = {
+    [Description abstraite de l'entité définie]
+  }
+  NOTES = [optional clarifications]
+}
+```
+
+**Exemple** :
+```
+\DEFINITION{
+  ID = DEF-GAMMA
+  LEVEL = L1
+  DEPENDENCIES = {
+    axioms = [A2]
+  }
+  STATEMENT = {
+    Γ est un opérateur de compensation locale agissant sur D.
+    Γ transforme une configuration informationnelle C_t en C_{t+1}.
+  }
+  NOTES = {
+    - Γ n'optimise rien, n'a aucun but.
+    - Γ peut posséder une mémoire finie d'états antérieurs (non-markovien).
+    - Γ peut être contraint (localité, efficacité limitée).
+  }
+}
+```
+
+**Interdictions L1** :
+- ❌ Aucune forme mathématique concrète (→ L2)
+- ❌ Aucun toy model (→ L3)
+- ❌ Aucune interprétation physique
+
+---
+
+### 6.2 NIVEAU L2 - Hypothèses théoriques
+
+```
+\HYPOTHESIS{
+  ID = HYP-[SUBTYPE]-NNN
+  LEVEL = L2
+  EXPLORATION_RANK = R0 | R1 | R2 | ...
+  
+  DEPENDENCIES = {
+    axioms = [list or empty]
+    definitions = [list or empty]
+    rejected_hypotheses = [list or empty]
+    parent_hypotheses = [list or empty]
+  }
+  
+  STATEMENT = {
+    [Description de l'hypothèse]
+  }
+  
+  D_SPECIFICATION = {
+    type = "base_symmetric" | "base_asymmetric" | "base_rankN" | ...
+    modifiers = ["noise", "constraints", "plugins"] or empty
+    description = [texte explicite]
+  }
+  
+  GAMMA_SPECIFICATION = {
+    type = "pointwise" | "coupled" | "stochastic" | "composite" | ...
+    form = [expression mathématique si applicable]
+    description = [texte explicite]
+  }
+  
+  STATUS = [ÉTAT][RANG]
+  NOTES = [optional]
+}
+```
+
+**Exemple** :
+```
+
+\HYPOTHESIS{
+  ID = HYP-GAM-001
+  LEVEL = L2
+  EXPLORATION_RANK = R0
+  
+  DEPENDENCIES = {
+    axioms = [A2, A3]
+    definitions = [DEF-GAMMA]
+  }
+  
+  STATEMENT = {
+    Évaluation d'une transformation de saturation pure
+    appliquée élément par élément sur un tenseur d'état.
+  }
+  
+  D_SPECIFICATION = {
+    type = "base_symmetric_rank2"
+    modifiers = ["gaussian_noise"]
+    description = "Matrice NxN symétrique, diagonale=1, bornes[-1,1], 
+                   avec bruit Gaussien σ=0.05 pour tester robustesse"
+  }
+  
+  GAMMA_SPECIFICATION = {
+    type = "pointwise_nonlinear"
+    form = "T_{n+1}[i,j] = tanh(β · T_n[i,j])"
+    description = "Saturation pure sans couplage inter-éléments"
+  }
+  
+  STATUS = WIP[R0-closed]
+}
+
+**Exemple avec placeholder** :
+```
+\HYPOTHESIS{
+  ID = HYP-D-005
+  LEVEL = L2
+  EXPLORATION_RANK = R0
+  
+  DEPENDENCIES = {
+    axioms = [A1]
+    definitions = [DEF-D]
+  }
+  
+  STATEMENT = {
+    Test de l'effet d'une contrainte topologique 
+    de type "double-fente" sur la préservation de patterns.
+  }
+  
+  D_SPECIFICATION = {
+    type = "base_symmetric_rank2"
+    modifiers = ["gaussian_noise", "topo_double_slit"]  # ⚠️ PLACEHOLDER
+    description = "Matrice NxN symétrique avec contrainte double-fente"
+    
+    placeholder_status = {
+      topo_double_slit = "not_implemented"
+      rationale = "Concept clair: réduction corrélations trans-barrière, 
+                   encodage en développement"
+      workaround = "Tests sans topo, analyse théorique uniquement"
+    }
+  }
+  
+  GAMMA_SPECIFICATION = {
+    type = "composite"
+    form = "Γ_sat ∘ Γ_diff"
+    description = "Saturation + diffusion pour tester persistance contrainte"
+  }
+  
+  STATUS = WIP[R0-open]
+  
+  NOTES = {
+    Hypothèse formulée avant implémentation complète.
+    Permet de documenter direction sans bloquer exploration.
+  }
+}
+```
+
+---
+
+### 6.3 NIVEAU L3 - Toy Models
+
+```
+\TOY_MODEL{
+  ID = TM-[SUBTYPE]-NNN
+  LEVEL = L3
+  ASSOCIATED_HYPOTHESIS = HYP-XXX-NNN
+  
+  D_CONSTRUCTION = {
+    base = {
+      source = "encodings/rank2_symmetric.py"
+      function = "create_identity"
+      parameters = {n_dof = 50}
+    }
+    modifiers = [
+      {
+        source = "modifiers/noise.py"
+        function = "add_gaussian_noise"
+        parameters = {sigma = 0.05, seed = 42}
+      }
+    ]
+  }
+  
+  GAMMA_DEFINITION = {
+    source = "operators/gamma_hyp_001.py"
+    class = "PureSaturationGamma"
+    parameters = {beta = 2.0}
+  }
+  
+  EXECUTION = {
+    max_iterations = 200
+    convergence_check = "optional_function"
+    record_history = true | false
+  }
+  
+  TESTS_APPLIED = [
+    "test_symmetry_preservation",
+    "test_diversity_evolution",
+    "test_pointwise_independence"
+  ]
+  
+  EXPECTED_FAILURE_MODES = [
+    "trivial_convergence",
+    "information_loss",
+    "positivity_violation"
+  ]
+  
+  STATUS = WIP | EXECUTED | REJECTED
+}
+```
+
+---
+
+### 6.4 NIVEAU L3 - Test Protocols (MODULAIRES)
+
+```
+\TEST_MODULE{
+  ID = TEST-[CATEGORY]-[NAME]
+  LEVEL = L3
+  CATEGORY = "symmetry" | "bounds" | "diversity" | "convergence" | ...
+  
+  APPLICABILITY = {
+    D_types = ["base_symmetric", "base_asymmetric", "any"]
+    gamma_types = ["any"] | ["pointwise", "coupled"]
+    description = [quand utiliser ce test]
+  }
+  
+  PROCEDURE = {
+    [Description du protocole]
+  }
+  
+  THRESHOLD = {
+    [paramètres et seuils]
+  }
+  
+  OUTPUT = {
+    type = "TestResult"
+    fields = ["status", "value", "message", "blocking"]
+  }
+  
+  USAGE_EXAMPLE = {
+    [code d'exemple]
+  }
+}
+```
+
+**Exemple** :
+```
+\TEST_MODULE{
+  ID = TEST-SYMMETRY-PRESERVATION
+  LEVEL = L3
+  CATEGORY = "symmetry"
+  
+  APPLICABILITY = {
+    D_types = ["base_symmetric"]
+    gamma_types = ["any"]
+    description = "Teste si Γ préserve la symétrie d'un D symétrique"
+  }
+  
+  PROCEDURE = {
+    Pour chaque état dans l'historique :
+      Calculer asymmetry = ||C - C^T||
+      Si asymmetry > TOL : échec
+  }
+  
+  THRESHOLD = {
+    TOL_SYMMETRY = 1e-6
+  }
+  
+  OUTPUT = {
+    type = "TestResult"
+    fields = {
+      status = "PASS" | "FAIL"
+      value = max_asymmetry
+      message = texte descriptif
+      blocking = false  # Ce test n'est PAS bloquant par défaut
+    }
+  }
+  
+  USAGE_EXAMPLE = {
+    from tests.utilities.test_symmetry import test_symmetry_preservation
+    result = test_symmetry_preservation(history)
+  }
+}
+```
+
+**IMPORTANT** : Un test observe sans imposer. Si Γ crée asymétrie, c'est une observation intéressante, pas un rejet automatique.
+
+### 6.5 NIVEAU L4 - Entries documentaires
+
+#### 6.5.1 LOG (sortie brute)
+
+```
+\LOG{
+  ID = LOG-[SUBTYPE]-NNN
+  DATE = YYYY-MM-DD
+  TYPE = test_output
+  TARGET = [TM-XXX-NNN or TEST-XXX-NNN]
+  
+  RAW_OUTPUT = {
+    [Données numériques brutes du programme]
+  }
+  
+  NOTES = [optional]
+}
+```
+
+**Exemple** :
+```
+\LOG{
+  ID = LOG-GAM-001
+  DATE = 2024-12-21
+  TYPE = test_output
+  TARGET = TM-GAM-001
+  
+  RAW_OUTPUT = {
+    iterations_completed = 10000
+    final_mean_correlation = 0.0023
+    symmetry_error = 2.3e-7
+    convergence_distance_to_I = 0.01
+    eigenvalues_final = [1.0, 0.98, 0.02, ...]
+  }
+}
+\LOG{
+  ID = LOG-GAM-XXX
+  STATUS = ERROR
+  ERROR_TYPE = "RuntimeError" | "AssertionError" | "MemoryError"
+  ERROR_MESSAGE = {traceback}
+  DIAGNOSTIC = [interprétation humaine]
+}
+```
+
+---
+
+#### 6.5.2 RESULT (analyse)
+
+```
+\RESULT{
+  ID = RES-[SUBTYPE]-NNN
+  DATE = YYYY-MM-DD
+  TYPE = analysis
+  ORIGIN = [LOG-XXX-NNN]
+  TARGET = [TM-XXX-NNN]
+  TESTED_RANK = R0 | R1 | R2 | ...
+  
+  SUMMARY = {
+    [Interprétation des résultats bruts]
+  }
+  
+  VERDICT = {
+    criterion = [nom du critère testé]
+    outcome = PASS | FAIL
+    rank_scope = R0 | Rn | GLOBAL
+    reason = [explication courte]
+  }
+  
+  STATUS = STATUS_TRANSITION = {
+    hypothesis_id = HYP-XXX-NNN
+    previous_status = [statut avant]
+    new_status = [statut après]
+    rank_closure = {
+      rank = R0 | R1 | ...
+      closed = true | false
+      remaining_exploration = [description]
+    }
+  }
+  
+  IMPLICATIONS = [optional, pour HYP parente]
+}
+```
+
+**Exemple** :
+```
+\RESULT{
+  ID = RES-GAM-001
+  DATE = 2024-12-21
+  TYPE = analysis
+  ORIGIN = LOG-GAM-001
+  TARGET = TM-GAM-001
+  
+  SUMMARY = {
+    PureDiffusion(α=0.02) converge vers identité en 200 itérations.
+    Toute structure initiale est homogénéisée.
+    Pas de pattern émergent détecté.
+  }
+  
+  VERDICT = {
+    criterion = "trivial_convergence"
+    outcome = FAIL
+    reason = "Distance à I = 0.01 < seuil 0.1"
+  }
+  
+  STATUS = REJECTED
+  
+  IMPLICATIONS = {
+    TM-GAM-001 invalide.
+    Si toute famille markovienne échoue → HYP-GAM-001 rejetée.
+  }
+}
+```
+
+---
+
+#### 6.5.3 JOURNAL (discussion)
+
+```
+\JOURNAL{
+  ID = JOUR-NNN
+  DATE = YYYY-MM-DD
+  TYPE = discussion
+  TOPIC = [description courte]
+  
+  CONTENT = {
+    [Discussion libre sur hypothèses, résultats, directions]
+  }
+  
+  RELATED_ENTRIES = [list of IDs]
+  
+  NOTES = [optional]
+}
+```
+
+**Exemple** :
+```
+\JOURNAL{
+  ID = JOUR-001
+  DATE = 2024-12-21
+  TYPE = discussion
+  TOPIC = "Échec systématique famille markovienne"
+  
+  CONTENT = {
+    Les 23 candidats markoviens testés montrent un pattern commun :
+    - Convergence rapide (<500 iterations)
+    - Perte totale de diversité structurale
+    - Attracteurs triviaux (I ou structures uniformes)
+    
+    Hypothèse émergente : Γ markovien pur ne peut maintenir
+    information dans le temps sans mécanisme de régulation
+    ou mémoire d'états antérieurs.
+    
+    Prochaine direction : Tester Γ non-markovien ordre 1.
+  }
+  
+  RELATED_ENTRIES = [
+    HYP-GAM-001,
+    RES-GAM-001, RES-GAM-002, ..., RES-GAM-023,
+    CON-GAM-001
+  ]
+}
+```
+
+### 6.6 NIVEAU L2 - Contraintes dérivées
+
+```
+\CONSTRAINT{
+  ID = CON-[SUBTYPE]-NNN
+  LEVEL = L2
+  DERIVED_FROM = [list of HYP IDs]
+  DEPENDENCIES = {
+    axioms = [list or empty]
+    definitions = [list or empty]
+    rejected_hypotheses = [list, required]
+  }
+  STATEMENT = {
+    [Énoncé de la contrainte déduite]
+  }
+  SCOPE = {
+    [Estimation de l'espace des possibles éliminé]
+  }
+  STATUS = WIP | VALIDATED
+  NOTES = [optional]
+}
+```
+
+**Exemple** :
+```
+\CONSTRAINT{
+  ID = CON-GAM-001
+  LEVEL = L2
+  DERIVED_FROM = [HYP-GAM-001, HYP-GAM-002]
+  DEPENDENCIES = {
+    definitions = [DEF-GAMMA]
+    rejected_hypotheses = [HYP-GAM-001, HYP-GAM-002]
+  }
+  STATEMENT = {
+    Un opérateur Γ markovien pur ne peut satisfaire
+    simultanément les critères de non-trivialité,
+    diversité structurale et robustesse.
+  }
+  SCOPE = {
+    family = "Γ_markovian_pure"
+    estimated_elimination = "~40% de l'espace initial"
+  }
+  STATUS = VALIDATED
+  NOTES = {
+    Cette contrainte force l'exploration vers Γ non-markoviens
+    ou Γ avec mécanismes de régulation.
+  }
+}
+```
+
+**Règle CON** : Jamais généré automatiquement. Toujours créé manuellement en discussion.
+
+## SECTION 7 : Protocole de tests modulaires 
+
+### 7.1 Principe
+
+**Tests = briques réutilisables**, combinables selon l'hypothèse.
+
+**Structure** :
+```
+tests/utilities/
+├── test_symmetry.py          # Tests relatifs à la symétrie
+├── test_bounds.py            # Tests relatifs aux bornes
+├── test_positivity.py        # Tests relatifs à la positivité
+├── test_diversity.py         # Tests relatifs à la diversité
+├── test_convergence.py       # Tests relatifs à la convergence
+└── test_pointwise.py         # Tests relatifs à l'indépendance pointwise
+```
+
+### 7.2 Tests pour D^(base) symétrique
+
+**Fichier** : `tests/utilities/test_symmetry.py`
+
+**Tests disponibles** :
+- `test_symmetry_preservation(history)` : Γ préserve-t-il la symétrie ?
+- `test_symmetry_creation(history)` : Γ crée-t-il de la symétrie ?
+- `test_symmetry_destruction(history)` : Γ détruit-il la symétrie ?
+
+**Usage dans un TM** :
+```python
+from tests.utilities.test_symmetry import test_symmetry_preservation
+
+result = test_symmetry_preservation(history)
+if result.status == "FAIL":
+    print(f"Asymétrie détectée : {result.message}")
+```
+
+### 7.3 Tests pour Γ saturation
+
+**Fichier** : `tests/utilities/test_saturation.py`
+
+**Tests disponibles** :
+- `test_bounded_output(history, bounds=(-1, 1))` : Sortie bornée ?
+- `test_sign_preservation(history)` : Signes préservés ?
+- `test_monotonic_approach(history, target=1.0)` : Approche monotone ?
+
+### 7.4 Composition de tests dans un TM
+
+**Exemple** : TM-GAM-001 (saturation pure sur base symétrique)
+
+```python
+# TM-GAM-001.py
+from tests.utilities.test_symmetry import test_symmetry_preservation
+from tests.utilities.test_saturation import test_bounded_output
+from tests.utilities.test_diversity import test_diversity_preservation
+
+# Après exécution kernel
+results = {
+    "symmetry": test_symmetry_preservation(history),
+    "bounds": test_bounded_output(history, bounds=(-1, 1)),
+    "diversity": test_diversity_preservation(history)
+}
+```
+
+**Avantage** : Si on teste plus tard "saturation + diffusion sur base quelconque", on réutilise les tests de saturation et de diffusion, sans réécrire.
+
+### 7.5 Principe des tests génériques
+
+**RÈGLE FONDAMENTALE** :
+Tous les tests sont **observations**, jamais des **prescriptions**.
+
+Un test observe une propriété (symétrie, norme, etc.) et rapporte si elle est :
+- **Préservée** : présente initialement, reste présente
+- **Créée** : absente initialement, devient présente
+- **Détruite** : présente initialement, disparaît
+- **Absente** : ni initialement ni finalement
+
+**AUCUN test ne juge** si c'est "bien" ou "mal".  
+Le TM décide de l'interprétation.
+
+---
+
+### 7.6 Tests symétr
+
+ie (exemple complet)
+
+**Fichier** : `tests/utilities/test_symmetry.py`
+```python
+def test_symmetry_status(history: List[np.ndarray]) -> SymmetryReport:
+    """
+    Observe l'évolution de la symétrie.
+    
+    Returns:
+        SymmetryReport avec:
+        - initial_symmetric: bool
+        - final_symmetric: bool
+        - transition: "preserved" | "created" | "destroyed" | "absent"
+        - max_asymmetry: float
+    """
+    
+    def is_symmetric(C, tol=1e-6):
+        return np.linalg.norm(C - C.T) < tol
+    
+    initial = is_symmetric(history[0])
+    final = is_symmetric(history[-1])
+    
+    # Calcule asymétrie maximale
+    asymmetries = [np.linalg.norm(C - C.T) for C in history]
+    max_asym = max(asymmetries)
+    
+    # Détermine transition
+    if initial and final:
+        transition = "preserved"
+    elif not initial and final:
+        transition = "created"
+    elif initial and not final:
+        transition = "destroyed"
+    else:
+        transition = "absent"
+    
+    return SymmetryReport(
+        initial_symmetric=initial,
+        final_symmetric=final,
+        transition=transition,
+        max_asymmetry=max_asym
+    )
+```
+
+**Usage dans TM** :
+```python
+# TM décide de l'interprétation
+sym_report = test_symmetry_status(history)
+
+if sym_report.transition == "destroyed":
+    if D_was_base_symmetric:
+        # C'est un échec pour Γ sur D symétrique
+        verdict = "FAIL: Γ breaks expected symmetry"
+    else:
+        # C'est une observation intéressante
+        verdict = "PASS: Γ shows expected asymmetry"
+```
+
+---
+
+### 7.7 Tests norme (exemple générique)
+
+**Fichier** : `tests/utilities/test_norm.py`
+```python
+def test_norm_evolution(history: List[np.ndarray], 
+                        norm_type: str = "frobenius") -> NormReport:
+    """
+    Observe l'évolution de la norme.
+    
+    Args:
+        history: Historique des états
+        norm_type: "frobenius" | "spectral" | "max"
+    
+    Returns:
+        NormReport avec:
+        - initial_norm: float
+        - final_norm: float
+        - evolution: "increasing" | "decreasing" | "stable" | "oscillating"
+        - max_norm: float
+        - min_norm: float
+    """
+    
+    # Calcule normes
+    if norm_type == "frobenius":
+        norms = [np.linalg.norm(C, 'fro') for C in history]
+    elif norm_type == "spectral":
+        norms = [np.max(np.abs(np.linalg.eigvalsh(C))) for C in history]
+    elif norm_type == "max":
+        norms = [np.max(np.abs(C)) for C in history]
+    
+    # Détecte tendance
+    trend = np.polyfit(range(len(norms)), norms, 1)[0]
+    
+    if abs(trend) < 1e-6:
+        evolution = "stable"
+    elif trend > 0:
+        evolution = "increasing"
+    else:
+        evolution = "decreasing"
+    
+    # Détecte oscillations
+    diffs = np.diff(norms)
+    sign_changes = np.sum(np.diff(np.sign(diffs)) != 0)
+    if sign_changes > len(norms) * 0.2:
+        evolution = "oscillating"
+    
+    return NormReport(
+        initial_norm=norms[0],
+        final_norm=norms[-1],
+        evolution=evolution,
+        max_norm=max(norms),
+        min_norm=min(norms),
+        trend=trend
+    )
+```
+
+**Usage** :
+```python
+norm_report = test_norm_evolution(history, "frobenius")
+
+if norm_report.evolution == "increasing":
+    if norm_report.final_norm > 100:
+        verdict = "FAIL: Explosive growth"
+    else:
+        verdict = "PASS: Controlled growth"
+```
+
+---
+
+### 7.8 Catalogue tests génériques
+
+| Propriété | Observation | Transitions possibles |
+|-----------|-------------|----------------------|
+| **Symétrie** | C = C^T | preserved, created, destroyed, absent |
+| **Norme** | ‖C‖ | increasing, decreasing, stable, oscillating |
+| **Positivité** | C ⪰ 0 | preserved, created, destroyed, absent |
+| **Diagonale** | diag(C) | constant, changing |
+| **Sparsité** | #(C[i,j] ≈ 0) | increasing, decreasing, stable |
+| **Rank** | rank(C) | increasing, decreasing, stable |
+| **Diversité** | std(C) | increasing, decreasing, stable |
+
+**Tous implémentés dans** : `tests/utilities/test_*.py`
+
+---
+
+## SECTION 8 : Système de rangs et statuts
+
+### 8.1 Définition des rangs
+
+**Rang 0 (R0)** : Test d'un mécanisme isolé (autonome)
+
+Une hypothèse de rang 0 est testée de manière **isolée**, sans composition avec d'autres mécanismes.
+
+**Caractéristiques** :
+- Un seul mécanisme élémentaire
+- Aucun couplage
+- Aucun héritage d'hypothèses antérieures
+- Test d'admissibilité minimale
+
+**Exemple** :
+```
+HYP-GAM-001 : Γ = saturation pure pointwise
+→ Testé seul, sans régulation, sans mémoire, sans composition
+→ Exploration de rang 0
+```
+
+---
+
+**Rang ≥1 (Rn)** : Test de compositions/enrichissements
+
+Une hypothèse de rang n≥1 combine ou enrichit des mécanismes déjà explorés à rang inférieur.
+
+**Caractéristiques** :
+- Composition de mécanismes
+- Couplages entre opérateurs
+- Héritage de contraintes connues
+- Test de compatibilité/convergence
+
+**Exemples** :
+```
+HYP-GAM-002 [R1] : Γ = saturation + renforcement hebbian
+→ Combine deux mécanismes élémentaires
+→ Exploration de rang 1
+
+HYP-GAM-005 [R2] : Γ = (saturation + hebbian) + mémoire ordre-1
+→ Enrichit une composition de rang 1
+→ Exploration de rang 2
+```
+
+---
+
+### 8.2 Statuts granulaires normalisés
+
+**Format canonique** :
+```
+STATUS = [ÉTAT][RANG]
+```
+
+**États disponibles** :
+- `WIP` : Work In Progress
+- `SURVIVES` : Non éliminé par tests
+- `REJECTED` : Éliminé
+
+**Qualificateurs de rang** :
+- `[R0-open]` : Rang 0 en cours d'exploration
+- `[R0-closed]` : Rang 0 exploration terminée
+- `[Rn]` : Résultat à rang n spécifique
+- `[GLOBAL]` : Rejet définitif tous rangs
+
+---
+
+### 8.3 Hiérarchie stricte des rejets
+```
+REJECTED[R0] < REJECTED[R1] < ... < REJECTED[GLOBAL]
+```
+
+**Règle fondamentale** :
+Un rejet à rang n est LOCAL à ce test spécifique.
+Seul `REJECTED[GLOBAL]` est définitif tous contextes.
+
+**Exemples** :
+```
+HYP-001: Γ = saturation pure
+  REJECTED[R0] → Échoue comme mécanisme isolé
+  (Peut être testé dans HYP-010[R1] = saturation + régulation)
+
+HYP-002: Γ = diffusion pure  
+  REJECTED[R0] → Échoue comme mécanisme isolé
+  (Peut être testé dans HYP-010[R1] = diffusion + saturation)
+
+HYP-003: Γ = croissance explosive incontrôlable
+  REJECTED[GLOBAL] → Violation invariants fondamentaux
+  (Ne sera JAMAIS retesté, même en composition)
+```
+
+**IMPORTANT** :
+- `REJECTED[R0]` ne garantit PAS d'être "bon composant"
+- C'est à `HYP[R1]` de CHOISIR quels `REJECTED[R0]` combiner
+- Aucune obligation de tester toutes les compositions possibles
+
+---
+
+### 8.4 Statuts WIP détaillés
+
+**WIP[R0-open]**
+```
+Hypothèse en cours d'exploration à rang 0.
+Tests partiels, résultats incomplets.
+```
+
+**WIP[R0-closed]**
+```
+HYP testée à rang 0, résultats non concluants.
+
+Signification:
+  - Test R0 terminé sans rejet définitif
+  - Aucun verdict clair (ni SURVIVES ni REJECTED)
+  - Mise en attente indéfinie
+  - Peut être reprise dans HYP[R≥1] futures si pertinent
+
+Ce statut n'implique PAS:
+  - Viabilité comme composant
+  - Obligation de test à rang supérieur
+  - Priorité dans exploration future
+
+Critères typiques WIP[R0-closed]:
+  - Réussite partielle des tests (certains PASS, certains FAIL non bloquants)
+  - Comportement ambigu nécessitant contexte additionnel
+  - Ressources/temps insuffisants pour verdict définitif
+```
+
+**Nature du statut WIP** :
+
+WIP n'est PAS un label de qualité.
+
+Ce que WIP signifie:
+  ✓ Tests en cours ou suspendus
+  ✓ Pas encore de verdict définitif
+  ✓ Informations insuffisantes pour conclure
+
+Ce que WIP ne signifie PAS:
+  ✗ "Prometteur"
+  ✗ "Viable si combiné"
+  ✗ "Candidat prioritaire pour R≥1"
+  ✗ "Partiellement validé"
+
+**Analogie** :
+WIP = dossier médical "en attente de diagnostic"
+- Pas "malade mais traitable"
+- Pas "probablement sain"
+- Juste "données insuffisantes, à reprendre ou archiver"
+
+**Transitions typiques depuis WIP** :
+```
+WIP[R0-open] → REJECTED[R0]
+  (Diagnostic clair: inadmissible)
+
+WIP[R0-open] → SURVIVES[R0]
+  (Diagnostic clair: admissible)
+
+WIP[R0-open] → WIP[R0-closed]
+  (Diagnostic suspendu: ambigu, ressources épuisées)
+```
+
+**Destin probable d'un WIP[R0-closed]** :
+- 70% cas: Jamais retesté (oublié, non prioritaire)
+- 20% cas: Inclus dans HYP[R1] par opportunité
+- 10% cas: Réévalué avec nouveaux critères
+
+---
+
+### 8.5 Statuts SURVIVES détaillés
+
+**SURVIVES[R0]**
+```
+Hypothèse non éliminée à rang 0.
+Peut être testée à rang supérieur ou utilisée en composition.
+
+Critères :
+- Aucun échec bloquant à rang 0
+- Propriétés structurelles satisfaisantes
+- Potentiel de contribution identifié
+```
+
+**SURVIVES[Rn], n≥1**
+```
+Hypothèse non éliminée à rang n.
+Continue de persister malgré tests de composition.
+```
+
+---
+
+### 8.6 Statuts REJECTED détaillés
+
+**REJECTED[R0]**
+```
+HYP éliminée dans le contexte de test de rang 0.
+
+Signification:
+  - Le test spécifique à R0 a échoué
+  - Aucune conclusion sur comportement à R≥1
+  - Aucune promotion automatique vers rang supérieur
+  - Peut être revisitée dans nouvelle HYP[R1] à discrétion
+
+Ce statut n'est PAS:
+  - Une recommandation d'utilisation comme composant
+  - Une promesse de test futur en composition
+  - Une indication de "potentiel caché"
+```
+
+**REJECTED[GLOBAL]**
+```
+Hypothèse éliminée à tous les rangs.
+
+Critère strict :
+Viole des invariants non négociables dans TOUT contexte,
+y compris composition et enrichissement.
+
+Exemple :
+- Croissance explosive incontrôlable
+- Destruction systématique de symétrie
+- Incompatibilité mathématique fondamentale
+```
+
+---
+
+### 8.7 Transitions de statut
+
+**Autorisées** :
+```
+WIP[R0-open] → WIP[R0-closed]
+WIP[R0-open] → SURVIVES[R0]
+WIP[R0-open] → REJECTED[R0]
+
+WIP[R0-closed] → WIP[R1-open]    (promotion verticale)
+WIP[R0-closed] → REJECTED[GLOBAL] (rejet global post-analyse)
+
+SURVIVES[Rn] → WIP[Rn+1-open]    (promotion verticale)
+SURVIVES[Rn] → REJECTED[Rn+1]    (échec au rang supérieur)
+
+REJECTED[Rn] → REJECTED[GLOBAL]  (après épuisement vertical)
+```
+
+**Interdites (violation traçabilité)** :
+```
+✗ WIP[R0-closed] → WIP[R0-open]      (pas de retour arrière)
+✗ REJECTED[Rn] → SURVIVES[Rn]        (pas de réactivation)
+✗ REJECTED[GLOBAL] → [anything else] (définitif)
+```
+
+---
+
+### 8.8 Indépendance des hypothèses de composition
+
+**Principe** :
+Chaque hypothèse de rang ≥1 est AUTONOME et SÉLECTIVE.
+
+**Sélectivité des compositions** :
+```
+HYP-004[R1]: Test de (HYP-001[R0] + HYP-002[R0])
+  → Ne dit RIEN sur HYP-003[R0]
+
+HYP-005[R1]: Test de (HYP-003[R0] seul, avec contexte différent)
+  → Indépendant de HYP-004
+
+HYP-006[R1]: Test de (HYP-001[R0] + HYP-003[R0])
+  → Nouvelle combinaison, résultats imprévisibles
+```
+
+**Non-exhaustivité** :
+
+Il n'existe AUCUNE obligation de:
+- Tester toutes les paires (HYP-i, HYP-j)
+- Tester tous les triplets (HYP-i, HYP-j, HYP-k)
+- Épuiser l'espace combinatoire
+
+**Stratégie de sélection** :
+- Intuition théorique (mécanismes complémentaires)
+- Contraintes émergentes (CON-XXX suggèrent couplages)
+- Économie de tests (priorité aux combinaisons prometteuses)
+
+**Traçabilité** :
+
+Chaque HYP[R1] doit documenter explicitement:
+- Quelles HYP[R0] sont incluses (champ `parent_hypotheses`)
+- Pourquoi cette combinaison spécifique
+- Quelles HYP[R0] sont délibérément exclues
+
+**Exemple** :
+```
+HYP-004[R1] {
+  parent_hypotheses = [HYP-001, HYP-002]
+  rationale = "Saturation + diffusion = régulation locale"
+  excluded = [HYP-003]
+  exclusion_reason = "Mécanisme orthogonal, testé séparément"
+}
+```
+---
+
+## SECTION 9 : Workflow opératoire 
+
+### 9.1 Cycle standard
+
+```
+1. Formulation hypothèse (HYP-XXX)
+   ↓
+2. Spécification explicite D et Γ (dans HYP)
+   ↓
+3. Création toy model (TM-XXX)
+   ↓
+4. Sélection tests modulaires applicables
+   ↓
+5. Exécution (kernel aveugle)
+   ↓
+6. Analyse (tests modulaires)
+   ↓
+7. Génération LOG/RES
+   ↓
+8. Discussion → JOUR si pertinent
+   ↓
+9. Mise à jour STATUS de HYP
+   ↓
+10. Si tous candidats R0 échouent → CON si pertinent
+```
+
+### 9.2 Exemple complet : HYP-GAM-001
+
+#### Étape 1 : Formulation HYP
+
+```
+HYP-GAM-001 : Saturation pure sur base symétrique rang 2
+D_SPECIFICATION : base_symmetric_rank2 + gaussian_noise
+GAMMA_SPECIFICATION : pointwise saturation tanh(β·T)
+```
+
+#### Étape 2 : TM-GAM-001
+
+```python
+# Construction D
+D_base = create_identity(50)  # encodings/rank2_symmetric
+D = prepare_state(D_base, [add_gaussian_noise(0.05)])  # core
+
+# Définition Γ
+gamma = PureSaturationGamma(beta=2.0)  # operators/gamma_hyp_001
+
+# Exécution
+for i, state in run_kernel(D, gamma, 2000):  # core
+    ...
+```
+
+#### Étape 3 : Tests modulaires
+
+```python
+from tests.utilities.test_symmetry import test_symmetry_preservation
+from tests.utilities.test_diversity import test_diversity_preservation
+from tests.utilities.test_pointwise import test_pointwise_independence
+
+results = {
+    "symmetry": test_symmetry_preservation(history),
+    "diversity": test_diversity_preservation(history),
+    "pointwise": test_pointwise_independence(D_initial, final_state)
+}
+```
+
+#### Étape 4 : LOG/RES
+
+Génération automatique selon templates Section 6.
+
+---
+
+## SECTION 10 : Interdictions par niveau
+
+### L0 (axiomes)
+- ✅ Énoncés ontologiques purs
+- ❌ Toute modification
+
+### L1 (définitions)
+- ✅ Descriptions abstraites de D et Γ
+- ❌ Formes mathématiques concrètes
+- ❌ Présuppositions structurelles
+
+### L2 (hypothèses)
+- ✅ Énoncés testables
+- ✅ Spécifications explicites D et Γ (NOUVEAU)
+- ❌ Code
+- ❌ Résultats numériques
+
+### L3 (opératoire)
+- ✅ TM + code + tests
+- ❌ Interprétation comme "vraie" physique
+- ❌ Validation par comparaison expérimentale
+
+### L4 (documentaire)
+- ✅ Logs, résultats, discussions
+- ❌ Génération automatique de contraintes
+- ❌ Inférence automatique hypothèses
+
+---
+
+## SECTION 11 : Vocabulaire normatif (NOUVEAU)
+
+### 11.1 Terminologie core
+
+| ❌ INTERDIT | ✅ AUTORISÉ |
+|------------|-------------|
+| "matrice de corrélation" | "tenseur rang 2" |
+| "graphe" | "patterns dans tenseur" |
+| "DOF connectés" | "indices couplés" |
+| "position (i,j)" | "indice (i,j)" |
+| "évolution temporelle" | "itération" |
+| "distance entre DOF" | "différence d'indices" |
+
+### 11.2 Terminologie D
+
+| Type | Description | Localisation |
+|------|-------------|--------------|
+| D^(base) | Champ des possibles maximal | `encodings/` |
+| D^(bruit) | Variations aléatoires | `modifiers/noise.py` |
+| D^(topo) | Contraintes réduisant DOF | `modifiers/constraints.py` |
+| D^(plugin) | Patterns pré-identifiés | `modifiers/plugins/` |
+| D^(domaine) | Compilation plugins | `modifiers/domains/` |
+
+### 11.3 Terminologie Γ
+
+| Type | Description | Exemple |
+|------|-------------|---------|
+| Pointwise | Pas de couplage inter-indices | tanh(β·T[i,j]) |
+| Coupled | Couplage via produits tensoriels | T + α·(T@T) |
+| Stochastic | Perturbations aléatoires | T + σ·ε |
+| Composite | Combinaison de mécanismes | (Γ₁ ∘ Γ₂ ∘ Γ₃) |
+
+### 11.4 Pattern Γ non-markovien
+
+**Γ avec mémoire ordre 1** :
+
+Un Γ non-markovien stocke explicitement l'état précédent.
+
+**Implémentation standard** :
+```python
+# operators/gamma_hyp_XXX.py
+
+class NonMarkovianGamma:
+    """Γ avec mémoire ordre 1 : Γ(C_t, C_t-1)"""
+    
+    def __init__(self, alpha=0.01):
+        self.alpha = alpha
+        self._previous_state = None  # Mémoire explicite
+    
+    def __call__(self, state: np.ndarray) -> np.ndarray:
+        """Applique Γ(C_t, C_t-1)"""
+        if self._previous_state is None:
+            # Première itération : comportement markovien
+            result = state.copy()
+        else:
+            # Itérations suivantes : utilise mémoire
+            delta = state - self._previous_state
+            result = state + self.alpha * delta
+        
+        # Stocke état actuel pour prochaine itération
+        self._previous_state = state.copy()
+        return result
+```
+
+**Usage dans TM** :
+```python
+gamma = NonMarkovianGamma(alpha=0.01)
+
+for i, state in run_kernel(D, gamma, max_iterations=1000):
+    # Le kernel appelle gamma(state)
+    # Gamma accède automatiquement à son _previous_state interne
+    pass
+```
+
+**Note importante** :
+- Le **core** (`run_kernel`) reste aveugle
+- C'est **Γ lui-même** qui gère sa mémoire
+- Le kernel n'a pas besoin d'être modifié
+---
+
+
+## SECTION 12 : Exemples complets 
+
+### 12.1 Exemple minimal : TM-GAM-001
+
+```python
+"""
+tests/TM-GAM-001.py
+Test HYP-GAM-001 : Saturation pure sur base symétrique rang 2
+"""
+
+from core.state_preparation import prepare_state
+from core.kernel import run_kernel
+from encodings.rank2_symmetric import create_identity
+from modifiers.noise import add_gaussian_noise
+from operators.gamma_hyp_001 import PureSaturationGamma
+from tests.utilities.test_symmetry import test_symmetry_preservation
+from tests.utilities.test_diversity import test_diversity_preservation
+
+# Configuration
+N_DOF = 50
+SIGMA = 0.05
+BETA = 2.0
+MAX_ITER = 2000
+
+# 1. Préparation D
+D_base = create_identity(N_DOF)
+D = prepare_state(D_base, [add_gaussian_noise(sigma=SIGMA, seed=42)])
+
+# 2. Définition Γ
+gamma = PureSaturationGamma(beta=BETA)
+
+# 3. Exécution
+history = []
+for i, state in run_kernel(D, gamma, max_iterations=MAX_ITER):
+    if i % 10 == 0:
+        history.append(state.copy())
+
+# 4. Tests
+results = {
+    "symmetry": test_symmetry_preservation(history),
+    "diversity": test_diversity_preservation(history)
+}
+
+# 5. LOG
+print(results)
+```
+## SECTION 13: Annexe
+\ANNEX{FORMAT_SPECIFICATION}{
+  primary_format = "Markdown"
+  semantic_markup = "PRC-TXT tags"
+  
+  RULE{
+    all_templates = use_PRC-TXT_tags
+    all_text = use_markdown
+  }
+  
+  EXAMPLE{
+    \HYPOTHESIS{
+      ID = HYP-GAM-001
+      STATEMENT = {
+        This is **markdown** text with *emphasis*.
+        
+        - Lists are markdown
+        - Code blocks are markdown
+      }
+    }
+  }
+}
+---
+
+## FIN CHARTE PRC 5.1
+
+**Cette version est la référence absolue.**
+
+Tout code existant non conforme doit être supprimé ou réécrit.
+
+---
