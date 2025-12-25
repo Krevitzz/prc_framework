@@ -438,6 +438,88 @@ __catalog__ = {
     }
 }
 
+# ============================================================================
+# VALIDATION
+# ============================================================================
+
+def validate_operator(operator_id: str, test_state: 'np.ndarray' = None):
+    """
+    Valide qu'un opérateur est correctement implémenté.
+    
+    Vérifie:
+    - Callable
+    - Retourne np.ndarray
+    - Préserve shape
+    - Ne produit pas NaN/Inf
+    
+    Args:
+        operator_id: ID de l'opérateur
+        test_state: État de test (si None, utilise identité 10×10)
+    
+    Returns:
+        bool: True si validation réussie
+    """
+    import numpy as np
+    
+    if test_state is None:
+        test_state = np.eye(10)
+    
+    try:
+        # Créer opérateur avec paramètres par défaut
+        info = OPERATOR_REGISTRY[operator_id]
+        
+        if not info['implemented']:
+            print(f"⏳ {operator_id}: Non implémenté")
+            return False
+        
+        if 'factory' in info:
+            # Utiliser grille Phase 1 pour paramètres nominaux
+            grid = get_param_grid(operator_id, phase=1)
+            if grid:
+                params = list(grid.values())[0]  # Premier set de params
+            else:
+                params = {}
+            
+            gamma = info['factory'](**params)
+        else:
+            gamma = info['class']()
+        
+        # Tester appel
+        result = gamma(test_state)
+        
+        # Vérifications
+        assert isinstance(result, np.ndarray), "Result must be np.ndarray"
+        assert result.shape == test_state.shape, "Shape must be preserved"
+        assert not np.any(np.isnan(result)), "Result contains NaN"
+        assert not np.any(np.isinf(result)), "Result contains Inf"
+        
+        print(f"✅ {operator_id}: Validation réussie")
+        return True
+    
+    except Exception as e:
+        print(f"❌ {operator_id}: Validation échouée - {str(e)}")
+        return False
+
+
+def validate_all_operators():
+    """Valide tous les opérateurs implémentés."""
+    print("\n" + "="*70)
+    print("VALIDATION DES OPÉRATEURS")
+    print("="*70 + "\n")
+    
+    results = {}
+    for op_id in OPERATOR_REGISTRY.keys():
+        results[op_id] = validate_operator(op_id)
+    
+    n_valid = sum(1 for v in results.values() if v)
+    n_total = len([op for op in OPERATOR_REGISTRY.values() if op['implemented']])
+    
+    print(f"\n{'─'*70}")
+    print(f"Résultat: {n_valid}/{n_total} opérateurs valides")
+    print("="*70 + "\n")
+    
+    return results
+	
 __status_summary__ = """
 ✅ IMPLÉMENTÉS (10/14):
   Markoviens: GAM-001, 002, 003, 004, 005

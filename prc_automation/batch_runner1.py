@@ -247,22 +247,28 @@ def execute_single_run(gamma_id: str, gamma_params: Dict,
         # 5. Appliquer tests
         test_results = run_all_applicable_tests(history, D_base, d_base_id, gamma_id)
         
+
+
+
         # 6. Verdict global
-
-        
-#        blockers = [r for r in test_results.values() 
-#                   if getattr(r, 'blocking', False) and r.status == "FAIL"]
-        
-        n_pass = sum(1 for r in test_results.values() if r.status == "PASS")
-        n_fail = sum(1 for r in test_results.values() if r.status == "FAIL")
-        n_total = len(test_results)
-
-        if n_fail > n_pass:
-            global_verdict = "POOR"
-        elif n_pass > n_total / 2:
-            global_verdict = "PASS"
-        else:
+        if not test_results:  # Si aucun test
             global_verdict = "NEUTRAL"
+        else:
+            blockers = [r for r in test_results.values() 
+                       if getattr(r, 'blocking', False) and r.status == "FAIL"]
+            
+            n_pass = sum(1 for r in test_results.values() if r.status == "PASS")
+            n_fail = sum(1 for r in test_results.values() if r.status == "FAIL")
+            n_total = len(test_results)
+            
+            if blockers:
+                global_verdict = "REJECTED"
+            elif n_fail > n_pass:
+                global_verdict = "POOR"
+            elif n_pass > n_total / 2:
+                global_verdict = "PASS"
+            else:
+                global_verdict = "NEUTRAL"
 
         
         execution_time = time.time() - start_time

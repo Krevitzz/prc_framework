@@ -72,7 +72,7 @@ python validate_phase0.py
 
 ```bash
 cd prc_framework
-python prc_automation/batch_runner.py --init-db
+python prc_automation/batch_runner1.py --init-db
 ```
 
 **Crée** : `prc_database/prc_r0_results.db` avec schéma complet
@@ -94,7 +94,7 @@ for op_id, info in OPERATOR_REGISTRY.items():
 ### Mode 1 : Exécuter un Γ spécifique
 
 ```bash
-python prc_automation/batch_runner.py --phase 1 --gamma GAM-001 --verbose
+python prc_automation/batch_runner1.py --phase 1 --gamma GAM-001 --verbose
 ```
 
 **Exécute** :
