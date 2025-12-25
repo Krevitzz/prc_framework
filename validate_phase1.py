@@ -7,7 +7,7 @@ Script de validation infrastructure Phase 1.
 Vérifie:
 1. Opérateurs Γ implémentés (≥ 2)
 2. Base de données créable
-3. batch_runner fonctionnel
+3. batch_runner1 fonctionnel
 4. report_generator fonctionnel
 5. Connexion DB → opérateurs → tests
 
@@ -63,14 +63,14 @@ def validate_phase1_files(verbose=False):
     
     required_files = {
         'operators_new': [
-            'operators/gamma_hyp_002.py',
-            'operators/gamma_hyp_006.py',
+            'operators/gamma_hyp_002.py','operators/gamma_hyp_003.py','operators/gamma_hyp_004.py','operators/gamma_hyp_005.py',
+            'operators/gamma_hyp_006.py','operators/gamma_hyp_007.py','operators/gamma_hyp_008.py','operators/gamma_hyp_009.py','operators/gamma_hyp_010.py','operators/gamma_hyp_012.py','operators/gamma_hyp_013.py',
         ],
         'database': [
             'prc_database/schema.sql',
         ],
         'automation': [
-            'prc_automation/batch_runner.py',
+            'prc_automation/batch_runner1.py',
             'prc_automation/report_generator.py',
         ],
         'docs': [
@@ -231,7 +231,7 @@ def validate_batch_runner(verbose=False, quick=False):
     if quick:
         print_warning("Mode quick: vérification import uniquement")
         try:
-            import prc_automation.batch_runner as batch_runner
+            import prc_automation.batch_runner1 as batch_runner
             print_success("Import batch_runner: OK")
             return True
         except Exception as e:
@@ -240,7 +240,7 @@ def validate_batch_runner(verbose=False, quick=False):
     
     try:
         # Import
-        import prc_automation.batch_runner as batch_runner
+        import prc_automation.batch_runner1 as batch_runner
         
         if verbose:
             print_success("Import batch_runner")
@@ -454,9 +454,9 @@ def main():
         print(f"{Colors.GREEN}{Colors.BOLD}✓ PHASE 1 INFRASTRUCTURE PRÊTE{Colors.RESET}")
         print("\nCommandes suivantes:")
         print(f"  {Colors.BLUE}# 1. Initialiser DB{Colors.RESET}")
-        print(f"  python prc_automation/batch_runner.py --init-db")
+        print(f"  python prc_automation/batch_runner1.py --init-db")
         print(f"\n  {Colors.BLUE}# 2. Exécuter premier Γ{Colors.RESET}")
-        print(f"  python prc_automation/batch_runner.py --phase 1 --gamma GAM-001")
+        print(f"  python prc_automation/batch_runner1.py --phase 1 --gamma GAM-001")
         print(f"\n  {Colors.BLUE}# 3. Générer rapport{Colors.RESET}")
         print(f"  python prc_automation/report_generator.py --summary")
         print()

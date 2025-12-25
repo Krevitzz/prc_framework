@@ -110,7 +110,7 @@ python prc_automation/batch_runner.py --phase 1 --gamma GAM-001 --verbose
 ### Mode 2 : Exécuter tous les Γ implémentés
 
 ```bash
-python prc_automation/batch_runner.py --phase 1 --all
+python prc_automation/batch_runner1.py --phase 1 --all
 ```
 
 **Attention** : Avec 2 Γ implémentés, ~460 runs, 40-50 minutes
@@ -118,7 +118,7 @@ python prc_automation/batch_runner.py --phase 1 --all
 ### Mode 3 : Reprendre après interruption
 
 ```bash
-python prc_automation/batch_runner.py --phase 1 --gamma GAM-001
+python prc_automation/batch_runner1.py --phase 1 --gamma GAM-001
 ```
 
 **Comportement** : Saute automatiquement les runs déjà complétés (stockés en DB)
@@ -255,7 +255,7 @@ robustesse = (Nombre de D_base avec ≥1 config PASS) / (Nombre total D_base tes
 
 ```bash
 rm prc_database/prc_r0_results.db
-python prc_automation/batch_runner.py --init-db
+python prc_automation/batch_runner1.py --init-db
 ```
 
 ### Problème : Opérateur non implémenté
@@ -280,7 +280,7 @@ print(OPERATOR_REGISTRY['GAM-003']['implemented'])
 
 ```bash
 # Exécuter 1 run en mode verbeux
-python prc_automation/batch_runner.py --phase 1 --gamma GAM-XXX --verbose
+python prc_automation/batch_runner1.py --phase 1 --gamma GAM-XXX --verbose
 ```
 
 ### Problème : Exécution très lente
@@ -289,7 +289,7 @@ python prc_automation/batch_runner.py --phase 1 --gamma GAM-XXX --verbose
 
 1. **Réduire max_iterations** (défaut: 2000)
    ```python
-   # Dans batch_runner.py
+   # Dans batch_runner1.py
    MAX_ITERATIONS_DEFAULT = 500  # Pour tests rapides
    ```
 
@@ -417,13 +417,13 @@ Avant de passer à Phase 2 :
 **Imports manquants** :
 ```bash
 # Vérifier structure
-python -c "from prc_automation import batch_runner; print('OK')"
+python -c "from prc_automation import batch_runner1; print('OK')"
 ```
 
 **DB locked** :
 ```bash
 # Fermer toutes connexions
-pkill -f "python.*batch_runner"
+pkill -f "python.*batch_runner1"
 ```
 
 ---

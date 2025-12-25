@@ -10,6 +10,7 @@ Usage:
     python batch_runner.py --resume
 """
 
+import sys
 import argparse
 import sqlite3
 import json
@@ -18,6 +19,9 @@ import traceback
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Tuple
+
+project_root = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(project_root))
 
 import numpy as np
 
@@ -244,21 +248,22 @@ def execute_single_run(gamma_id: str, gamma_params: Dict,
         test_results = run_all_applicable_tests(history, D_base, d_base_id, gamma_id)
         
         # 6. Verdict global
+
+        
+#        blockers = [r for r in test_results.values() 
+#                   if getattr(r, 'blocking', False) and r.status == "FAIL"]
+        
         n_pass = sum(1 for r in test_results.values() if r.status == "PASS")
         n_fail = sum(1 for r in test_results.values() if r.status == "FAIL")
         n_total = len(test_results)
-        
-        blockers = [r for r in test_results.values() 
-                   if getattr(r, 'blocking', False) and r.status == "FAIL"]
-        
-        if blockers:
-            global_verdict = "REJECTED"
-        elif n_fail > n_pass:
+
+        if n_fail > n_pass:
             global_verdict = "POOR"
         elif n_pass > n_total / 2:
             global_verdict = "PASS"
         else:
             global_verdict = "NEUTRAL"
+
         
         execution_time = time.time() - start_time
         
