@@ -1,0 +1,1157 @@
+======================================================================
+ TM-GAM-001 - PHASE 0 (CALIBRATION)
+======================================================================
+
+Configuration:
+  β values: [1.0, 2.0]
+  D bases: ['SYM-001', 'SYM-002', 'ASY-001']
+  Modifiers: ['M0', 'M1']
+  Seeds: [1, 2, 3]
+
+Total runs: 36
+
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-001_MM0_seed1
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 7.07 → 0.61
+  ✗ UNIV-002: Homogénéisation: 1.400e-01 → 1.206e-02 (ratio=0.086)
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ○ STR-002: Évolution spectrale: decreasing, 1.000 → 0.086
+  ✓ BND-001: Bornes respectées: [0.000, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 0.10
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=7.000
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.217)
+
+❌ VERDICT: REJECTED (1 tests bloquants échoués)
+
+======================================================================
+PROGRÈS: 1/36 (2.8%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-001_MM0_seed2
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 7.07 → 0.61
+  ✗ UNIV-002: Homogénéisation: 1.400e-01 → 1.206e-02 (ratio=0.086)
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ○ STR-002: Évolution spectrale: decreasing, 1.000 → 0.086
+  ✓ BND-001: Bornes respectées: [0.000, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 0.10
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=7.000
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.217)
+
+❌ VERDICT: REJECTED (1 tests bloquants échoués)
+
+======================================================================
+PROGRÈS: 2/36 (5.6%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-001_MM0_seed3
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 7.07 → 0.61
+  ✗ UNIV-002: Homogénéisation: 1.400e-01 → 1.206e-02 (ratio=0.086)
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ○ STR-002: Évolution spectrale: decreasing, 1.000 → 0.086
+  ✓ BND-001: Bornes respectées: [0.000, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 0.10
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=7.000
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.217)
+
+❌ VERDICT: REJECTED (1 tests bloquants échoués)
+
+======================================================================
+PROGRÈS: 3/36 (8.3%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-001_MM1_seed1
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 7.49 → 1.97
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.26
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-001: Symétrie absente (max asym: 1.37e+00)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.246 → 0.942
+  ○ STR-002: Évolution spectrale: decreasing, 1.667 → 0.586
+  ✓ BND-001: Bornes respectées: [-0.076, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 3.81
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=14.525
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.190)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 4/36 (11.1%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-001_MM1_seed2
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 7.48 → 1.96
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.26
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-001: Symétrie absente (max asym: 1.33e+00)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.236 → 0.889
+  ○ STR-002: Évolution spectrale: decreasing, 1.628 → 0.559
+  ✓ BND-001: Bornes respectées: [-0.077, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 3.80
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=49.908
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.190)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 5/36 (13.9%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-001_MM1_seed3
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 7.47 → 1.97
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.27
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-001: Symétrie absente (max asym: 1.33e+00)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.239 → 0.889
+  ○ STR-002: Évolution spectrale: decreasing, 1.645 → 0.571
+  ✓ BND-001: Bornes respectées: [-0.076, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 3.80
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=32.892
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.189)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 6/36 (16.7%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-002_MM0_seed1
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 20.22 → 3.82
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.19
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ○ STR-002: Évolution spectrale: decreasing, 5.620 → 1.041
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 2.68
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=73.225
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.187)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 7/36 (19.4%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-002_MM0_seed2
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 20.83 → 3.81
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.18
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ○ STR-002: Évolution spectrale: decreasing, 5.671 → 0.997
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 2.66
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=19.312
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.189)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 8/36 (22.2%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-002_MM0_seed3
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 20.69 → 3.82
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.18
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ○ STR-002: Évolution spectrale: decreasing, 5.732 → 1.059
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 2.66
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=61.465
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.188)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 9/36 (25.0%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-002_MM1_seed1
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 20.40 → 3.82
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.19
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-001: Symétrie absente (max asym: 2.74e-01)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.088 → 0.138
+  ○ STR-002: Évolution spectrale: decreasing, 5.634 → 1.018
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 2.68
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=55.870
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.188)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 10/36 (27.8%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-002_MM1_seed2
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 20.95 → 3.80
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.18
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-001: Symétrie absente (max asym: 2.66e-01)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.082 → 0.134
+  ○ STR-002: Évolution spectrale: decreasing, 5.819 → 0.993
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 2.68
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=17.800
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.189)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 11/36 (30.6%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DSYM-002_MM1_seed3
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 20.76 → 3.82
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.18
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-001: Symétrie absente (max asym: 2.65e-01)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.084 → 0.134
+  ○ STR-002: Évolution spectrale: decreasing, 5.748 → 1.057
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 2.67
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=46.434
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.188)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 12/36 (33.3%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DASY-001_MM0_seed1
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 28.74 → 4.04
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.14
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-002: Pas de création (asym: 1.42e+00 → 1.39e+00)
+  ○ SYM-003: Asymétrie réduite: ratio 1.010 → 0.969
+  ○ STR-002: Évolution spectrale: decreasing, 7.346 → 1.075
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 2.01
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=59.478
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.200)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 13/36 (36.1%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DASY-001_MM0_seed2
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 29.02 → 4.04
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.14
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-002: Pas de création (asym: 1.39e+00 → 1.40e+00)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.970 → 0.982
+  ○ STR-002: Évolution spectrale: decreasing, 7.510 → 1.049
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 1.99
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=25.114
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.200)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 14/36 (38.9%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DASY-001_MM0_seed3
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 28.62 → 4.03
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.14
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-002: Pas de création (asym: 1.38e+00 → 1.38e+00)
+  ○ SYM-003: Asymétrie réduite: ratio 0.956 → 0.949
+  ○ STR-002: Évolution spectrale: decreasing, 7.386 → 1.095
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 2.02
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=87.814
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.199)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 15/36 (41.7%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DASY-001_MM1_seed1
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 28.84 → 4.03
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.14
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-002: Pas de création (asym: 1.42e+00 → 1.39e+00)
+  ○ SYM-003: Asymétrie réduite: ratio 1.006 → 0.969
+  ○ STR-002: Évolution spectrale: decreasing, 7.388 → 1.083
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 2.03
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=54.648
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.200)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 16/36 (44.4%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DASY-001_MM1_seed2
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 29.08 → 4.04
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.14
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-002: Pas de création (asym: 1.39e+00 → 1.40e+00)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.969 → 0.984
+  ○ STR-002: Évolution spectrale: decreasing, 7.620 → 1.044
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 2.01
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=22.601
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.200)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 17/36 (47.2%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta1.0_DASY-001_MM1_seed3
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=1.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: decreasing, 28.61 → 4.03
+  ○ UNIV-002: Évolution diversité: decreasing, ratio=0.14
+  ○ UNIV-003: Non convergé dans le temps imparti
+  ○ SYM-002: Pas de création (asym: 1.38e+00 → 1.37e+00)
+  ○ SYM-003: Asymétrie réduite: ratio 0.955 → 0.943
+  ○ STR-002: Évolution spectrale: decreasing, 7.482 → 1.073
+  ✓ BND-001: Bornes respectées: [-0.086, 0.086] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 2.02
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=81.673
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-0.199)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 18/36 (50.0%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-001_MM0_seed1
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ✓ UNIV-001: Évolution contrôlée: stable, max=7.07
+  ✓ UNIV-002: Diversité préservée: ratio=0.96
+  ✓ UNIV-003: Convergence non-triviale (iter=1, dist=0.00e+00)
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ✓ STR-002: Rayon spectral stable: 0.958
+  ✓ BND-001: Bornes respectées: [0.000, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 0.10
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=7.000
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-18.031)
+
+✓ VERDICT: PASS (9/10 tests réussis)
+
+======================================================================
+PROGRÈS: 19/36 (52.8%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-001_MM0_seed2
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ✓ UNIV-001: Évolution contrôlée: stable, max=7.07
+  ✓ UNIV-002: Diversité préservée: ratio=0.96
+  ✓ UNIV-003: Convergence non-triviale (iter=1, dist=0.00e+00)
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ✓ STR-002: Rayon spectral stable: 0.958
+  ✓ BND-001: Bornes respectées: [0.000, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 0.10
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=7.000
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-18.031)
+
+✓ VERDICT: PASS (9/10 tests réussis)
+
+======================================================================
+PROGRÈS: 20/36 (55.6%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-001_MM0_seed3
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ✓ UNIV-001: Évolution contrôlée: stable, max=7.07
+  ✓ UNIV-002: Diversité préservée: ratio=0.96
+  ✓ UNIV-003: Convergence non-triviale (iter=1, dist=0.00e+00)
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ✓ STR-002: Rayon spectral stable: 0.958
+  ✓ BND-001: Bornes respectées: [0.000, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ✓ DIV-ENTROPY: Entropie stable: 0.10
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=7.000
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-18.031)
+
+✓ VERDICT: PASS (9/10 tests réussis)
+
+======================================================================
+PROGRÈS: 21/36 (58.3%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-001_MM1_seed1
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 7.49 → 47.88
+  ○ UNIV-002: Évolution diversité: increasing, ratio=6.45
+  ✓ UNIV-003: Convergence non-triviale (iter=3, dist=0.00e+00)
+  ○ SYM-001: Symétrie absente (max asym: 1.42e+00)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.246 → 1.003
+  ○ STR-002: Évolution spectrale: increasing, 1.667 → 13.515
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 2.21 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=25.491
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-10.048)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 22/36 (61.1%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-001_MM1_seed2
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 7.48 → 47.88
+  ○ UNIV-002: Évolution diversité: increasing, ratio=6.45
+  ✓ UNIV-003: Convergence non-triviale (iter=3, dist=0.00e+00)
+  ○ SYM-001: Symétrie absente (max asym: 1.39e+00)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.236 → 0.967
+  ○ STR-002: Évolution spectrale: increasing, 1.628 → 12.816
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 2.20 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=9575039968.634
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-9.577)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 23/36 (63.9%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-001_MM1_seed3
+======================================================================
+✓ D^(base) généré: SYM-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 7.47 → 47.88
+  ○ UNIV-002: Évolution diversité: increasing, ratio=6.46
+  ✓ UNIV-003: Convergence non-triviale (iter=3, dist=0.00e+00)
+  ○ SYM-001: Symétrie absente (max asym: 1.39e+00)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.239 → 0.972
+  ○ STR-002: Évolution spectrale: increasing, 1.645 → 13.799
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 2.22 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=54.339
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-9.932)
+
+○ VERDICT: NEUTRAL (4 PASS, 0 FAIL, 6 NEUTRAL)
+
+======================================================================
+PROGRÈS: 24/36 (66.7%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-002_MM0_seed1
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 20.22 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=2.37
+  ✓ UNIV-003: Convergence non-triviale (iter=3, dist=0.00e+00)
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ○ STR-002: Évolution spectrale: increasing, 5.620 → 13.335
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.70 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=113.632
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-10.916)
+
+✓ VERDICT: PASS (6/10 tests réussis)
+
+======================================================================
+PROGRÈS: 25/36 (69.4%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-002_MM0_seed2
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 20.83 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=2.30
+  ✓ UNIV-003: Convergence non-triviale (iter=3, dist=0.00e+00)
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ○ STR-002: Évolution spectrale: increasing, 5.671 → 12.559
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.73 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=18.630
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-11.980)
+
+✓ VERDICT: PASS (6/10 tests réussis)
+
+======================================================================
+PROGRÈS: 26/36 (72.2%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-002_MM0_seed3
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 20.69 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=2.31
+  ✓ UNIV-003: Convergence non-triviale (iter=2, dist=0.00e+00)
+  ✓ SYM-001: Symétrie préservée (max asym: 0.00e+00)
+  ○ SYM-003: Asymétrie stable: ratio ≈ 0.000
+  ○ STR-002: Évolution spectrale: increasing, 5.732 → 13.303
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.73 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=62.492
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-12.959)
+
+✓ VERDICT: PASS (6/10 tests réussis)
+
+======================================================================
+PROGRÈS: 27/36 (75.0%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-002_MM1_seed1
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 20.40 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=2.35
+  ✓ UNIV-003: Convergence non-triviale (iter=3, dist=0.00e+00)
+  ○ SYM-001: Symétrie absente (max asym: 4.63e-01)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.088 → 0.238
+  ○ STR-002: Évolution spectrale: increasing, 5.634 → 12.705
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.66 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=41.655
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-11.241)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 28/36 (77.8%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-002_MM1_seed2
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 20.95 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=2.28
+  ✓ UNIV-003: Convergence non-triviale (iter=2, dist=0.00e+00)
+  ○ SYM-001: Symétrie absente (max asym: 4.63e-01)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.082 → 0.238
+  ○ STR-002: Évolution spectrale: increasing, 5.819 → 12.946
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.69 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=15.593
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-12.466)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 29/36 (80.6%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DSYM-002_MM1_seed3
+======================================================================
+✓ D^(base) généré: SYM-002, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 20.76 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=2.31
+  ✓ UNIV-003: Convergence non-triviale (iter=2, dist=0.00e+00)
+  ○ SYM-001: Symétrie absente (max asym: 4.42e-01)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.084 → 0.227
+  ○ STR-002: Évolution spectrale: increasing, 5.748 → 13.220
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.68 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=52.074
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-12.720)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 30/36 (83.3%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DASY-001_MM0_seed1
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 28.74 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=1.67
+  ✓ UNIV-003: Convergence non-triviale (iter=3, dist=0.00e+00)
+  ○ SYM-002: Pas de création (asym: 1.42e+00 → 1.38e+00)
+  ○ SYM-003: Asymétrie réduite: ratio 1.010 → 0.952
+  ○ STR-002: Évolution spectrale: increasing, 7.346 → 12.764
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.90 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=59.515
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-11.797)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 31/36 (86.1%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DASY-001_MM0_seed2
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 29.02 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=1.65
+  ✓ UNIV-003: Convergence non-triviale (iter=3, dist=0.00e+00)
+  ○ SYM-002: Pas de création (asym: 1.39e+00 → 1.40e+00)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.970 → 0.976
+  ○ STR-002: Évolution spectrale: increasing, 7.510 → 12.409
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.90 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=25.491
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-9.677)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 32/36 (88.9%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DASY-001_MM0_seed3
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier: aucun (M0)
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 28.62 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=1.67
+  ✓ UNIV-003: Convergence non-triviale (iter=2, dist=0.00e+00)
+  ○ SYM-002: Pas de création (asym: 1.38e+00 → 1.38e+00)
+  ○ SYM-003: Asymétrie réduite: ratio 0.956 → 0.949
+  ○ STR-002: Évolution spectrale: increasing, 7.386 → 13.135
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.90 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=104.162
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-13.055)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 33/36 (91.7%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DASY-001_MM1_seed1
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 28.84 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=1.66
+  ✓ UNIV-003: Convergence non-triviale (iter=2, dist=0.00e+00)
+  ○ SYM-002: Pas de création (asym: 1.42e+00 → 1.38e+00)
+  ○ SYM-003: Asymétrie réduite: ratio 1.006 → 0.958
+  ○ STR-002: Évolution spectrale: increasing, 7.388 → 12.731
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.84 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=49.990
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-13.078)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 34/36 (94.4%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DASY-001_MM1_seed2
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 29.08 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=1.65
+  ✓ UNIV-003: Convergence non-triviale (iter=2, dist=0.00e+00)
+  ○ SYM-002: Pas de création (asym: 1.39e+00 → 1.41e+00)
+  ○ SYM-003: Asymétrie amplifiée: ratio 0.969 → 0.992
+  ○ STR-002: Évolution spectrale: increasing, 7.620 → 12.639
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.86 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=19.816
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-12.371)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 35/36 (97.2%)
+======================================================================
+
+
+======================================================================
+RUN: GAM-001_beta2.0_DASY-001_MM1_seed3
+======================================================================
+✓ D^(base) généré: ASY-001, shape=(50, 50)
+✓ Modifier appliqué: M1
+✓ Γ créé: PureSaturationGamma(beta=2.0)
+✓ Exécution kernel (max_iter=200)...
+✓ Kernel terminé: 200 iterations, 21 snapshots
+✓ Application des tests...
+
+──────────────────────────────────────────────────────────────────────
+RÉSUMÉ DES TESTS:
+──────────────────────────────────────────────────────────────────────
+  ○ UNIV-001: Évolution: increasing, 28.61 → 47.88
+  ✓ UNIV-002: Diversité préservée: ratio=1.67
+  ✓ UNIV-003: Convergence non-triviale (iter=2, dist=0.00e+00)
+  ○ SYM-002: Pas de création (asym: 1.38e+00 → 1.37e+00)
+  ○ SYM-003: Asymétrie réduite: ratio 0.955 → 0.945
+  ○ STR-002: Évolution spectrale: increasing, 7.482 → 12.654
+  ✓ BND-001: Bornes respectées: [-0.958, 0.958] ⊆ [-1.000, 1.000]×1.1
+  ○ DIV-ENTROPY: Entropie réduite: 3.85 → 0.69
+  ✓ DIV-UNIFORM: Diversité maintenue: CV=249.998
+  ✓ CONV-LYAPUNOV: Exposant Lyapunov < 0: convergent (λ=-12.431)
+
+○ VERDICT: NEUTRAL (5 PASS, 0 FAIL, 5 NEUTRAL)
+
+======================================================================
+PROGRÈS: 36/36 (100.0%)
+======================================================================
+
+
+######################################################################
+# RAPPORT FINAL - PHASE 0
+######################################################################
+
+Statistiques globales:
+  Total runs: 36
+  Complétés: 36 (100.0%)
+  Erreurs: 0 (0.0%)
+
+Verdicts globaux:
+  PASS: 6 (16.7%)
+  POOR: 0 (0.0%)
+  REJECTED: 3 (8.3%)
+  NEUTRAL: 27 (75.0%)
+
+Matrice β × D_base:
+β         ASY-001        SYM-001        SYM-002
+1.0       0% (6)    0% (6)    0% (6)
+2.0       0% (6)    50% (6)    50% (6)
+
+######################################################################
+
+
+✓ Phase 0 terminée: 36 runs
+
+✓ TM-GAM-001 terminé

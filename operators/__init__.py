@@ -12,60 +12,184 @@ ni l'interprétation de l'état qu'il manipule.
 CATALOGUE R0 (14 hypothèses):
 Famille Markovienne:
   - GAM-001: Saturation pure pointwise ✅
-  - GAM-002: Diffusion pure (TODO)
-  - GAM-003: Croissance exponentielle (TODO)
-  - GAM-004: Décroissance exponentielle (TODO)
-  - GAM-005: Oscillateur harmonique (TODO)
+  - GAM-002: Diffusion pure ✅
+  - GAM-003: Croissance exponentielle ✅
+  - GAM-004: Décroissance exponentielle (✅
+  - GAM-005: Oscillateur harmonique ✅
 
 Famille Non-markovienne:
-  - GAM-006: Saturation + mémoire ordre-1 (TODO)
-  - GAM-007: Régulation moyenne glissante (TODO)
-  - GAM-008: Mémoire différentielle (TODO)
+  - GAM-006: Saturation + mémoire ordre-1 ✅
+  - GAM-007: Régulation moyenne glissante ✅
+  - GAM-008: Mémoire différentielle ✅
 
 Famille Stochastique:
-  - GAM-009: Saturation + bruit additif (TODO)
-  - GAM-010: Bruit multiplicatif (TODO)
+  - GAM-009: Saturation + bruit additif ✅
+  - GAM-010: Bruit multiplicatif ✅
   - GAM-011: Branchement tensoriel (TODO)
 
 Famille Structurelle:
-  - GAM-012: Préservation symétrie forcée (TODO)
-  - GAM-013: Renforcement hebbien (TODO)
+  - GAM-012: Préservation symétrie forcée ✅
+  - GAM-013: Renforcement hebbien ✅
   - GAM-014: Projection sous-espace (TODO)
+
+
+STATUT: 10/14 opérateurs implémentés
 """
 
 # ============================================================================
 # IMPORTS
 # ============================================================================
 
+# Famille Markovienne
 from .gamma_hyp_001 import (
     PureSaturationGamma,
     create_gamma_hyp_001,
-    PARAM_GRID_PHASE1,
-    PARAM_GRID_PHASE2,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_001,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_001,
     METADATA as METADATA_GAM_001,
 )
+
+from .gamma_hyp_002 import (
+    PureDiffusionGamma,
+    create_gamma_hyp_002,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_002,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_002,
+    METADATA as METADATA_GAM_002,
+)
+
+from .gamma_hyp_003 import (
+    ExponentialGrowthGamma,
+    create_gamma_hyp_003,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_003,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_003,
+    METADATA as METADATA_GAM_003,
+)
+
+from .gamma_hyp_004 import (
+    ExponentialDecayGamma,
+    create_gamma_hyp_004,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_004,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_004,
+    METADATA as METADATA_GAM_004,
+)
+
+from .gamma_hyp_005 import (
+    HarmonicOscillatorGamma,
+    create_gamma_hyp_005,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_005,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_005,
+    METADATA as METADATA_GAM_005,
+)
+
+# Famille Non-markovienne
+from .gamma_hyp_006 import (
+    MemorySaturationGamma,
+    create_gamma_hyp_006,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_006,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_006,
+    METADATA as METADATA_GAM_006,
+)
+
+from .gamma_hyp_007 import (
+    SlidingAverageGamma,
+    create_gamma_hyp_007,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_007,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_007,
+    METADATA as METADATA_GAM_007,
+)
+
+from .gamma_hyp_008 import (
+    DifferentialMemoryGamma,
+    create_gamma_hyp_008,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_008,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_008,
+    METADATA as METADATA_GAM_008,
+)
+
+# Famille Stochastique
+from .gamma_hyp_009 import (
+    StochasticSaturationGamma,
+    create_gamma_hyp_009,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_009,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_009,
+    METADATA as METADATA_GAM_009,
+)
+
+from .gamma_hyp_010 import (
+    MultiplicativeNoiseGamma,
+    create_gamma_hyp_010,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_010,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_010,
+    METADATA as METADATA_GAM_010,
+)
+
+# Famille Structurelle
+from .gamma_hyp_012 import (
+    ForcedSymmetryGamma,
+    create_gamma_hyp_012,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_012,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_012,
+    METADATA as METADATA_GAM_012,
+)
+
+from .gamma_hyp_013 import (
+    HebbianReinforcementGamma,
+    create_gamma_hyp_013,
+    PARAM_GRID_PHASE1 as PARAM_GRID_PHASE1_013,
+    PARAM_GRID_PHASE2 as PARAM_GRID_PHASE2_013,
+    METADATA as METADATA_GAM_013,
+)
+
 
 # ============================================================================
 # EXPORTS
 # ============================================================================
 
 __all__ = [
+    # Markoviens
     'PureSaturationGamma',
     'create_gamma_hyp_001',
-    'get_operator_by_id',
-    'validate_operator',
-    'list_operators',
+    'PureDiffusionGamma',
+    'create_gamma_hyp_002',
+    'ExponentialGrowthGamma',
+    'create_gamma_hyp_003',
+    'ExponentialDecayGamma',
+    'create_gamma_hyp_004',
+    'HarmonicOscillatorGamma',
+    'create_gamma_hyp_005',
+    
+    # Non-markoviens
+    'MemorySaturationGamma',
+    'create_gamma_hyp_006',
+    'SlidingAverageGamma',
+    'create_gamma_hyp_007',
+    'DifferentialMemoryGamma',
+    'create_gamma_hyp_008',
+    
+    # Stochastiques
+    'StochasticSaturationGamma',
+    'create_gamma_hyp_009',
+    'MultiplicativeNoiseGamma',
+    'create_gamma_hyp_010',
+    
+    # Structurels
+    'ForcedSymmetryGamma',
+    'create_gamma_hyp_012',
+    'HebbianReinforcementGamma',
+    'create_gamma_hyp_013',
 ]
 
-__version__ = '0.1.0'  # Version partielle (1/14 implémenté)
+__version__ = '0.7.0'  # 10/14 implémentés
 __author__ = 'PRC Operators Team'
 __description__ = 'Opérateurs Γ pour exploration R0'
+
 
 # ============================================================================
 # REGISTRE DES OPÉRATEURS
 # ============================================================================
 
 OPERATOR_REGISTRY = {
+    # Famille Markovienne (5 opérateurs)
     'GAM-001': {
         'name': 'Saturation pure pointwise',
         'class': PureSaturationGamma,
@@ -74,73 +198,114 @@ OPERATOR_REGISTRY = {
         'implemented': True,
         'metadata': METADATA_GAM_001,
     },
-    # GAM-002 à GAM-014: TODO
     'GAM-002': {
         'name': 'Diffusion pure',
+        'class': PureDiffusionGamma,
+        'factory': create_gamma_hyp_002,
         'family': 'markovian',
-        'implemented': False,
+        'implemented': True,
+        'metadata': METADATA_GAM_002,
     },
     'GAM-003': {
         'name': 'Croissance exponentielle',
+        'class': ExponentialGrowthGamma,
+        'factory': create_gamma_hyp_003,
         'family': 'markovian',
-        'implemented': False,
+        'implemented': True,
+        'metadata': METADATA_GAM_003,
     },
     'GAM-004': {
         'name': 'Décroissance exponentielle',
+        'class': ExponentialDecayGamma,
+        'factory': create_gamma_hyp_004,
         'family': 'markovian',
-        'implemented': False,
+        'implemented': True,
+        'metadata': METADATA_GAM_004,
     },
     'GAM-005': {
         'name': 'Oscillateur harmonique',
+        'class': HarmonicOscillatorGamma,
+        'factory': create_gamma_hyp_005,
         'family': 'markovian',
-        'implemented': False,
+        'implemented': True,
+        'metadata': METADATA_GAM_005,
     },
+    
+    # Famille Non-markovienne (3 opérateurs)
     'GAM-006': {
         'name': 'Saturation + mémoire ordre-1',
+        'class': MemorySaturationGamma,
+        'factory': create_gamma_hyp_006,
         'family': 'non_markovian',
-        'implemented': False,
+        'implemented': True,
+        'metadata': METADATA_GAM_006,
     },
     'GAM-007': {
         'name': 'Régulation moyenne glissante',
+        'class': SlidingAverageGamma,
+        'factory': create_gamma_hyp_007,
         'family': 'non_markovian',
-        'implemented': False,
+        'implemented': True,
+        'metadata': METADATA_GAM_007,
     },
     'GAM-008': {
         'name': 'Mémoire différentielle',
+        'class': DifferentialMemoryGamma,
+        'factory': create_gamma_hyp_008,
         'family': 'non_markovian',
-        'implemented': False,
+        'implemented': True,
+        'metadata': METADATA_GAM_008,
     },
+    
+    # Famille Stochastique (3 opérateurs, 1 manquant)
     'GAM-009': {
         'name': 'Saturation + bruit additif',
+        'class': StochasticSaturationGamma,
+        'factory': create_gamma_hyp_009,
         'family': 'stochastic',
-        'implemented': False,
+        'implemented': True,
+        'metadata': METADATA_GAM_009,
     },
     'GAM-010': {
         'name': 'Bruit multiplicatif',
+        'class': MultiplicativeNoiseGamma,
+        'factory': create_gamma_hyp_010,
         'family': 'stochastic',
-        'implemented': False,
+        'implemented': True,
+        'metadata': METADATA_GAM_010,
     },
     'GAM-011': {
         'name': 'Branchement tensoriel',
         'family': 'stochastic',
         'implemented': False,
+        'note': 'Complexité élevée, R3 uniquement'
     },
+    
+    # Famille Structurelle (3 opérateurs, 1 manquant)
     'GAM-012': {
         'name': 'Préservation symétrie forcée',
+        'class': ForcedSymmetryGamma,
+        'factory': create_gamma_hyp_012,
         'family': 'structural',
-        'implemented': False,
+        'implemented': True,
+        'metadata': METADATA_GAM_012,
     },
     'GAM-013': {
         'name': 'Renforcement hebbien',
+        'class': HebbianReinforcementGamma,
+        'factory': create_gamma_hyp_013,
         'family': 'structural',
-        'implemented': False,
+        'implemented': True,
+        'metadata': METADATA_GAM_013,
     },
     'GAM-014': {
         'name': 'Projection sous-espace',
         'family': 'structural',
         'implemented': False,
+        'note': 'Nécessite décomposition spectrale'
     },
 }
+
 
 # ============================================================================
 # HELPERS
@@ -211,55 +376,79 @@ def get_operator_by_id(operator_id: str, **params):
         raise ValueError(f"Operator '{operator_id}' has no factory or class")
 
 
-def validate_operator(operator_id: str, test_state=None):
+def get_implementation_status() -> dict:
     """
-    Valide qu'un opérateur est correctement implémenté.
-    
-    Vérifie:
-    - Callable
-    - Retourne np.ndarray
-    - Préserve shape
-    - Ne produit pas NaN/Inf
-    
-    Args:
-        operator_id: ID de l'opérateur
-        test_state: État de test (si None, utilise identité 10×10)
+    Retourne le statut d'implémentation par famille.
     
     Returns:
-        bool: True si validation réussie
+        dict {family: (n_implemented, n_total)}
     """
-    import numpy as np
+    status = {}
     
-    if test_state is None:
-        test_state = np.eye(10)
+    for info in OPERATOR_REGISTRY.values():
+        family = info['family']
+        if family not in status:
+            status[family] = {'implemented': 0, 'total': 0}
+        
+        status[family]['total'] += 1
+        if info['implemented']:
+            status[family]['implemented'] += 1
     
-    try:
-        # Créer opérateur avec paramètres par défaut
-        info = OPERATOR_REGISTRY[operator_id]
-        
-        if not info['implemented']:
-            print(f"⏳ {operator_id}: Non implémenté")
-            return False
-        
-        if 'factory' in info:
-            # Paramètres nominaux
-            params = {'beta': 2.0} if operator_id == 'GAM-001' else {}
-            gamma = info['factory'](**params)
-        else:
-            gamma = info['class']()
-        
-        # Tester appel
-        result = gamma(test_state)
-        
-        # Vérifications
-        assert isinstance(result, np.ndarray), "Result must be np.ndarray"
-        assert result.shape == test_state.shape, "Shape must be preserved"
-        assert not np.any(np.isnan(result)), "Result contains NaN"
-        assert not np.any(np.isinf(result)), "Result contains Inf"
-        
-        print(f"✅ {operator_id}: Validation réussie")
-        return True
+    return status
+
+
+def print_implementation_status():
+    """Affiche le statut d'implémentation."""
+    status = get_implementation_status()
     
-    except Exception as e:
-        print(f"❌ {operator_id}: Validation échouée - {str(e)}")
-        return False
+    print("\n" + "="*70)
+    print("STATUT D'IMPLÉMENTATION")
+    print("="*70)
+    
+    for family, counts in sorted(status.items()):
+        impl = counts['implemented']
+        total = counts['total']
+        pct = 100 * impl / total if total > 0 else 0
+        
+        bar = "█" * impl + "░" * (total - impl)
+        print(f"\n{family.upper().replace('_', ' '):<20} [{bar}] {impl}/{total} ({pct:.0f}%)")
+    
+    # Total
+    total_impl = sum(c['implemented'] for c in status.values())
+    total_all = sum(c['total'] for c in status.values())
+    total_pct = 100 * total_impl / total_all
+    
+    print(f"\n{'─'*70}")
+    print(f"TOTAL: {total_impl}/{total_all} ({total_pct:.0f}%)")
+    print("="*70 + "\n")
+
+
+# ============================================================================
+# MÉTADONNÉES
+# ============================================================================
+
+__catalog__ = {
+    'total_operators': len(OPERATOR_REGISTRY),
+    'implemented': sum(1 for info in OPERATOR_REGISTRY.values() if info['implemented']),
+    'families': {
+        'markovian': 5,
+        'non_markovian': 3,
+        'stochastic': 3,
+        'structural': 3,
+    }
+}
+
+__status_summary__ = """
+✅ IMPLÉMENTÉS (10/14):
+  Markoviens: GAM-001, 002, 003, 004, 005
+  Non-markoviens: GAM-006, 007, 008
+  Stochastiques: GAM-009, 010
+  Structurels: GAM-012, 013
+
+⏳ MANQUANTS (4/14):
+  Stochastiques: GAM-011 (branchement tensoriel - complexe)
+  Structurels: GAM-014 (projection sous-espace)
+  
+Note: Les 10 opérateurs implémentés couvrent toutes les familles
+      et permettent de lancer Phase 1 complète.
+"""
