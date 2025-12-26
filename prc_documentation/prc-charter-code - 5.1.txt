@@ -1679,6 +1679,843 @@ print(results)
 }
 ---
 
+# SECTION 14 : ARCHITECTURE OPÉRATIONNELLE R0
+
+```
+\SECTION{
+  ID = CHARTER-SECTION-14
+  VERSION = 1.0
+  STATUS = normative
+  DATE = 2024-12-26
+  PURPOSE = "Contraintes d'architecture pour exploration R0"
+}
+```
+
+---
+
+## 14.1 PRINCIPE DE NON-RERUNS
+
+### Règle absolue
+
+**Toute modification de scoring, pondération, ou verdict doit être possible SANS réexécuter les runs du kernel.**
+
+### Conséquences architecturales
+
+1. **Données factuelles et analyses sont SÉPARÉES**
+   - Les runs du kernel ne sont exécutés qu'une fois
+   - Toute interprétation ultérieure lit les données existantes
+
+2. **Pipeline est REJOUABLE**
+   - Tests peuvent être ré-appliqués avec nouvelles implémentations
+   - Scores peuvent être recalculés avec nouvelles pondérations
+   - Verdicts peuvent être régénérés avec nouveaux seuils
+
+3. **Configs sont EXTERNES**
+   - Aucune règle de scoring hardcodée dans le code
+   - Tous les paramètres dans des fichiers YAML versionnés
+
+### Interdictions formelles
+
+```
+\INTERDICTIONS{
+  - Forcer un rerun pour changer une règle de scoring
+  - Mélanger données factuelles et interprétations dans une même table
+  - Hardcoder des pondérations ou seuils dans le code
+  - Créer un pipeline linéaire non rejouable
+}
+```
+
+---
+
+## 14.2 ARCHITECTURE BATCH_RUNNER
+
+### Règle structurelle
+
+**Un seul point d'entrée : `batch_runner.py`**
+
+Le script unique gère trois modes d'exécution avec **chaînage automatique** des dépendances.
+
+### Modes d'exécution
+
+#### Mode `--brut`
+
+**Responsabilité** : Collecte des données de runs
+
+```bash
+batch_runner --brut --gamma GAM-001
+```
+
+**Comportement** :
+1. Exécute kernel pour tous (D, modifier, seed) applicables
+2. Stocke dans `db_raw` :
+   - Executions (métadonnées run)
+   - Snapshots (états sauvegardés)
+   - Metrics (métriques par itération)
+3. **Aucun test appliqué**
+4. **Aucune interprétation**
+
+**Vérification préalable** :
+- Vérifie si runs existent déjà dans `db_raw`
+- Skip les runs existants (append-only)
+
+---
+
+#### Mode `--test`
+
+**Responsabilité** : Application des tests sur données existantes
+
+```bash
+batch_runner --test --gamma GAM-001 --config default
+```
+
+**Comportement** :
+1. **Vérifie que `db_raw` contient les runs nécessaires (cad les datas d'un run ayant mêmes id pour tous les paramètres)**
+2. **Si runs manquants : exécute automatiquement `--brut` d'abord**
+3. Lit les runs depuis `db_raw`
+4. Applique tous les tests applicables (selon matrice d'applicabilité)
+5. Calcule scores contextuels avec config spécifiée
+6. Stocke dans `db_results` :
+   - TestObservations (valeurs brutes tests)
+   - TestScores (scores calculés avec config_id)
+
+**Vérification préalable** :
+- Si runs absents dans `db_raw` → exécute `--brut` automatiquement
+- Vérifie si tests déjà appliqués pour cette config
+- Skip les observations existantes (append-only par config_id)
+
+**Rejouabilité** :
+- Peut être relancé avec `--config alternative` sans refaire les runs
+- Chaque config génère un nouveau jeu de scores avec son config_id
+
+---
+
+#### Mode `--verdict`
+
+**Responsabilité** : Génération des verdicts agrégés
+
+```bash
+batch_runner --verdict --gamma GAM-001 --config default --thresholds strict
+```
+
+**Comportement** :
+1. **Vérifie que `db_results` contient les scores pour config spécifiée**
+2. **Si scores manquants : exécute automatiquement `--test` d'abord**
+   - Qui lui-même exécutera `--brut` si nécessaire
+3. Lit les scores depuis `db_results`
+4. Calcule les 3 critères (Majorité, Robustesse, Score global)
+5. Applique les seuils du fichier thresholds
+6. Stocke dans `db_results` :
+   - GammaVerdicts (verdict avec config_id + threshold_id)
+
+**Vérification préalable** :
+- Si scores absents pour config → exécute `--test` automatiquement
+- Si runs absents → `--test` exécutera `--brut` automatiquement
+- Cascade complète jusqu'au premier manquant
+
+**Rejouabilité** :
+- Peut être relancé avec `--thresholds alternative` sans refaire scoring
+- Chaque combinaison (config, thresholds) génère un verdict distinct
+
+---
+
+### Mode `--all` (optionnel, raccourci)
+
+**Responsabilité** : Chaîne complète en une commande
+
+```bash
+batch_runner --all --gamma GAM-001 --config default --thresholds strict
+```
+
+**Équivalent strict de** :
+```bash
+batch_runner --brut --gamma GAM-001
+batch_runner --test --gamma GAM-001 --config default
+batch_runner --verdict --gamma GAM-001 --config default --thresholds strict
+```
+
+**Usage** : Utile quand on sait que tout est stable. Sinon, modes séparés préférables.
+
+---
+
+### Chaînage automatique des dépendances
+
+**Graphe de dépendances** :
+```
+--brut
+  ↓ (vérifié automatiquement par --test)
+--test (avec config X)
+  ↓ (vérifié automatiquement par --verdict)
+--verdict (avec config X, thresholds Y)
+```
+
+**Exemple concret** :
+```bash
+# Situation : db vides
+batch_runner --verdict --gamma GAM-001 --config default --thresholds strict
+
+# Exécution automatique :
+# 1. Détecte absence runs dans db_raw
+# 2. Exécute --brut d'abord
+# 3. Détecte absence tests dans db_results
+# 4. Exécute --test ensuite
+# 5. Calcule verdict final
+```
+
+**Avantage** : Utilisateur n'a jamais besoin de savoir ce qui existe ou pas.
+
+---
+
+### Interdictions formelles
+
+```
+\INTERDICTIONS{
+  - Créer batch_runner_raw.py, batch_runner_with_tests.py, compute_scores.py séparés
+  - Forcer l'utilisateur à exécuter les modes dans le bon ordre
+  - Manquer une vérification de dépendance (toujours vérifier existence)
+  - Rendre --all obligatoire (modes séparés doivent fonctionner)
+  - Créer des modes supplémentaires non documentés ici
+}
+```
+
+---
+
+## 14.3 SÉPARATION BASES DE DONNÉES
+
+### Règle structurelle
+
+**Deux bases séparées, rôles distincts et non interchangeables.**
+
+### db_raw : Données factuelles
+
+**Fichier** : `prc_database/prc_r0_raw.db`
+
+**Contenu** :
+```sql
+Executions   -- Métadonnées des runs (gamma_id, params, d_base_id, seed, ...)
+Snapshots    -- États sauvegardés (iteration, state_blob compressé)
+Metrics      -- Métriques brutes par itération (norm, std, min, max, ...)
+```
+
+**Propriétés obligatoires** :
+- **Append-only** : Jamais de UPDATE ou DELETE
+- **Immuable** : Une fois écrit, jamais modifié
+- **Complète** : Contient TOUTES les données nécessaires aux analyses futures
+
+**Cas d'usage** :
+- Mode `--brut` écrit exclusivement ici
+- Modes `--test` et `--verdict` lisent exclusivement d'ici (sauf leurs propres résultats)
+
+---
+
+### db_results : Analyses et verdicts
+
+**Fichier** : `prc_database/prc_r0_results.db`
+
+**Contenu** :
+```sql
+TestObservations  -- Résultats bruts des tests (test_name, observation_data JSON)
+TestScores        -- Scores calculés (config_id, test_name, score 0-1)
+GammaVerdicts     -- Verdicts agrégés (config_id, threshold_id, verdict)
+```
+
+**Propriétés obligatoires** :
+- **Rejouable** : Peut être supprimée et reconstruite depuis db_raw
+- **Versionnée** : Chaque config/threshold génère un jeu de résultats distinct
+- **Multiple** : Plusieurs verdicts coexistent pour les mêmes runs
+
+**Cas d'usage** :
+- Mode `--test` écrit TestObservations et TestScores
+- Mode `--verdict` écrit GammaVerdicts
+- Les trois modes peuvent lire d'ici pour vérifier existence
+- On avertira un utilisateur voulant refaire un test déjà présent, prévenant que le nouveau résultat remplacera l'existant
+
+---
+
+### Relation entre les bases
+
+**db_raw** est la **source de vérité unique**.
+
+**db_results** est **dérivée** et peut contenir plusieurs interprétations des mêmes runs.
+
+**Schéma de référence** :
+```
+db_raw.Executions (exec_id, gamma_id, params, d_base_id, seed, ...)
+  ↓ (1-to-N)
+db_results.TestObservations (exec_id, test_name, value, ...)
+  ↓ (1-to-N)
+db_results.TestScores (exec_id, test_name, config_id, score, ...)
+  ↓ (agrégation)
+db_results.GammaVerdicts (gamma_id, config_id, threshold_id, verdict, ...)
+```
+
+**Clé étrangère obligatoire** : `exec_id` dans `db_results` référence `db_raw.Executions.id`
+
+---
+
+### Interdictions formelles
+
+```
+\INTERDICTIONS{
+  - Mélanger runs et verdicts dans une seule base
+  - Stocker des interprétations dans db_raw
+  - Modifier rétroactivement db_raw (sauf bugs critiques documentés)
+  - Créer db_raw sans clé primaire stable (exec_id)
+  - Créer db_results sans référence à exec_id
+  - Stocker des observations sans config_id
+}
+```
+
+---
+
+## 14.4 TESTS ET SCORING
+
+### Règle de séparation
+
+**Tests observent, scoring interprète.**
+
+Les tests retournent des **observations pures** (valeurs numériques + transitions).
+
+Le scoring applique un **contexte** et des **pondérations** pour calculer des scores 0-1.
+
+---
+
+### Structure obligatoire des tests
+
+**Tous les tests doivent retourner une observation** :
+
+```python
+@dataclass
+class XxxObservation:
+    """Observation du test XXX."""
+    # Valeurs numériques brutes
+    initial_value: float
+    final_value: float
+    min_value: float
+    average_value: float
+    max_value: float
+    
+    # Transitions qualitatives
+    transition: str  # "preserved" | "created" | "destroyed" | "absent"
+    
+    # Métriques complémentaires
+    trend: str  # "increasing" | "decreasing" | "stable" | "oscillating"
+    
+    # PAS de status PASS/FAIL
+    # PAS de blocking boolean (c'est au scoring de décider)
+```
+
+**Exemples conformes** :
+- `SymmetryObservation` (initial_symmetric, final_symmetric, transition, max_asymmetry)
+- `NormObservation` (initial_norm, final_norm, evolution, max_norm)
+- `DiversityObservation` (initial_diversity, final_diversity, ratio, evolution)
+
+---
+
+### Structure obligatoire du scoring contextuel
+
+**Le scoring prend une observation et calcule un score 0-1** :
+
+```python
+def score_xxx(obs: XxxObservation, context: dict, weights: dict) -> float:
+    """
+    Calcule score contextuel 0-1.
+    
+    Args:
+        obs: Observation brute du test
+        context: Informations contextuelles (d_base_id, gamma_id, ...)
+        weights: Pondérations depuis config YAML
+    
+    Returns:
+        Score entre 0.0 et 1.0
+    """
+    # Échelle 0-1 selon transition et contexte
+    # 0.0 = Destruction/perte
+    # 0.5 = Neutre/conservation
+    # 1.0 = Création/amélioration
+    
+    # Exemple symétrie
+    if obs.transition == "destroyed":
+        score_raw = 0.0
+    elif obs.transition in ["preserved", "absent"]:
+        score_raw = 0.5
+    elif obs.transition == "created":
+        score_raw = 1.0
+    
+    # Pondération depuis config
+    weight = weights.get(test_name, 1.0)
+    return score_raw * weight
+```
+
+---
+
+### Échelle de scoring universelle
+
+**Tous les tests utilisent l'échelle 0-1** :
+
+```
+PROPRIÉTÉS CONSERVABLES (symétrie, norme, diversité, positivité)
+├─ 0.0 = Destruction/perte complète
+├─ 0.5 = Neutre/conservation
+└─ 1.0 = Création/amélioration
+
+MÉTRIQUES CONTINUES (vitesse convergence, rayon spectral)
+├─ Normalisation selon distribution observée
+├─ 0.0 = borne inférieure du critère
+├─ 0.5 = Médiane
+└─ 1.0 = borne supérieure du critère
+
+\NOTE{les bornes seront définies par test, dans certains cas un convergence rapide permet d'évaluer la stabilité sous pertubation, dans d'autres processes, une convergence lente obtiendra un meilleur score}
+```
+
+**Exemple concret symétrie** :
+```
+(initial, final) → score
+(0, 0) → 0.5  # Absent → Absent = Neutre
+(1, 0) → 0.0  # Présent → Absent = Destruction
+(0, 1) → 1.0  # Absent → Présent = Création
+(1, 1) → 0.5  # Présent → Présent = Conservation (neutre)
+```
+
+---
+
+### Applicabilité technique
+
+**Matrice d'applicabilité obligatoire** : `tests/utilities/applicability.py`
+
+**Contenu** :
+```python
+TEST_APPLICABILITY = {
+    "test_symmetry_preservation": {
+        "requires_rank": 2,
+        "requires_square": True,
+        "d_types": ["SYM", "ASY"],  # Pas R3
+    },
+    "test_spectral_evolution": {
+        "requires_rank": 2,
+        "requires_square": True,
+        "d_types": ["SYM", "ASY"],  # Applicable aux deux
+    },
+    "test_norm_evolution": {
+        "requires_rank": None,      # Tous rangs
+        "d_types": ["SYM", "ASY", "R3"],  # Tous types
+    },
+    # ...
+}
+
+def is_test_applicable(test_name: str, d_base_id: str, 
+                       state_shape: tuple) -> bool:
+    """Vérifie compatibilité test/contexte."""
+    # ...
+```
+
+**Règle** : Avant d'appliquer un test, vérifier applicabilité. Si non applicable, stocker `applicable=False` dans TestObservations.
+
+---
+
+### Interdictions formelles
+
+```
+\INTERDICTIONS{
+  - Tests retournent status="PASS"/"FAIL"
+  - Tests retournent blocking=True/False (c'est au scoring de décider)
+  - Verdicts hardcodés dans les tests
+  - Scoring non rejouable (pondérations hardcodées)
+  - Appliquer un test sans vérifier applicabilité
+  - Échelles de scoring incohérentes entre tests
+}
+```
+
+---
+
+## 14.5 CONFIGS EXTERNES
+
+### Règle de configuration
+
+**Toute règle de scoring ou verdict est dans un fichier YAML versionné.**
+
+Aucune pondération, seuil, ou règle de décision ne doit être hardcodée dans le code.
+
+---
+
+### Structure des configs de pondération
+
+**Fichier** : `config/weights_<version>.yaml`
+
+**Format obligatoire** :
+```yaml
+version: "1.0"
+description: "Pondérations par défaut selon Charter 5.1"
+
+weights:
+  # Tests universels (critiques)
+  UNIV-001: 2.0  # Norme
+  UNIV-002: 2.0  # Diversité
+  UNIV-003: 2.0  # Convergence
+  
+  # Tests structurels (importants)
+  SYM-001: 1.5   # Préservation symétrie
+  STR-001: 1.5   # Rang
+  
+  # Tests bornes (secondaires)
+  BND-001: 1.0   # Respect bornes
+  LOC-001: 1.0   # Propagation
+```
+
+**Usage** :
+```bash
+batch_runner --test --config weights_default
+batch_runner --test --config weights_conservative
+```
+
+Chaque config génère un jeu de scores distinct avec son `config_id`.
+
+---
+
+### Structure des configs de seuils
+
+**Fichier** : `config/thresholds_<version>.yaml`
+
+**Format obligatoire** :
+```yaml
+version: "1.0"
+description: "Seuils selon Feuille de Route Section 7"
+
+# Critères SURVIVES[R0] (OU logique)
+survives:
+  score_min: 12.0        # Sur 20
+  robustness_min: 60.0   # Pourcentage
+  majority_min: 50.0     # Pourcentage
+
+# Critères FLAGGED_FOR_REVIEW (ET logique)
+flagged:
+  score_max: 8.0
+  robustness_max: 40.0
+  majority_max: 20.0
+
+# Entre les deux : WIP[R0-closed]
+```
+
+**Usage** :
+```bash
+batch_runner --verdict --thresholds thresholds_default
+batch_runner --verdict --thresholds thresholds_strict
+```
+
+Chaque combinaison (config_id, threshold_id) génère un verdict distinct.
+
+---
+
+### Versionnement obligatoire
+
+**Toute config doit avoir** :
+- Un identifiant unique (ex: `default`, `v1_conservative`, `phase1_strict`)
+- Une version explicite (ex: `"1.0"`)
+- Une description claire
+
+**Stockage dans DB** :
+```sql
+TestScores (
+  exec_id,
+  test_name,
+  config_id TEXT,  -- "weights_default"
+  score REAL,
+  ...
+)
+
+GammaVerdicts (
+  gamma_id,
+  config_id TEXT,      -- "weights_default"
+  threshold_id TEXT,   -- "thresholds_strict"
+  verdict TEXT,
+  ...
+)
+```
+
+---
+
+### Interdictions formelles
+
+```
+\INTERDICTIONS{
+  - Pondérations hardcodées dans le code Python
+  - Seuils de verdict non paramétrables
+  - Configs non versionnées (pas d'identifiant unique)
+  - Modifier une config existante (créer une nouvelle version)
+  - Stocker des scores sans config_id
+  - Calculer des verdicts sans référence à threshold_id
+}
+```
+
+---
+
+## 14.6 VERDICTS MULTIPLES
+
+### Règle de multiplicité
+
+**Plusieurs verdicts peuvent coexister pour les mêmes données de runs.**
+
+Chaque verdict est **identifié de manière unique** par :
+- `gamma_id` (quelle hypothèse)
+- `config_id` (quelle pondération)
+- `threshold_id` (quels seuils)
+
+---
+
+### Structure table GammaVerdicts
+
+**Schéma obligatoire** :
+```sql
+CREATE TABLE GammaVerdicts (
+  id INTEGER PRIMARY KEY,
+  gamma_id TEXT NOT NULL,
+  config_id TEXT NOT NULL,        -- Référence config/weights_XXX.yaml
+  threshold_id TEXT NOT NULL,     -- Référence config/thresholds_XXX.yaml
+  
+  -- 3 critères
+  majority_pct REAL,              -- % configs PASS
+  robustness_pct REAL,            -- % D avec ≥1 config viable
+  score_global REAL,              -- Moyenne pondérée
+  
+  -- Verdict
+  verdict TEXT NOT NULL,          -- "SURVIVES[R0]" | "WIP[R0-closed]" | "FLAGGED_FOR_REVIEW"
+  verdict_reason TEXT,
+  
+  -- Traçabilité
+  computed_at TEXT,
+  
+  UNIQUE(gamma_id, config_id, threshold_id)
+);
+```
+
+---
+
+### Calcul des 3 critères
+
+**Majorité** :
+```
+majority_pct = (Nombre de configs PASS) / (Nombre total de configs) × 100
+```
+
+Où une config = (gamma_params, d_base_id, modifier_id, seed)
+
+**Robustesse** :
+```
+robustness_pct = (Nombre de D avec ≥1 config viable) / (Nombre total D testés) × 100
+```
+
+**Score global** :
+```
+score_global = median(scores de toutes configs) × 20 / max_weight
+```
+
+Pour ramener sur échelle /20.
+
+---
+
+### Règles de verdict
+
+**SURVIVES[R0]** (OU logique) :
+```
+Si score_global ≥ score_min
+OU robustness_pct ≥ robustness_min
+OU majority_pct ≥ majority_min
+→ SURVIVES[R0]
+```
+
+**FLAGGED_FOR_REVIEW** (ET logique) :
+```
+Si score_global < score_max
+ET robustness_pct < robustness_max
+ET majority_pct < majority_max
+→ FLAGGED_FOR_REVIEW
+```
+
+**WIP[R0-closed]** (par défaut) :
+```
+Tout ce qui n'est ni SURVIVES ni FLAGGED
+→ WIP[R0-closed]
+```
+
+**Note critique** : Aucun REJECTED[R0] automatique. Les FLAGGED_FOR_REVIEW nécessitent une review manuelle pour devenir REJECTED[R0].
+
+---
+
+### Exemple de verdicts multiples
+
+**Mêmes runs, configs différentes** :
+
+```sql
+-- Config conservative
+GammaVerdicts (
+  gamma_id='GAM-005',
+  config_id='weights_conservative',
+  threshold_id='thresholds_default',
+  verdict='WIP[R0-closed]'
+)
+
+-- Config lenient
+GammaVerdicts (
+  gamma_id='GAM-005',
+  config_id='weights_default',
+  threshold_id='thresholds_lenient',
+  verdict='SURVIVES[R0]'
+)
+```
+
+→ Permet de comparer l'impact des configs sans refaire les runs.
+
+---
+
+### Interdictions formelles
+
+```
+\INTERDICTIONS{
+  - Verdict unique et définitif sans config_id/threshold_id
+  - Écraser un verdict existant (INSERT uniquement)
+  - DELETE sur GammaVerdicts (append-only)
+  - Calculer verdict sans les 3 critères
+  - REJECTED[R0] automatique (toujours manuel après FLAGGED)
+}
+```
+
+---
+
+## 14.7 VALIDATION ET COHÉRENCE
+
+### Règle de validation
+
+**Chaque mode du batch_runner doit inclure des validations** pour vérifier la cohérence des données avant/après exécution.
+
+Ces validations sont **séparées de Section 14** mais **obligatoires** dans l'implémentation.
+
+---
+
+### Validations obligatoires par mode
+
+#### Mode `--brut`
+- Vérifier que tous les runs sont bien stockés dans `db_raw.Executions`
+- Vérifier que snapshots correspondent aux itérations enregistrées
+- Vérifier que metrics sont cohérentes (pas de NaN/Inf inattendus)
+
+#### Mode `--test`
+- Vérifier que tous les runs nécessaires existent dans `db_raw`
+- Vérifier que tous les tests applicables ont été appliqués
+- Vérifier que TestObservations contient des données cohérentes
+- Vérifier que TestScores sont calculés pour la config spécifiée
+
+#### Mode `--verdict`
+- Vérifier que TestScores existent pour la config spécifiée
+- Vérifier que les 3 critères sont calculés
+- Vérifier que le verdict est cohérent avec les seuils
+- Vérifier que GammaVerdicts contient config_id et threshold_id
+
+---
+
+### Tests de cohérence inter-bases
+
+**Intégrité référentielle** :
+- Tous les `exec_id` dans `db_results` doivent exister dans `db_raw.Executions`
+- Tous les `test_name` doivent être dans la liste `tests/utilities/__all__`
+- Tous les `config_id` doivent correspondre à des fichiers YAML existants
+
+**Complétude** :
+- Pour chaque run dans `db_raw`, vérifier qu'au moins un test a été appliqué
+- Pour chaque gamma testée, vérifier qu'au moins un verdict existe
+
+---
+
+### Note importante
+
+**Ces validations ne sont PAS documentées dans Section 14** pour ne pas alourdir.
+
+Elles seront implémentées dans :
+- `tests/validation/validate_db_raw.py`
+- `tests/validation/validate_db_results.py`
+- `tests/validation/validate_pipeline.py`
+
+Et exécutées via :
+```bash
+python tests/validation/run_all_validations.py
+```
+
+---
+
+### Interdictions formelles
+
+```
+\INTERDICTIONS{
+  - Accepter des données incohérentes silencieusement
+  - Continuer le pipeline si une validation échoue
+  - Stocker des résultats sans vérifier les dépendances
+}
+```
+
+---
+
+## 14.8 STATUT DE CETTE SECTION
+
+### Caractère normatif
+
+**Section 14 est NORMATIVE et NON NÉGOCIABLE pour Phase R0.**
+
+Toute proposition d'architecture qui viole Section 14 est **automatiquement rejetée**.
+
+---
+
+### Hiérarchie avec autres sections
+
+**Section 14 complète mais ne remplace pas** :
+- Section 2 (Core aveugle)
+- Section 6 (Templates par niveau)
+- Section 7 (Tests modulaires)
+
+**Section 14 spécifie** :
+- Comment orchestrer les tests (Section 7)
+- Où stocker les résultats
+- Comment organiser le pipeline
+
+---
+
+### Principe en cas de doute
+
+**En cas d'ambiguïté ou de complexité croissante** :
+
+```
+\PRINCIPE{
+  TOUJOURS simplifier plutôt que complexifier.
+  
+  Si hésitation entre :
+  - Architecture complexe mais "théoriquement meilleure"
+  - Architecture simple mais "suffit pour R0"
+  
+  → Demander.
+  
+  Section 14 peut évoluer en R1/R2, mais pour R0 :
+  - Un batch_runner
+  - Deux DB
+  - Modes clairs
+  - Rejouable
+}
+```
+
+---
+
+## FIN SECTION 14
+
+**Cette section complète Charter-Code 5.1 et devient la référence opérationnelle absolue pour exploration R0.**
+
+Toute implémentation doit être validée contre Section 14 avant toute exécution.
+
+---
+
+```
+\VALIDATION_SECTION_14{
+  mandatory = true
+  any_deviation = invalid_framework
+  simplicity_principle = enforced
+}
+```
+
 ## FIN CHARTE PRC 5.1
 
 **Cette version est la référence absolue.**
