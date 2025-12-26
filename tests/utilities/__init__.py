@@ -66,6 +66,7 @@ from .applicability import (
 
 from .scoring import (
     score_observation,
+	score_all_observations,
     compute_global_score,
     load_weights_config,
 )
@@ -233,6 +234,7 @@ __all__ = [
     
     # Scoring
     'score_observation',
+	'score_all_observations',
     'compute_global_score',
     'load_weights_config',
     
