@@ -1,0 +1,191 @@
+# config/weights_default.yaml
+# Pondérations par défaut pour scoring des tests (Section 14.5)
+
+version: "1.0"
+config_id: "weights_default"
+description: "Pondérations nominales selon Charte PRC 5.1 et Feuille de Route R0"
+created_date: "2024-12-26"
+charter_reference: "Section 14.5"
+
+# =============================================================================
+# PRINCIPE DE PONDÉRATION (Section 14.4)
+# =============================================================================
+#
+# Les poids reflètent l'importance relative des tests dans l'évaluation globale.
+# 
+# Échelle :
+#   2.0 = CRITIQUE  - Tests universels, toujours applicables
+#   1.5 = IMPORTANT - Tests structurels, conditionnellement applicables  
+#   1.0 = STANDARD  - Tests secondaires, contextuels
+#
+# Tous les tests retournent des scores 0-1.
+# Score pondéré = score × weight
+# Score global = somme(scores pondérés) / somme(weights applicables)
+#
+# =============================================================================
+
+# =============================================================================
+# TESTS UNIVERSELS (CRITIQUE - weight: 2.0)
+# =============================================================================
+# Applicables à TOUS les D (SYM, ASY, R3) et TOUS les Γ.
+# Ces tests sont TOUJOURS exécutés et TOUJOURS pondérés.
+
+weights:
+  # Évolution norme Frobenius (TEST-UNIV-001)
+  UNIV-001: 2.0
+  # Détecte : explosions, effondrements, stabilité
+  # Score : 0.0 = explosive, 0.5 = stable, 1.0 = convergence contrôlée
+  
+  # Évolution diversité (TEST-UNIV-002)
+  UNIV-002: 2.0
+  # Détecte : homogénéisation, préservation structure
+  # Score : 0.0 = collapsed, 0.5 = preserved, 1.0 = enhanced
+  
+  # Convergence vers point fixe (TEST-UNIV-003)
+  UNIV-003: 2.0
+  # Détecte : trivialité, attracteurs non-triviaux
+  # Score : 0.0 = trivial fixed point, 0.5 = slow convergence, 1.0 = non-trivial attractor
+  
+  # Sensibilité conditions initiales (TEST-UNIV-004)
+  UNIV-004: 2.0
+  # Détecte : chaos, robustesse, stabilité stochastique
+  # Score : 0.0 = chaotic, 0.5 = robust, 1.0 = insensitive
+
+# =============================================================================
+# TESTS SYMÉTRIE (IMPORTANT - weight: 1.5)
+# =============================================================================
+# Applicables uniquement aux D rang 2 (SYM, ASY).
+# Poids élevé car la symétrie est une propriété structurelle fondamentale.
+
+  # Préservation symétrie (TEST-SYM-001)
+  SYM-001: 1.5
+  # Applicable : D initialement symétrique (D-SYM-*)
+  # Score : 0.0 = destroyed, 0.5 = preserved/absent, 1.0 = created
+  
+  # Création symétrie (TEST-SYM-002)
+  SYM-002: 1.5
+  # Applicable : D initialement asymétrique (D-ASY-*)
+  # Score : 0.0 = remains asymmetric, 0.5 = neutral, 1.0 = symmetrized
+  
+  # Évolution asymétrie (TEST-SYM-003)
+  SYM-003: 1.0
+  # Applicable : Tous D rang 2
+  # Score : 0.0 = increasing, 0.5 = stable, 1.0 = decreasing
+  # Poids 1.0 car observationnel (pas de verdict clair)
+
+# =============================================================================
+# TESTS STRUCTURE (IMPORTANT - weight: 1.5)
+# =============================================================================
+# Tests spécifiques aux propriétés structurelles des tenseurs.
+
+  # Préservation rang (TEST-STR-001)
+  STR-001: 1.5
+  # Applicable : Matrices rang 2
+  # Score : 0.0 = rank collapse, 0.5 = preserved, 1.0 = rank increase
+  
+  # Évolution spectre (TEST-STR-002)
+  STR-002: 1.5
+  # Applicable : Matrices symétriques uniquement
+  # Score : 0.0 = spectral explosion, 0.5 = stable, 1.0 = controlled evolution
+  
+  # Corrélations temporelles (TEST-STR-003)
+  STR-003: 1.0
+  # Applicable : Tous D
+  # Score : basé sur autocorrélation (observationnel)
+
+# =============================================================================
+# TESTS BORNES/CONTRAINTES (STANDARD - weight: 1.0)
+# =============================================================================
+# Tests vérifiant le respect des contraintes initiales.
+
+  # Respect bornes initiales (TEST-BND-001)
+  BND-001: 1.0
+  # Applicable : Si D spécifie des bornes
+  # Score : 0.0 = severe violation, 0.5 = minor violation, 1.0 = respected
+  
+  # Préservation positivité (TEST-BND-002)
+  BND-002: 1.0
+  # Applicable : Si D défini positif initial (D-SYM-004)
+  # Score : 0.0 = negativity, 0.5 = neutral, 1.0 = preserved
+
+# =============================================================================
+# TESTS LOCALITÉ (STANDARD - weight: 1.0)
+# =============================================================================
+# Tests coûteux, exécutés sur sous-échantillon.
+
+  # Propagation information (TEST-LOC-001)
+  LOC-001: 1.0
+  # Applicable : Tous D (mais coûteux)
+  # Score : basé sur rayon de propagation (observationnel)
+  
+  # Préservation sparsité (TEST-LOC-002)
+  LOC-002: 1.0
+  # Applicable : Si D initial sparse (M3 ou D-SYM-005)
+  # Score : 0.0 = densification, 0.5 = preserved, 1.0 = sparsified
+
+# =============================================================================
+# TESTS COMPLÉMENTAIRES (STANDARD - weight: 1.0)
+# =============================================================================
+# Tests additionnels pour analyses spécifiques.
+
+  # Évolution entropie (TEST-DIV-ENTROPY)
+  DIV-ENTROPY: 1.0
+  # Applicable : Tous D
+  # Score : basé sur évolution entropie Shannon
+  
+  # Test uniformité (TEST-DIV-UNIFORM)
+  DIV-UNIFORM: 1.0
+  # Applicable : Tous D
+  # Score : 0.0 = uniform collapse, 0.5 = maintained, 1.0 = diversified
+  
+  # Exposant Lyapunov (TEST-CONV-LYAPUNOV)
+  CONV-LYAPUNOV: 1.0
+  # Applicable : Tous D
+  # Score : basé sur stabilité (λ < 0 = stable)
+
+# =============================================================================
+# TESTS POINTWISE (STANDARD - weight: 1.0)
+# =============================================================================
+# Tests spécifiques aux Γ pointwise.
+
+  # Indépendance pointwise (TEST-PW-001)
+  PW-001: 1.0
+  # Applicable : Γ pointwise uniquement
+  # Score : 0.0 = couplage détecté, 0.5 = faible couplage, 1.0 = indépendant
+
+# =============================================================================
+# CALCUL SCORE GLOBAL
+# =============================================================================
+#
+# Score global = Σ(score_test × weight_test) / Σ(weight_tests_applicables)
+#
+# Ramené sur échelle /20 :
+# score_global_20 = score_global × 20
+#
+# Exemple :
+#   - 3 tests applicables : UNIV-001 (2.0), SYM-001 (1.5), BND-001 (1.0)
+#   - Scores : 0.8, 0.5, 1.0
+#   - Score global = (0.8×2.0 + 0.5×1.5 + 1.0×1.0) / (2.0 + 1.5 + 1.0)
+#                  = (1.6 + 0.75 + 1.0) / 4.5
+#                  = 3.35 / 4.5
+#                  = 0.744
+#   - Score /20 = 0.744 × 20 = 14.88/20
+#
+# =============================================================================
+
+# =============================================================================
+# NOTES D'UTILISATION
+# =============================================================================
+#
+# 1. Ce fichier est lu par tests/utilities/scoring.py
+# 2. Chaque config_id génère un jeu de scores distinct dans db_results
+# 3. Pour tester d'autres pondérations, créer weights_<nom>.yaml
+# 4. Le batch_runner accepte --config weights_<nom>
+# 5. Plusieurs verdicts peuvent coexister pour les mêmes runs
+#
+# Exemples de configs alternatives à créer :
+#   - weights_conservative.yaml  (tous poids = 1.0, égalité stricte)
+#   - weights_structural.yaml    (poids élevés sur STR-*, faibles sur BND-*)
+#   - weights_robust.yaml        (poids élevés sur UNIV-004, LOC-*)
+#
+# =============================================================================

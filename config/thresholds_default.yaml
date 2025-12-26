@@ -1,0 +1,194 @@
+# config/thresholds_default.yaml
+# Seuils pour verdicts selon Feuille de Route Section 7 et Charte Section 14.6
+
+version: "1.0"
+threshold_id: "thresholds_default"
+description: "Seuils nominaux pour verdicts R0 selon Feuille de Route"
+created_date: "2024-12-26"
+charter_reference: "Section 14.6"
+roadmap_reference: "Section 7 - Critères d'évaluation multiples"
+
+# =============================================================================
+# PRINCIPE DES VERDICTS (Section 14.6)
+# =============================================================================
+#
+# Trois verdicts possibles pour Phase R0 :
+#   1. SURVIVES[R0]         - Hypothèse non éliminée, viable pour exploration
+#   2. WIP[R0-closed]       - Résultats ambigus, mise en attente
+#   3. FLAGGED_FOR_REVIEW   - Échec probable, nécessite review manuelle
+#
+# IMPORTANT : Aucun verdict REJECTED[R0] automatique.
+# Les FLAGGED_FOR_REVIEW nécessitent discussion JOUR avant rejet définitif.
+#
+# =============================================================================
+
+# =============================================================================
+# RÈGLES DE VERDICT (Logique OU pour SURVIVES, ET pour FLAGGED)
+# =============================================================================
+#
+# SURVIVES[R0] attribué si AU MOINS UN critère satisfait :
+#   - score_global ≥ score_min  OU
+#   - robustness_pct ≥ robustness_min  OU
+#   - majority_pct ≥ majority_min
+#
+# FLAGGED_FOR_REVIEW attribué si TOUS les critères insatisfaisants :
+#   - score_global < score_max  ET
+#   - robustness_pct < robustness_max  ET
+#   - majority_pct < majority_max
+#
+# WIP[R0-closed] attribué par défaut :
+#   - Tout ce qui n'est ni SURVIVES ni FLAGGED
+#
+# =============================================================================
+
+# =============================================================================
+# SEUILS SURVIVES[R0] (Logique OU - il suffit qu'UN critère passe)
+# =============================================================================
+
+survives:
+  # Score global minimum (sur 20)
+  score_min: 12.0
+  # Interprétation : Score ≥ 12/20 indique performance globale satisfaisante
+  # Référence : Feuille de Route Section 7.3 ("Score ≥ 12/20 → Bon")
+  
+  # Robustesse minimum (pourcentage)
+  robustness_min: 60.0
+  # Interprétation : Γ fonctionne sur ≥60% des D testés
+  # Indique universalité du mécanisme
+  # Référence : Feuille de Route Section 7.2 ("Robustesse ≥ 60%")
+  
+  # Majorité minimum (pourcentage)
+  majority_min: 50.0
+  # Interprétation : ≥50% des configurations testées obtiennent verdict positif
+  # Indique fiabilité du mécanisme
+  # Référence : Feuille de Route Section 7.1 ("Majorité ≥ 50%")
+
+# =============================================================================
+# SEUILS FLAGGED_FOR_REVIEW (Logique ET - tous critères doivent échouer)
+# =============================================================================
+
+flagged:
+  # Score global maximum
+  score_max: 8.0
+  # Interprétation : Score < 8/20 indique échec global
+  # Référence : Feuille de Route Section 7.3 ("Score < 8/20 → Mauvais")
+  
+  # Robustesse maximum
+  robustness_max: 40.0
+  # Interprétation : Γ échoue sur >60% des D (fonctionne sur <40%)
+  # Indique mécanisme trop spécialisé ou fragile
+  # Référence : Feuille de Route Section 7.2 ("Robustesse < 40%")
+  
+  # Majorité maximum
+  majority_max: 20.0
+  # Interprétation : <20% des configurations réussissent
+  # Indique échec systématique
+  # Référence : Feuille de Route Section 7.1 ("Majorité < 20%")
+
+# =============================================================================
+# ZONE WIP[R0-closed] (Par défaut)
+# =============================================================================
+#
+# Toute hypothèse qui n'est ni SURVIVES ni FLAGGED est WIP[R0-closed].
+#
+# Exemples typiques :
+#   - score_global = 10.0  (entre 8 et 12)
+#   - robustness_pct = 50.0  (entre 40 et 60)
+#   - majority_pct = 35.0  (entre 20 et 50)
+#
+# Signification WIP[R0-closed] :
+#   - Tests terminés sans verdict clair
+#   - Comportement ambigu nécessitant contexte additionnel
+#   - Pas de promesse d'exploration future
+#   - Peut être repris en R1 à discrétion
+#
+# =============================================================================
+
+# =============================================================================
+# EXEMPLES DE VERDICTS
+# =============================================================================
+#
+# Exemple 1 : SURVIVES[R0] (score élevé)
+#   score_global = 14.5
+#   robustness_pct = 55.0  (< 60%)
+#   majority_pct = 45.0    (< 50%)
+#   → SURVIVES car score_global ≥ 12.0 (OU logique)
+#
+# Exemple 2 : SURVIVES[R0] (robustesse élevée)
+#   score_global = 11.0    (< 12.0)
+#   robustness_pct = 75.0  (≥ 60%)
+#   majority_pct = 40.0    (< 50%)
+#   → SURVIVES car robustness_pct ≥ 60% (OU logique)
+#
+# Exemple 3 : FLAGGED_FOR_REVIEW (échec global)
+#   score_global = 6.5     (< 8.0)
+#   robustness_pct = 25.0  (< 40%)
+#   majority_pct = 15.0    (< 20%)
+#   → FLAGGED car tous critères < seuils (ET logique)
+#
+# Exemple 4 : WIP[R0-closed] (ambigu)
+#   score_global = 10.0    (entre 8 et 12)
+#   robustness_pct = 50.0  (entre 40 et 60)
+#   majority_pct = 30.0    (entre 20 et 50)
+#   → WIP car ni SURVIVES ni FLAGGED
+#
+# =============================================================================
+
+# =============================================================================
+# CONFIGS ALTERNATIVES SUGGÉRÉES
+# =============================================================================
+#
+# Pour explorer sensibilité aux seuils, créer :
+#
+# thresholds_strict.yaml :
+#   survives:
+#     score_min: 14.0      (vs 12.0)
+#     robustness_min: 70.0 (vs 60.0)
+#     majority_min: 60.0   (vs 50.0)
+#   flagged:
+#     score_max: 10.0      (vs 8.0)
+#     robustness_max: 50.0 (vs 40.0)
+#     majority_max: 30.0   (vs 20.0)
+#
+# thresholds_lenient.yaml :
+#   survives:
+#     score_min: 10.0      (vs 12.0)
+#     robustness_min: 50.0 (vs 60.0)
+#     majority_min: 40.0   (vs 50.0)
+#   flagged:
+#     score_max: 6.0       (vs 8.0)
+#     robustness_max: 30.0 (vs 40.0)
+#     majority_max: 15.0   (vs 20.0)
+#
+# =============================================================================
+
+# =============================================================================
+# PROCÉDURE POST-FLAGGED
+# =============================================================================
+#
+# 1. Batch runner génère verdict FLAGGED_FOR_REVIEW
+# 2. Rapport automatique liste toutes les HYP flagged
+# 3. Review manuelle obligatoire (session JOUR)
+# 4. Discussion examine :
+#    - Modes d'échec spécifiques
+#    - Contextes où Γ échoue systématiquement
+#    - Patterns d'échec communs (→ CON-GAM-XXX)
+# 5. Décision finale :
+#    - REJECTED[R0] si échec clair et documenté
+#    - WIP[R0-closed] si ambiguïté persiste
+#    - SURVIVES[R0] si erreur d'analyse détectée (rare)
+#
+# =============================================================================
+
+# =============================================================================
+# ÉVOLUTION R1+
+# =============================================================================
+#
+# Ces seuils sont pour R0 (mécanismes isolés).
+#
+# Pour R1 (compositions), créer :
+#   - thresholds_r1_default.yaml
+#   - Seuils potentiellement plus stricts (compositions doivent surperformer)
+#   - Critères additionnels (synergie, complémentarité)
+#
+# =============================================================================
