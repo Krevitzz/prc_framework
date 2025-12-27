@@ -1,0 +1,206 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Rapport GAM-002 - weights_default</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; }
+        h1 { color: #333; border-bottom: 2px solid #4CAF50; padding-bottom: 10px; }
+        h2 { color: #666; margin-top: 30px; }
+        table { border-collapse: collapse; width: 100%; margin: 20px 0; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .verdict { font-size: 1.5em; font-weight: bold; padding: 15px; margin: 20px 0; border-radius: 5px; }
+        .survives { background: #4CAF50; color: white; }
+        .wip { background: #FFC107; color: black; }
+        .flagged { background: #F44336; color: white; }
+        .metric { display: inline-block; margin: 10px 20px; }
+        .metric-label { font-weight: bold; color: #666; }
+        .metric-value { font-size: 1.2em; color: #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Rapport d'Analyse: GAM-002</h1>
+        <p><strong>Config:</strong> weights_default | <strong>Généré:</strong> 2025-12-27 03:35</p>
+    
+        <div class="verdict wipr0closed">
+            VERDICT: WIP[R0-closed]
+        </div>
+        <p><strong>Raison:</strong> Ni SURVIVES (score=9.5, robustness=0.0%, majority=0.0%) ni FLAGGED</p>
+        
+        <h2>Critères d'Évaluation</h2>
+        <div class="metric">
+            <span class="metric-label">Score Global:</span>
+            <span class="metric-value">9.52/20</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Majorité:</span>
+            <span class="metric-value">0.0%</span>
+        </div>
+        <div class="metric">
+            <span class="metric-label">Robustesse:</span>
+            <span class="metric-value">0.0%</span>
+        </div>
+        
+        <h2>Scores par Test</h2>
+        <table>
+            <tr>
+                <th>Test</th>
+                <th>Score Moyen</th>
+                <th>Pondération</th>
+                <th>N Runs</th>
+            </tr>
+    
+            <tr>
+                <td>BND-001</td>
+                <td>1.000</td>
+                <td>1.0</td>
+                <td>200</td>
+            </tr>
+        
+            <tr>
+                <td>CONV-LYAPUNOV</td>
+                <td>1.000</td>
+                <td>1.0</td>
+                <td>200</td>
+            </tr>
+        
+            <tr>
+                <td>DIV-ENTROPY</td>
+                <td>0.500</td>
+                <td>1.0</td>
+                <td>200</td>
+            </tr>
+        
+            <tr>
+                <td>DIV-UNIFORM</td>
+                <td>0.500</td>
+                <td>1.0</td>
+                <td>200</td>
+            </tr>
+        
+            <tr>
+                <td>STR-002</td>
+                <td>0.500</td>
+                <td>1.5</td>
+                <td>120</td>
+            </tr>
+        
+            <tr>
+                <td>SYM-001</td>
+                <td>0.300</td>
+                <td>1.5</td>
+                <td>200</td>
+            </tr>
+        
+            <tr>
+                <td>SYM-002</td>
+                <td>0.300</td>
+                <td>1.5</td>
+                <td>200</td>
+            </tr>
+        
+            <tr>
+                <td>SYM-003</td>
+                <td>0.500</td>
+                <td>1.0</td>
+                <td>200</td>
+            </tr>
+        
+            <tr>
+                <td>UNIV-001</td>
+                <td>0.600</td>
+                <td>2.0</td>
+                <td>200</td>
+            </tr>
+        
+            <tr>
+                <td>UNIV-002</td>
+                <td>0.020</td>
+                <td>2.0</td>
+                <td>200</td>
+            </tr>
+        
+            <tr>
+                <td>UNIV-003</td>
+                <td>0.500</td>
+                <td>2.0</td>
+                <td>200</td>
+            </tr>
+        </table>
+        <h2>Performance par Base D</h2>
+        <table>
+            <tr>
+                <th>D Base</th>
+                <th>N Runs</th>
+                <th>Score Moyen</th>
+            </tr>
+    
+            <tr>
+                <td>SYM-006</td>
+                <td>20</td>
+                <td>0.555</td>
+            </tr>
+        
+            <tr>
+                <td>SYM-005</td>
+                <td>20</td>
+                <td>0.555</td>
+            </tr>
+        
+            <tr>
+                <td>SYM-004</td>
+                <td>20</td>
+                <td>0.555</td>
+            </tr>
+        
+            <tr>
+                <td>SYM-003</td>
+                <td>20</td>
+                <td>0.555</td>
+            </tr>
+        
+            <tr>
+                <td>SYM-002</td>
+                <td>20</td>
+                <td>0.555</td>
+            </tr>
+        
+            <tr>
+                <td>SYM-001</td>
+                <td>20</td>
+                <td>0.555</td>
+            </tr>
+        
+            <tr>
+                <td>ASY-004</td>
+                <td>20</td>
+                <td>0.480</td>
+            </tr>
+        
+            <tr>
+                <td>ASY-003</td>
+                <td>20</td>
+                <td>0.460</td>
+            </tr>
+        
+            <tr>
+                <td>ASY-002</td>
+                <td>20</td>
+                <td>0.460</td>
+            </tr>
+        
+            <tr>
+                <td>ASY-001</td>
+                <td>20</td>
+                <td>0.460</td>
+            </tr>
+        </table>
+    </div>
+</body>
+</html>
+    

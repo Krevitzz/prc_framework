@@ -803,21 +803,7 @@ def mode_verdict(gamma_id: str, config_id: str, threshold_id: str, verbose: bool
     """
     MODE --verdict : Calcul verdicts agrégés (Section 14.2).
     
-    Responsabilité :
-      - Vérifie que db_results contient scores pour config
-      - Si scores manquants : exécute --test automatiquement
-      - Calcule les 3 critères (Majorité, Robustesse, Score global)
-      - Applique seuils depuis threshold YAML
-      - Stocke verdict dans db_results (GammaVerdicts)
-    
-    Args:
-        gamma_id: ID du Γ
-        config_id: ID config scoring
-        threshold_id: ID config seuils
-        verbose: Mode verbeux
-    
-    Returns:
-        dict avec verdict
+    [Docstring inchangée...]
     """
     print(f"\n{'='*70}")
     print(f"MODE --verdict : {gamma_id}, config={config_id}, thresholds={threshold_id}")
@@ -828,10 +814,19 @@ def mode_verdict(gamma_id: str, config_id: str, threshold_id: str, verbose: bool
         print("❌ db_results non trouvée. Initialiser d'abord.")
         return {}
     
+    # 2. Vérifier que db_raw existe (nécessaire pour ATTACH)
+    if not DB_RAW_PATH.exists():
+        print("❌ db_raw non trouvée. Nécessaire pour calcul critères.")
+        return {}
+    
     conn_results = sqlite3.connect(DB_RESULTS_PATH)
     
-    # 2. Vérifier que scores existent pour cette config
+    # === FIX CRITIQUE : ATTACH db_raw ===
+    # Permet requêtes cross-database sans redondance de données
     cursor = conn_results.cursor()
+    cursor.execute(f"ATTACH DATABASE '{DB_RAW_PATH}' AS db_raw")
+    
+    # 3. Vérifier que scores existent pour cette config
     cursor.execute("""
         SELECT COUNT(DISTINCT exec_id) 
         FROM TestScores
@@ -842,6 +837,9 @@ def mode_verdict(gamma_id: str, config_id: str, threshold_id: str, verbose: bool
     if n_scored_runs == 0:
         print(f"⚠ Aucun score trouvé pour config={config_id}")
         print(f"→ Exécution automatique de --test...")
+        
+        # Détacher avant de fermer
+        cursor.execute("DETACH DATABASE db_raw")
         conn_results.close()
         
         # Chaînage automatique : exécuter --test d'abord
@@ -851,12 +849,14 @@ def mode_verdict(gamma_id: str, config_id: str, threshold_id: str, verbose: bool
             print("❌ Aucun test complété par --test")
             return {}
         
-        # Reconnecter après --test
+        # Reconnecter et réattacher après --test
         conn_results = sqlite3.connect(DB_RESULTS_PATH)
+        cursor = conn_results.cursor()
+        cursor.execute(f"ATTACH DATABASE '{DB_RAW_PATH}' AS db_raw")
     
     print(f"✓ {n_scored_runs} runs scorés trouvés pour config={config_id}")
     
-    # 3. Vérifier si verdict existe déjà
+    # 4. Vérifier si verdict existe déjà
     cursor.execute("""
         SELECT verdict FROM GammaVerdicts
         WHERE gamma_id = ? AND config_id = ? AND threshold_id = ?
@@ -872,16 +872,17 @@ def mode_verdict(gamma_id: str, config_id: str, threshold_id: str, verbose: bool
         """, (gamma_id, config_id, threshold_id))
         conn_results.commit()
     
-    # 4. Charger seuils depuis YAML
+    # 5. Charger seuils depuis YAML
     try:
         thresholds = load_thresholds_config(threshold_id)
         print(f"✓ Seuils chargés: {threshold_id}")
     except FileNotFoundError:
         print(f"❌ Config seuils non trouvée: {threshold_id}")
+        cursor.execute("DETACH DATABASE db_raw")
         conn_results.close()
         return {}
     
-    # 5. Calculer les 3 critères
+    # 6. Calculer les 3 critères (connexion a maintenant accès à db_raw via ATTACH)
     print("\nCalcul des critères...")
     
     criteria = compute_verdict_criteria(conn_results, gamma_id, config_id)
@@ -890,19 +891,21 @@ def mode_verdict(gamma_id: str, config_id: str, threshold_id: str, verbose: bool
     print(f"  Robustesse: {criteria['robustness_pct']:.1f}%")
     print(f"  Score global: {criteria['score_global']:.2f}/20")
     
-    # 6. Appliquer logique verdict
+    # 7. Appliquer logique verdict
     verdict = apply_verdict_logic(criteria, thresholds)
     
     print(f"\n→ VERDICT: {verdict['verdict']}")
     print(f"  Raison: {verdict['reason']}")
     
-    # 7. Insérer verdict dans db_results
+    # 8. Insérer verdict dans db_results
     insert_gamma_verdict(
         conn_results,
         gamma_id, config_id, threshold_id,
         criteria, verdict
     )
     
+    # === DÉTACHER db_raw avant fermeture ===
+    cursor.execute("DETACH DATABASE db_raw")
     conn_results.close()
     
     # Résumé
@@ -938,6 +941,8 @@ def compute_verdict_criteria(conn, gamma_id: str, config_id: str) -> Dict:
     """
     Calcule les 3 critères selon Feuille de Route Section 7.
     
+    IMPORTANT: Connexion doit avoir db_raw attachée via ATTACH DATABASE.
+    
     Returns:
         dict {
             'majority_pct': float,
@@ -951,59 +956,91 @@ def compute_verdict_criteria(conn, gamma_id: str, config_id: str) -> Dict:
     """
     cursor = conn.cursor()
     
-    # Récupérer tous les scores pour ce gamma_id + config_id
-    # On doit rejoindre avec db_raw pour avoir les métadonnées
-    # IMPORTANT: exec_id référence db_raw.Executions.id
+    # ========================================================================
+    # CRITÈRE 1 : Score global
+    # ========================================================================
+    # Score global = moyenne pondérée de tous les tests, ramené sur /20
     
-    # 1. Calculer score global moyen
     cursor.execute("""
-        SELECT AVG(weighted_score / weight * 20.0) as avg_score
-        FROM TestScores
-        WHERE config_id = ?
-        AND exec_id IN (
-            SELECT id FROM Executions WHERE gamma_id = ?
+        SELECT 
+            AVG(ts.weighted_score) as avg_weighted,
+            AVG(ts.weight) as avg_weight
+        FROM TestScores ts
+        JOIN db_raw.Executions e ON ts.exec_id = e.id
+        WHERE e.gamma_id = ? AND ts.config_id = ?
+    """, (gamma_id, config_id))
+    
+    row = cursor.fetchone()
+    if row and row[0] is not None and row[1] is not None:
+        avg_weighted = row[0]
+        avg_weight = row[1]
+        score_normalized = avg_weighted / avg_weight if avg_weight > 0 else 0
+        score_global = score_normalized * 20.0
+    else:
+        score_global = 0.0
+    
+    # ========================================================================
+    # CRITÈRE 2 : Majorité (% configs PASS)
+    # ========================================================================
+    # Une config = (exec_id) qui correspond à (gamma_params, d_base, modifier, seed)
+    # PASS si score global de cette config ≥ 0.6 (12/20 comme seuil)
+    
+    # Total configs
+    cursor.execute("""
+        SELECT COUNT(DISTINCT ts.exec_id)
+        FROM TestScores ts
+        JOIN db_raw.Executions e ON ts.exec_id = e.id
+        WHERE e.gamma_id = ? AND ts.config_id = ?
+    """, (gamma_id, config_id))
+    n_total_configs = cursor.fetchone()[0] or 0
+    
+    # Configs PASS (score moyen ≥ 0.6)
+    cursor.execute("""
+        SELECT COUNT(*) FROM (
+            SELECT ts.exec_id
+            FROM TestScores ts
+            JOIN db_raw.Executions e ON ts.exec_id = e.id
+            WHERE e.gamma_id = ? AND ts.config_id = ?
+            GROUP BY ts.exec_id
+            HAVING AVG(ts.weighted_score / ts.weight) >= 0.6
         )
-    """, (config_id, gamma_id))
-    
-    score_global = cursor.fetchone()[0] or 0.0
-    
-    # 2. Calculer majorité (% configs PASS)
-    # Une config = (gamma_params, d_base_id, modifier_id, seed)
-    # PASS si score global de cette config ≥ seuil (on prend 12/20 comme proxy)
-    
-    # TODO: Pour une vraie implémentation, il faudrait :
-    # - Grouper par (exec_id) qui correspond à une config unique
-    # - Calculer score global par exec_id
-    # - Compter combien ont score ≥ 12/20
-    
-    # Simplifié pour l'instant : on suppose toutes configs égales
-    n_total_configs = cursor.execute("""
-        SELECT COUNT(DISTINCT exec_id)
-        FROM TestScores
-        WHERE config_id = ?
-    """, (config_id,)).fetchone()[0]
-    
-    # Approximation : configs avec score moyen ≥ 0.6 (12/20)
-    n_pass_configs = cursor.execute("""
-        SELECT COUNT(DISTINCT exec_id)
-        FROM TestScores
-        WHERE config_id = ?
-        GROUP BY exec_id
-        HAVING AVG(weighted_score / weight) >= 0.6
-    """, (config_id,)).fetchone()
-    
-    n_pass_configs = n_pass_configs[0] if n_pass_configs else 0
+    """, (gamma_id, config_id))
+    n_pass_configs = cursor.fetchone()[0] or 0
     
     majority_pct = (n_pass_configs / n_total_configs * 100) if n_total_configs > 0 else 0.0
     
-    # 3. Calculer robustesse (% D avec ≥1 config viable)
-    # TODO: Nécessite connexion à db_raw pour récupérer d_base_id
-    # Pour l'instant, simplifié
+    # ========================================================================
+    # CRITÈRE 3 : Robustesse (% D avec ≥1 config viable)
+    # ========================================================================
+    # Viable = score global de la config ≥ 0.6
     
-    n_total_d_bases = 13  # Placeholder
-    n_viable_d_bases = int(n_total_d_bases * 0.7)  # Placeholder
+    # Total D bases testés
+    cursor.execute("""
+        SELECT COUNT(DISTINCT e.d_base_id)
+        FROM db_raw.Executions e
+        JOIN TestScores ts ON ts.exec_id = e.id
+        WHERE e.gamma_id = ? AND ts.config_id = ?
+    """, (gamma_id, config_id))
+    n_total_d_bases = cursor.fetchone()[0] or 0
+    
+    # D bases avec ≥1 config viable
+    cursor.execute("""
+        SELECT COUNT(DISTINCT d_base_id) FROM (
+            SELECT e.d_base_id
+            FROM db_raw.Executions e
+            JOIN TestScores ts ON ts.exec_id = e.id
+            WHERE e.gamma_id = ? AND ts.config_id = ?
+            GROUP BY ts.exec_id, e.d_base_id
+            HAVING AVG(ts.weighted_score / ts.weight) >= 0.6
+        )
+    """, (gamma_id, config_id))
+    n_viable_d_bases = cursor.fetchone()[0] or 0
     
     robustness_pct = (n_viable_d_bases / n_total_d_bases * 100) if n_total_d_bases > 0 else 0.0
+    
+    # ========================================================================
+    # RETOUR
+    # ========================================================================
     
     return {
         'majority_pct': majority_pct,
@@ -1014,6 +1051,8 @@ def compute_verdict_criteria(conn, gamma_id: str, config_id: str) -> Dict:
         'n_viable_d_bases': n_viable_d_bases,
         'n_total_d_bases': n_total_d_bases,
     }
+
+
 
 
 def apply_verdict_logic(criteria: Dict, thresholds: Dict) -> Dict:
