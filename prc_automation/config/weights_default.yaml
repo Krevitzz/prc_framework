@@ -40,6 +40,11 @@ weights:
   UNIV-002: 2.0
   # Détecte : homogénéisation, préservation structure
   # Score : 0.0 = collapsed, 0.5 = preserved, 1.0 = enhanced
+    # Diversité LOCALE (NOUVEAU - PRIORITAIRE)
+  UNIV-002b: 2.5
+  # Test complémentaire à UNIV-002
+  # Mesure maintien structure locale indépendamment variance globale
+  # Poids supérieur car plus proche de "diversité structurelle" attendue
   
   # Convergence vers point fixe (TEST-UNIV-003)
   UNIV-003: 2.0
@@ -137,6 +142,11 @@ weights:
   DIV-UNIFORM: 1.0
   # Applicable : Tous D
   # Score : 0.0 = uniform collapse, 0.5 = maintained, 1.0 = diversified
+  
+    # DIV-HETERO : NOUVEAU (hétérogénéité spatiale)
+  DIV-HETERO: 1.5
+  # Mesure variance de la variance locale (méta-diversité)
+  # Distingue homogénéisation vs structuration modulaire
   
   # Exposant Lyapunov (TEST-CONV-LYAPUNOV)
   CONV-LYAPUNOV: 1.0

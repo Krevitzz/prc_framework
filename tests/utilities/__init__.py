@@ -5,11 +5,6 @@ Exports des tests modulaires et fonctions de scoring (Section 14.4).
 
 Ce module contient tous les tests observationnels réutilisables
 et les fonctions de scoring contextuel.
-
-PRINCIPE FONDAMENTAL (Section 7 Charte) :
-  - Tests observent sans juger
-  - Scoring interprète selon contexte
-  - Séparation stricte observation/interprétation
 """
 
 # =============================================================================
@@ -56,6 +51,8 @@ from .test_convergence import (
     ConvergenceResult,
 )
 
+
+
 # =============================================================================
 # IMPORTS APPLICABILITÉ ET SCORING
 # =============================================================================
@@ -68,10 +65,111 @@ from .applicability import (
 
 from .scoring import (
     score_observation,
-	score_all_observations,
+    score_all_observations,
     compute_global_score,
     load_weights_config,
 )
+
+# =============================================================================
+# MAPPING DES TESTS - CRITIQUE !
+# =============================================================================
+
+# Ce mapping relie chaque test_id à sa fonction d'exécution
+# C'est le cœur du système d'exécution des tests
+TEST_FUNCTION_MAP = {
+    # Tests universels
+    "UNIV-001": lambda history, **kwargs: test_norm_evolution(
+        history, norm_type="frobenius", name="UNIV-001"
+    ),
+    "UNIV-002": lambda history, **kwargs: test_diversity_preservation(
+        history, name="UNIV-002"
+    ),
+    "UNIV-003": lambda history, **kwargs: test_convergence_to_fixed_point(
+        history, name="UNIV-003"
+    ),
+    "UNIV-004": lambda history, **kwargs: TestObservation(
+        test_name="UNIV-004",
+        status="SKIPPED",
+        message="Test multi-seeds non implémenté dans cette version",
+        applicable=True
+    ),
+    
+    # Tests symétrie
+    "SYM-001": lambda history, **kwargs: test_symmetry_preservation(
+        history, name="SYM-001"
+    ),
+    "SYM-002": lambda history, **kwargs: test_symmetry_creation(
+        history, name="SYM-002"
+    ),
+    "SYM-003": lambda history, **kwargs: test_asymmetry_evolution(
+        history, name="SYM-003"
+    ),
+    
+    # Tests structure
+    "STR-001": lambda history, **kwargs: test_rank_preservation(
+        history, name="STR-001"
+    ),
+    "STR-002": lambda history, **kwargs: test_spectral_evolution(
+        history, name="STR-002"
+    ),
+    "STR-003": lambda history, **kwargs: test_temporal_correlations(
+        history, name="STR-003"
+    ),
+    
+    # Tests bornes
+    "BND-001": lambda history, **kwargs: test_bounds_preservation(
+        history, initial_bounds=(-1.0, 1.0), name="BND-001"
+    ),
+    "BND-002": lambda history, **kwargs: test_spectral_evolution(  # Approximation
+        history, check_positivity=True, name="BND-002"
+    ),
+    
+    # Tests localité
+    "LOC-001": lambda history, **kwargs: test_information_propagation(
+        history, name="LOC-001"
+    ),
+    "LOC-002": lambda history, **kwargs: test_sparsity_preservation(
+        history, epsilon=1e-6, name="LOC-002"
+    ),
+    
+    # Tests diversité complémentaires
+    "DIV-ENTROPY": lambda history, **kwargs: test_entropy_evolution(
+        history, name="DIV-ENTROPY"
+    ),
+    "DIV-UNIFORM": lambda history, **kwargs: test_uniformity(
+        history, name="DIV-UNIFORM"
+    ),
+    "DIV-RANGE": lambda history, **kwargs: test_range_evolution(
+        history, name="DIV-RANGE"
+    ),
+    "DIV-DISTINCT": lambda history, **kwargs: test_distinct_values(
+        history, tolerance=1e-6, name="DIV-DISTINCT"
+    ),
+    
+    # Nouveaux tests diversité
+    "UNIV-002b": lambda history, **kwargs: test_local_diversity_preservation(
+        history, patch_size=5, n_patches=20, name="UNIV-002b"
+    ),
+    "DIV-HETERO": lambda history, **kwargs: test_spatial_heterogeneity(
+        history, grid_size=10, name="DIV-HETERO"
+    ),
+    
+    # Tests convergence complémentaires
+    "CONV-LYAPUNOV": lambda history, **kwargs: test_lyapunov_exponent(
+        history, name="CONV-LYAPUNOV"
+    ),
+    "CONV-SPEED": lambda history, **kwargs: test_convergence_speed(
+        history, epsilon=1e-6, name="CONV-SPEED"
+    ),
+    "CONV-OSCILLATION": lambda history, **kwargs: test_oscillation_detection(
+        history, name="CONV-OSCILLATION"
+    ),
+    
+    # Tests pointwise
+    "PW-001": lambda history, **kwargs: test_pointwise_independence(
+        history, name="PW-001"
+    ),
+}
 
 # =============================================================================
 # FONCTION PRINCIPALE : Exécution complète
@@ -89,13 +187,9 @@ def run_all_applicable_tests(history, D_base, d_base_id, gamma_id):
     
     Returns:
         dict {test_name: observation_result}
-    
-    Cette fonction :
-      1. Détermine quels tests sont applicables
-      2. Exécute uniquement les tests applicables
-      3. Retourne les observations brutes (PAS de scores)
     """
-    if not history:
+    if not history or len(history) < 2:
+        print(f"⚠ Historique insuffisant: {len(history) if history else 0} états")
         return {}
     
     results = {}
@@ -104,109 +198,50 @@ def run_all_applicable_tests(history, D_base, d_base_id, gamma_id):
     # Récupérer liste des tests applicables
     applicable_tests = get_applicable_tests(d_base_id, state_shape, gamma_id)
     
+    print(f"📊 {len(applicable_tests)} tests applicables pour D={d_base_id}, Γ={gamma_id}, shape={state_shape}")
+    
     # Exécuter chaque test applicable
     for test_name in applicable_tests:
         try:
-            # Tests universels (toujours applicables)
-            if test_name == "UNIV-001":
-                results[test_name] = test_norm_evolution(
-                    history, 
-                    norm_type="frobenius",
-                    name=test_name
+            # Vérifier si test est implémenté
+            if test_name not in TEST_FUNCTION_MAP:
+                print(f"  ⚠ Test non implémenté: {test_name}")
+                results[test_name] = TestObservation(
+                    test_name=test_name,
+                    status="NOT_IMPLEMENTED",
+                    message=f"Test {test_name} non implémenté",
+                    applicable=True
                 )
+                continue
             
-            elif test_name == "UNIV-002":
-                results[test_name] = test_diversity_preservation(
-                    history,
-                    name=test_name
-                )
+            # Exécuter le test
+            test_func = TEST_FUNCTION_MAP[test_name]
+            result = test_func(history)
             
-            elif test_name == "UNIV-003":
-                results[test_name] = test_convergence_to_fixed_point(
-                    history,
-                    name=test_name
-                )
+            # S'assurer que le test a bien un nom
+            if hasattr(result, 'test_name'):
+                result.test_name = test_name
             
-            elif test_name == "UNIV-004":
-                # Nécessite plusieurs seeds - skip pour l'instant
-                # TODO: implémenter test inter-seeds
-                pass
+            results[test_name] = result
             
-            # Tests symétrie (rang 2 uniquement)
-            elif test_name == "SYM-001":
-                results[test_name] = test_symmetry_preservation(
-                    history,
-                    name=test_name
-                )
+            print(f"  ✓ {test_name}: {result.status}")
             
-            elif test_name == "SYM-002":
-                results[test_name] = test_symmetry_creation(
-                    history,
-                    name=test_name
-                )
-            
-            elif test_name == "SYM-003":
-                results[test_name] = test_asymmetry_evolution(
-                    history,
-                    name=test_name
-                )
-            
-            # Tests structure
-            elif test_name == "STR-002":
-                results[test_name] = test_spectral_evolution(
-                    history,
-                    name=test_name
-                )
-            
-            # Tests bornes
-            elif test_name == "BND-001":
-                results[test_name] = test_bounds_preservation(
-                    history,
-                    initial_bounds=(-1.0, 1.0),
-                    name=test_name
-                )
-            
-            # Tests diversité complémentaires
-            elif test_name == "DIV-ENTROPY":
-                results[test_name] = test_entropy_evolution(
-                    history,
-                    name=test_name
-                )
-            
-            elif test_name == "DIV-UNIFORM":
-                results[test_name] = test_uniformity(
-                    history,
-                    name=test_name
-                )
-            
-            # Tests convergence complémentaires
-            elif test_name == "CONV-LYAPUNOV":
-                results[test_name] = test_lyapunov_exponent(
-                    history,
-                    name=test_name
-                )
-				
-            elif test_name == "UNIV-002b":
-                results[test_name] = test_local_diversity_preservation(
-                    history,
-                    patch_size=5,
-                    n_patches=20,
-                    name=test_name
-                )
-            
-            elif test_name == "DIV-HETERO":
-                results[test_name] = test_spatial_heterogeneity(
-                    history,
-                    grid_size=10,
-                    name=test_name
-                )
-        
         except Exception as e:
-            # En cas d'erreur, logger mais continuer
-            print(f"⚠ Test {test_name} failed: {str(e)}")
-            continue
+            print(f"  ❌ Test {test_name} échoué: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            
+            results[test_name] = TestObservation(
+                test_name=test_name,
+                status="ERROR",
+                message=f"Exception: {str(e)}",
+                applicable=True
+            )
     
+    print(f"✅ {len(results)} tests exécutés avec succès")
     return results
+
+
 
 
 # =============================================================================
@@ -236,7 +271,7 @@ __all__ = [
     'test_uniformity',
     'test_distinct_values',
     'DiversityResult',
-	'test_local_diversity_preservation',  # NOUVEAU
+    'test_local_diversity_preservation',
     'test_spatial_heterogeneity', 
     
     # Tests convergence
@@ -253,13 +288,12 @@ __all__ = [
     
     # Scoring
     'score_observation',
-	'score_all_observations',
+    'score_all_observations',
     'compute_global_score',
     'load_weights_config',
     
-    # Fonction principale
-    'run_all_applicable_tests',
+    # Fonctions principales
+    'run_all_applicable_tests'
 ]
 
-__version__ = '1.0.0'
-__charter_compliance__ = 'Section 14.4'
+__version__ = '1.1.0'

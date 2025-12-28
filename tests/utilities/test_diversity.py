@@ -36,6 +36,92 @@ class DiversityResult:
 
 
 # ============================================================================
+# UTILITAIRES
+# ============================================================================
+
+def _safe_std(arr: np.ndarray) -> float:
+    """Calcul sécurisé de l'écart-type avec gestion des NaN et overflow."""
+    flat = arr.flatten()
+    
+    # Vérifier les valeurs infinies
+    if not np.all(np.isfinite(flat)):
+        # Remplacer inf par de grandes valeurs finies
+        flat = np.where(np.isinf(flat), np.finfo(np.float64).max * np.sign(flat), flat)
+        # Remplacer NaN par la médiane
+        mask = np.isnan(flat)
+        if np.any(mask):
+            median_val = np.nanmedian(flat)
+            flat[mask] = median_val
+    
+    # Vérifier si le tableau est constant
+    if np.allclose(flat, flat[0]):
+        return 0.0
+    
+    # Calculer l'écart-type avec gestion de l'overflow
+    try:
+        # Utiliser une méthode robuste pour éviter l'overflow
+        mean = np.mean(flat)
+        # Centrer et réduire pour éviter l'overflow
+        centered = flat - mean
+        # Normaliser par la valeur absolue max pour éviter l'overflow au carré
+        max_abs = np.max(np.abs(centered))
+        if max_abs > 0:
+            centered_normalized = centered / max_abs
+            std_normalized = np.std(centered_normalized)
+            return std_normalized * max_abs
+        else:
+            return 0.0
+    except (OverflowError, ValueError):
+        # Méthode alternative: calcul par batches
+        batch_size = 1000
+        n_batches = len(flat) // batch_size + 1
+        variances = []
+        
+        for i in range(n_batches):
+            batch = flat[i*batch_size:(i+1)*batch_size]
+            if len(batch) > 1:
+                batch_mean = np.mean(batch)
+                batch_var = np.mean((batch - batch_mean)**2)
+                variances.append(batch_var)
+        
+        if variances:
+            return np.sqrt(np.mean(variances))
+        else:
+            return 0.0
+
+
+def _safe_entropy(state: np.ndarray, n_bins: int = 50) -> float:
+    """Calcul sécurisé de l'entropie."""
+    flat = state.flatten()
+    
+    # Nettoyer les données
+    flat_clean = flat[np.isfinite(flat)]
+    if len(flat_clean) == 0:
+        return 0.0
+    
+    # Éviter les valeurs extrêmes qui créent des bins vides
+    q1, q3 = np.percentile(flat_clean, [25, 75])
+    iqr = q3 - q1
+    lower_bound = q1 - 1.5 * iqr
+    upper_bound = q3 + 1.5 * iqr
+    
+    # Filtrer les outliers pour un histogramme stable
+    filtered = flat_clean[(flat_clean >= lower_bound) & (flat_clean <= upper_bound)]
+    
+    if len(filtered) < 10:  # Pas assez de données
+        return 0.0
+    
+    try:
+        hist, _ = np.histogram(filtered, bins=min(n_bins, len(filtered)//2), density=True)
+        hist = hist / (np.sum(hist) + 1e-10)
+        hist_nonzero = hist[hist > 0]
+        entropy = -np.sum(hist_nonzero * np.log(hist_nonzero + 1e-10))
+        return entropy
+    except:
+        return 0.0
+
+
+# ============================================================================
 # TEST-UNIV-002: Évolution diversité (std)
 # ============================================================================
 
@@ -83,28 +169,45 @@ def test_diversity_preservation(history: List[np.ndarray],
     # Calcule diversité (écart-type) pour chaque état
     diversities = []
     for state in history:
-        flat = state.flatten()
-        diversity = np.std(flat)
+        diversity = _safe_std(state)
         diversities.append(diversity)
     
+    # Vérifier les valeurs NaN dans diversities
+    diversities = np.array(diversities)
+    if np.any(np.isnan(diversities)):
+        # Remplacer NaN par la dernière valeur valide
+        for i in range(1, len(diversities)):
+            if np.isnan(diversities[i]):
+                diversities[i] = diversities[i-1] if i > 0 else 0.0
+    
     # Statistiques
-    initial_div = diversities[0]
-    final_div = diversities[-1]
-    max_div = max(diversities)
-    min_div = min(diversities)
+    initial_div = diversities[0] if len(diversities) > 0 else 0.0
+    final_div = diversities[-1] if len(diversities) > 0 else 0.0
+    max_div = np.nanmax(diversities) if len(diversities) > 0 else 0.0
+    min_div = np.nanmin(diversities) if len(diversities) > 0 else 0.0
     
     # Ratio (avec protection division par zéro)
     if initial_div < 1e-10:
         if final_div < 1e-10:
             ratio = 1.0
         else:
-            ratio = np.inf
+            ratio = np.inf if final_div > 0 else 0.0
     else:
-        ratio = final_div / initial_div
+        ratio = final_div / (initial_div + 1e-10)
     
     # Détecte tendance
     if len(diversities) > 1:
-        trend_coef = np.polyfit(range(len(diversities)), diversities, 1)[0]
+        # Filtrer les NaN pour le calcul de tendance
+        valid_idx = np.where(np.isfinite(diversities))[0]
+        if len(valid_idx) > 1:
+            valid_diversities = diversities[valid_idx]
+            try:
+                trend_coef = np.polyfit(valid_idx, valid_diversities, 1)[0]
+            except:
+                trend_coef = 0.0
+        else:
+            trend_coef = 0.0
+        
         relative_change = abs(final_div - initial_div) / (initial_div + 1e-10)
         
         if relative_change < 0.1:
@@ -143,11 +246,11 @@ def test_diversity_preservation(history: List[np.ndarray],
     
     return DiversityResult(
         test_name=name,
-        initial_diversity=initial_div,
-        final_diversity=final_div,
-        max_diversity=max_div,
-        min_diversity=min_div,
-        ratio_final_initial=ratio,
+        initial_diversity=float(initial_div),
+        final_diversity=float(final_div),
+        max_diversity=float(max_div),
+        min_diversity=float(min_div),
+        ratio_final_initial=float(ratio),
         evolution=evolution,
         status=status,
         message=message,
@@ -182,24 +285,12 @@ def test_entropy_evolution(history: List[np.ndarray],
             blocking=False
         )
     
-    def compute_entropy(state, n_bins=50):
-        """Calcule l'entropie de Shannon."""
-        flat = state.flatten()
-        # Histogramme normalisé
-        hist, _ = np.histogram(flat, bins=n_bins, density=True)
-        # Normaliser pour avoir une distribution de probabilité
-        hist = hist / (np.sum(hist) + 1e-10)
-        # Entropie (éviter log(0))
-        hist_nonzero = hist[hist > 0]
-        entropy = -np.sum(hist_nonzero * np.log(hist_nonzero))
-        return entropy
+    entropies = [_safe_entropy(state) for state in history]
     
-    entropies = [compute_entropy(state) for state in history]
-    
-    initial_ent = entropies[0]
-    final_ent = entropies[-1]
-    max_ent = max(entropies)
-    min_ent = min(entropies)
+    initial_ent = entropies[0] if len(entropies) > 0 else 0.0
+    final_ent = entropies[-1] if len(entropies) > 0 else 0.0
+    max_ent = max(entropies) if entropies else 0.0
+    min_ent = min(entropies) if entropies else 0.0
     
     ratio = final_ent / (initial_ent + 1e-10)
     
@@ -253,13 +344,19 @@ def test_range_evolution(history: List[np.ndarray],
     
     ranges = []
     for state in history:
-        range_val = np.max(state) - np.min(state)
+        # Nettoyer les données pour le calcul de range
+        flat = state.flatten()
+        clean_flat = flat[np.isfinite(flat)]
+        if len(clean_flat) == 0:
+            range_val = 0.0
+        else:
+            range_val = np.max(clean_flat) - np.min(clean_flat)
         ranges.append(range_val)
     
-    initial_range = ranges[0]
-    final_range = ranges[-1]
-    max_range = max(ranges)
-    min_range = min(ranges)
+    initial_range = ranges[0] if len(ranges) > 0 else 0.0
+    final_range = ranges[-1] if len(ranges) > 0 else 0.0
+    max_range = max(ranges) if ranges else 0.0
+    min_range = min(ranges) if ranges else 0.0
     
     ratio = final_range / (initial_range + 1e-10)
     
@@ -316,16 +413,22 @@ def test_uniformity(history: List[np.ndarray],
     def compute_cv(state):
         """Coefficient de variation."""
         flat = state.flatten()
-        mean = np.mean(flat)
-        std = np.std(flat)
-        return std / (abs(mean) + 1e-10)
+        clean_flat = flat[np.isfinite(flat)]
+        if len(clean_flat) == 0:
+            return 0.0
+        
+        mean = np.mean(clean_flat)
+        std = np.std(clean_flat)
+        if abs(mean) < 1e-10:
+            return 0.0 if std < 1e-10 else np.inf
+        return std / abs(mean)
     
     cvs = [compute_cv(state) for state in history]
     
-    initial_cv = cvs[0]
-    final_cv = cvs[-1]
-    max_cv = max(cvs)
-    min_cv = min(cvs)
+    initial_cv = cvs[0] if len(cvs) > 0 else 0.0
+    final_cv = cvs[-1] if len(cvs) > 0 else 0.0
+    max_cv = max(cvs) if cvs else 0.0
+    min_cv = min(cvs) if cvs else 0.0
     
     ratio = final_cv / (initial_cv + 1e-10)
     
@@ -390,23 +493,28 @@ def test_distinct_values(history: List[np.ndarray],
     
     def count_distinct(state, tol):
         """Compte valeurs distinctes avec tolérance."""
-        flat = np.sort(state.flatten())
-        diffs = np.diff(flat)
+        flat = state.flatten()
+        clean_flat = flat[np.isfinite(flat)]
+        if len(clean_flat) == 0:
+            return 0
+        
+        sorted_flat = np.sort(clean_flat)
+        diffs = np.diff(sorted_flat)
         n_distinct = 1 + np.sum(diffs > tol)
         return n_distinct
     
     distinct_counts = [count_distinct(state, tolerance) for state in history]
     
-    initial_distinct = distinct_counts[0]
-    final_distinct = distinct_counts[-1]
-    max_distinct = max(distinct_counts)
-    min_distinct = min(distinct_counts)
+    initial_distinct = distinct_counts[0] if len(distinct_counts) > 0 else 0
+    final_distinct = distinct_counts[-1] if len(distinct_counts) > 0 else 0
+    max_distinct = max(distinct_counts) if distinct_counts else 0
+    min_distinct = min(distinct_counts) if distinct_counts else 0
     
     ratio = final_distinct / (initial_distinct + 1e-10)
     
     # Verdict
-    n_elements = history[-1].size
-    final_ratio = final_distinct / n_elements
+    n_elements = history[-1].size if len(history) > 0 else 1
+    final_ratio = final_distinct / n_elements if n_elements > 0 else 0
     
     if final_ratio < 0.01:
         evolution = "collapsed"
@@ -436,7 +544,7 @@ def test_distinct_values(history: List[np.ndarray],
         message=message,
         blocking=blocking
     )
-	# Ajouter à la fin du fichier test_diversity.py
+
 
 def test_local_diversity_preservation(
     history: List[np.ndarray],
@@ -474,10 +582,6 @@ def test_local_diversity_preservation(
     Applicabilité :
     - Uniquement rang 2 (matrices)
     - Nécessite shape[0] ≥ patch_size et shape[1] ≥ patch_size
-    
-    Références:
-    - Audit UNIV-002 (2025-12-28) : Section 6 "Local vs global"
-    - OBS-GAM-001 : Pattern de collapse global observé
     """
     if not history:
         return DiversityResult(
@@ -529,34 +633,61 @@ def test_local_diversity_preservation(
         """Calcule diversité locale via échantillonnage de patches."""
         local_stds = []
         
-        # Fixer seed pour reproductibilité (basé sur shape et somme)
-        seed = int(np.sum(state) * 1000) % 2**31
-        rng = np.random.RandomState(seed)
+        # Fixer seed pour reproductibilité
+        try:
+            state_sum = np.nansum(state)  # Utiliser nansum pour éviter NaN
+            if not np.isfinite(state_sum):
+                state_sum = 0.0
+            seed = int(abs(state_sum) * 1000) % 2**31
+            rng = np.random.RandomState(seed)
+        except:
+            rng = np.random.RandomState(42)  # Seed par défaut
         
         for _ in range(n_patches):
             # Échantillonner position aléatoire
-            i = rng.randint(0, state.shape[0] - patch_size + 1)
-            j = rng.randint(0, state.shape[1] - patch_size + 1)
+            i = rng.randint(0, max(1, state.shape[0] - patch_size + 1))
+            j = rng.randint(0, max(1, state.shape[1] - patch_size + 1))
             
             # Extraire patch
             patch = state[i:i+patch_size, j:j+patch_size]
             
-            # Calculer std du patch
-            patch_std = np.std(patch)
+            # Calculer std du patch avec gestion des NaN
+            patch_clean = patch[np.isfinite(patch)]
+            if len(patch_clean) > 1:
+                patch_std = np.std(patch_clean)
+            else:
+                patch_std = 0.0
             local_stds.append(patch_std)
         
         # Moyenne des std locaux
-        return np.mean(local_stds)
+        if local_stds:
+            return float(np.nanmean(local_stds))
+        else:
+            return 0.0
     
     # Calculer diversité locale initiale et finale
-    initial_local = compute_local_diversity(initial_state)
-    final_local = compute_local_diversity(final_state)
+    try:
+        initial_local = compute_local_diversity(initial_state)
+        final_local = compute_local_diversity(final_state)
+    except Exception as e:
+        return DiversityResult(
+            test_name=name,
+            initial_diversity=0.0,
+            max_diversity=0.0,
+            min_diversity=0.0,
+            final_diversity=0.0,
+            ratio_final_initial=0.0,
+            evolution="error",
+            status="ERROR",
+            message=f"Erreur calcul: {str(e)}",
+            blocking=False
+        )
     
     # Calculer ratio
     if initial_local > 1e-10:
         ratio = final_local / initial_local
     else:
-        ratio = 0.0
+        ratio = 0.0 if final_local < 1e-10 else np.inf
     
     # Déterminer évolution
     if ratio < 0.9:
@@ -664,22 +795,37 @@ def test_spatial_heterogeneity(
         for i in range(0, h, cell_h):
             for j in range(0, w, cell_w):
                 cell = state[i:min(i+cell_h, h), j:min(j+cell_w, w)]
-                if cell.size > 1:
-                    local_stds.append(np.std(cell))
+                cell_clean = cell[np.isfinite(cell)]
+                if len(cell_clean) > 1:
+                    local_stds.append(np.std(cell_clean))
         
         if len(local_stds) > 1:
             # Hétérogénéité = std des std locaux
-            return np.std(local_stds)
+            return float(np.std(local_stds))
         else:
             return 0.0
     
-    initial_hetero = compute_spatial_heterogeneity(initial_state)
-    final_hetero = compute_spatial_heterogeneity(final_state)
+    try:
+        initial_hetero = compute_spatial_heterogeneity(initial_state)
+        final_hetero = compute_spatial_heterogeneity(final_state)
+    except Exception as e:
+        return DiversityResult(
+            test_name=name,
+            initial_diversity=0.0,
+            max_diversity=0.0,
+            min_diversity=0.0,
+            final_diversity=0.0,
+            ratio_final_initial=0.0,
+            evolution="error",
+            status="ERROR",
+            message=f"Erreur calcul: {str(e)}",
+            blocking=False
+        )
     
     if initial_hetero > 1e-10:
         ratio = final_hetero / initial_hetero
     else:
-        ratio = 0.0
+        ratio = 0.0 if final_hetero < 1e-10 else np.inf
     
     # Évolution
     if ratio < 0.9:

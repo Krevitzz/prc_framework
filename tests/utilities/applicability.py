@@ -69,7 +69,7 @@ TEST_APPLICABILITY = {
     "SYM-001": {
         "name": "Préservation symétrie",
         "requires_rank": 2,
-        "requires_square": True,
+        "requires_square": False,
         "d_types": ["SYM", "ASY"],      # Pas R3
         "gamma_types": ["any"],
         "description": "Teste si Γ préserve symétrie d'un D symétrique",
@@ -78,7 +78,7 @@ TEST_APPLICABILITY = {
     "SYM-002": {
         "name": "Création symétrie",
         "requires_rank": 2,
-        "requires_square": True,
+        "requires_square": False,
         "d_types": ["SYM", "ASY"],
         "gamma_types": ["any"],
         "description": "Teste si Γ crée symétrie sur D asymétrique",
@@ -87,7 +87,7 @@ TEST_APPLICABILITY = {
     "SYM-003": {
         "name": "Évolution asymétrie",
         "requires_rank": 2,
-        "requires_square": True,
+        "requires_square": False,
         "d_types": ["SYM", "ASY"],
         "gamma_types": ["any"],
         "description": "Observe ratio asymétrie/symétrie",
@@ -109,8 +109,8 @@ TEST_APPLICABILITY = {
     "STR-002": {
         "name": "Évolution spectre",
         "requires_rank": 2,
-        "requires_square": True,
-        "d_types": ["SYM"],             # Symétriques uniquement (eigvalsh)
+        "requires_square": False,
+        "d_types": ["SYM", "ASY"],             # Symétriques uniquement (eigvalsh)
         "gamma_types": ["any"],
         "description": "Mesure valeurs propres λ_i",
     },
@@ -140,8 +140,8 @@ TEST_APPLICABILITY = {
     "BND-002": {
         "name": "Préservation positivité",
         "requires_rank": 2,
-        "requires_square": True,
-        "d_types": ["SYM"],             # Matrices symétriques uniquement
+        "requires_square": False,
+        "d_types": ["SYM", "ASY"],             
         "gamma_types": ["any"],
         "description": "Vérifie min(eig(D_t)) > 0",
         "note": "Applicable si D initial défini positif (SYM-004)",

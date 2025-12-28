@@ -94,6 +94,16 @@ weights:
   # ===== TESTS CONVERGENCE COMPLÉMENTAIRES =====
   
   CONV-LYAPUNOV: 1.0
+  
+  # =============================================================================
+# TESTS POINTWISE (STANDARD - weight: 1.0)
+# =============================================================================
+# Tests spécifiques aux Γ pointwise.
+
+  # Indépendance pointwise (TEST-PW-001)
+  PW-001: 1.0
+  # Applicable : Γ pointwise uniquement
+  # Score : 0.0 = couplage détecté, 0.5 = faible couplage, 1.0 = indépendant
 
 # =============================================================================
 # NOTES D'UTILISATION

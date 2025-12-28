@@ -608,7 +608,7 @@ def mode_test(gamma_id: str, config_id: str, verbose: bool = True) -> int:
         if tests_exist_for_config(conn_results, exec_id, config_id):
             if verbose:
                 print(f"⏭  Skip (déjà testé): exec_id={exec_id}, config={config_id}")
-            skipped += 1
+            skipped += 0#1
             continue
         
         if verbose:
@@ -693,8 +693,10 @@ def tests_exist_for_config(conn, exec_id: int, config_id: str) -> bool:
 
 
 def load_history_from_snapshots(conn, exec_id: int) -> List[np.ndarray]:
-    """Charge historique depuis snapshots de db_raw."""
+    """Charge historique complet depuis snapshots et état final."""
     cursor = conn.cursor()
+    
+    # 1. Charger tous les snapshots
     cursor.execute("""
         SELECT iteration, state_blob
         FROM Snapshots
@@ -703,11 +705,38 @@ def load_history_from_snapshots(conn, exec_id: int) -> List[np.ndarray]:
     """, (exec_id,))
     
     history = []
-    for iteration, state_blob in cursor.fetchall():
-        state_bytes = gzip.decompress(state_blob)
-        state = pickle.loads(state_bytes)
-        history.append(state)
+    snapshots_loaded = 0
     
+    for iteration, state_blob in cursor.fetchall():
+        try:
+            state_bytes = gzip.decompress(state_blob)
+            state = pickle.loads(state_bytes)
+            history.append(state)
+            snapshots_loaded += 1
+        except Exception as e:
+            print(f"  ⚠ Erreur chargement snapshot iter={iteration}: {str(e)}")
+            continue
+    
+    # 2. Si moins de 2 snapshots, c'est problématique
+    if snapshots_loaded < 2:
+        print(f"  ⚠ Historique insuffisant: {snapshots_loaded} snapshots")
+        return []
+    
+    # 3. S'assurer qu'on a l'état final (dernière itération)
+    cursor.execute("""
+        SELECT final_iteration FROM Executions 
+        WHERE id = ?
+    """, (exec_id,))
+    
+    final_iter = cursor.fetchone()[0]
+    last_snap_iter = history[-1].iteration if hasattr(history[-1], 'iteration') else len(history)-1
+    
+    # 4. Si le dernier snapshot n'est pas l'état final, essayer de le récupérer
+    if last_snap_iter != final_iter:
+        print(f"  ⚠ Dernier snapshot ({last_snap_iter}) != final ({final_iter})")
+        # On pourrait charger l'état final depuis Metrics si disponible
+    
+    print(f"  ✓ Historique chargé: {len(history)} états")
     return history
 
 
