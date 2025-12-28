@@ -753,35 +753,18 @@ def load_d_base(d_base_id: str, seed: int) -> np.ndarray:
         return generator(**params)
 
 
-def insert_test_observations(conn, exec_id: int, observations: Dict):
-    """Insère observations dans db_results."""
+def insert_test_observations(conn, exec_id: int, observations: dict):
+    """
+    Insère observations (dict) dans db_results.
+    
+    Args:
+        observations: dict {test_name: observation_dict}
+                      Chaque observation conforme Section 14.8.2
+    """
     cursor = conn.cursor()
     
     for test_name, obs in observations.items():
-        # Extraire catégorie
-        category = test_name.split('-')[0]
-        
-        # Sérialiser observation complète en JSON
-        obs_data = {
-            'test_name': obs.test_name,
-            'status': obs.status,
-            'message': obs.message,
-            'blocking': getattr(obs, 'blocking', False),
-        }
-        
-        # Ajouter champs spécifiques selon type
-        if hasattr(obs, 'initial_norm'):
-            obs_data['initial_value'] = obs.initial_norm
-            obs_data['final_value'] = obs.final_norm
-        elif hasattr(obs, 'initial_diversity'):
-            obs_data['initial_value'] = obs.initial_diversity
-            obs_data['final_value'] = obs.final_diversity
-        elif hasattr(obs, 'initial_symmetric'):
-            obs_data['initial_value'] = 1.0 if obs.initial_symmetric else 0.0
-            obs_data['final_value'] = 1.0 if obs.final_symmetric else 0.0
-        
-        obs_data['transition'] = getattr(obs, 'transition', None) or getattr(obs, 'evolution', 'unknown')
-        
+        # ✅ Lecture directe depuis dict
         cursor.execute("""
             INSERT OR IGNORE INTO TestObservations (
                 exec_id, test_name, test_category,
@@ -790,12 +773,14 @@ def insert_test_observations(conn, exec_id: int, observations: Dict):
                 computed_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            exec_id, test_name, category,
-            True,  # Applicable (sinon pas dans observations)
-            json.dumps(obs_data),
-            obs_data.get('initial_value'),
-            obs_data.get('final_value'),
-            obs_data.get('transition'),
+            exec_id,
+            obs['test_name'],                           # ✅ dict access
+            obs['test_name'].split('-')[0],             # Catégorie
+            obs['status'] != 'NOT_APPLICABLE',          # ✅ dict access
+            json.dumps(obs),                            # ✅ Sérialisation directe
+            obs['initial_value'],                       # ✅ dict access
+            obs['final_value'],                         # ✅ dict access
+            obs['transition'],                          # ✅ dict access
             datetime.now().isoformat()
         ))
     

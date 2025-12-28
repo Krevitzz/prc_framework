@@ -2451,8 +2451,476 @@ python tests/validation/run_all_validations.py
 ```
 
 ---
+# SECTION 14.8 : FORMAT STANDARDISÉ TESTS ET OBSERVATIONS
 
-## 14.8 STATUT DE CETTE SECTION
+```
+\SECTION{
+  ID = CHARTER-SECTION-14-8
+  VERSION = 1.0
+  STATUS = normative
+  DATE = 2024-12-28
+  PURPOSE = "Standardisation format tests et séparation observation/interprétation"
+}
+```
+
+---
+
+## 14.8.1 PRINCIPE FONDAMENTAL
+
+**RÈGLE ABSOLUE** : Les tests OBSERVENT, le scoring INTERPRÈTE.
+
+```
+\SEPARATION_STRICTE{
+  Tests (L3)    : Mesures factuelles → dict de valeurs numériques
+  Scoring (L3)  : Interprétation contextuelles → scores 0-1
+  Verdicts (L3) : Agrégation scores → décisions finales
+}
+```
+
+**Interdiction formelle** :
+- ❌ Tests ne retournent JAMAIS "PASS" ou "FAIL" (c'est une interprétation)
+- ❌ Tests ne jugent JAMAIS si une observation est "bonne" ou "mauvaise"
+- ❌ Tests ne contiennent JAMAIS de logique de scoring
+- ❌ Utilisation d'objets ou classes pour stocker observations
+
+**Autorisations** :
+- ✅ Tests retournent "ERROR", "NOT_APPLICABLE" (status technique, pas verdict)
+- ✅ Tests retournent valeurs numériques brutes
+- ✅ Tests décrivent transitions factuelles ("increasing", "preserved", etc.)
+- ✅ Format dict pur, JSON-sérialisable
+
+---
+
+## 14.8.2 FORMAT DICT STANDARDISÉ
+
+**Tout test DOIT retourner un dict avec cette structure exacte** :
+
+```python
+{
+    # =========================================================================
+    # IDENTIFICATION (OBLIGATOIRE)
+    # =========================================================================
+    'test_name': str,        # ID du test (ex: "UNIV-001")
+    
+    # =========================================================================
+    # STATUS TECHNIQUE (OBLIGATOIRE)
+    # =========================================================================
+    'status': str,           # Valeurs autorisées :
+                             #   "SUCCESS"          - Test exécuté avec succès
+                             #   "ERROR"            - Erreur technique (NaN, exception)
+                             #   "NOT_APPLICABLE"   - Test non applicable au contexte
+    
+    'message': str,          # Description factuelle (pas de jugement)
+                             # OK : "Norme finale = 15.3"
+                             # ❌ : "Norme trop élevée, échec"
+    
+    # =========================================================================
+    # VALEURS POUR SQL (OBLIGATOIRE)
+    # =========================================================================
+    'initial_value': float,  # Mesure à t=0
+    'final_value': float,    # Mesure à t=T
+    'transition': str,       # Description factuelle transition
+                             # Ex: "stable", "increasing", "decreasing"
+                             #     "preserved", "created", "destroyed"
+                             # PAS : "acceptable", "problematic", "failed"
+    
+    # =========================================================================
+    # SCORE BRUT (OBLIGATOIRE)
+    # =========================================================================
+    'value': float,          # Valeur principale pour calculs scoring
+                             # Ex: norme finale, ratio, distance, etc.
+    
+    # =========================================================================
+    # MÉTADONNÉES (OPTIONNEL)
+    # =========================================================================
+    'metadata': dict         # Détails additionnels JSON-sérialisables
+                             # Ex: {'max': 18.2, 'min': 0.3, 'trend': -0.02}
+}
+```
+
+### Champs interdits
+
+```python
+\INTERDICTIONS{
+  'blocking': bool        # ❌ Interprétation, pas observation
+  'verdict': str          # ❌ Interprétation
+  'passed': bool          # ❌ Interprétation
+  'score': float          # ❌ Appartient au scoring, pas au test
+  'weight': float         # ❌ Appartient au scoring
+}
+```
+
+---
+
+## 14.8.3 SÉPARATION OBSERVATION / INTERPRÉTATION
+
+### Phase 1 : Test (observation pure)
+
+```python
+def run_test(history, context):
+    """
+    Observe une propriété factuelle.
+    
+    NE JUGE PAS si c'est bon ou mauvais.
+    """
+    norms = [compute_norm(state) for state in history]
+    
+    # ✅ CORRECT : Description factuelle
+    if norms[-1] > 1000:
+        return {
+            'status': 'SUCCESS',
+            'message': f'Norme finale = {norms[-1]:.2e}',
+            'transition': 'explosive',  # Fait : la norme explose
+            'value': norms[-1],
+            ...
+        }
+    
+    # ❌ INTERDIT : Jugement
+    # return {
+    #     'status': 'FAIL',
+    #     'message': 'Explosion détectée (BAD)',
+    #     'blocking': True
+    # }
+```
+
+### Phase 2 : Scoring (interprétation contextuelle)
+
+```python
+def score_observation(test_name, observation, context, weights):
+    """
+    Interprète l'observation selon le contexte.
+    
+    C'est ICI qu'on décide si c'est bon ou mauvais.
+    """
+    transition = observation['transition']
+    
+    # ✅ CORRECT : Interprétation contextuelle
+    if transition == 'explosive':
+        score = 0.0  # Jugement : explosion = mauvais
+    elif transition == 'stable':
+        score = 1.0  # Jugement : stabilité = bon
+    else:
+        score = 0.5
+    
+    return {'score': score, 'weight': weights[test_name], ...}
+```
+
+---
+
+## 14.8.4 GESTION DES CAS D'ERREUR
+
+### Erreurs techniques (non pénalisantes)
+
+```python
+# Cas 1 : NaN/Inf détecté
+{
+    'test_name': 'UNIV-001',
+    'status': 'ERROR',
+    'message': 'NaN détecté à itération 150',
+    'initial_value': 10.5,
+    'final_value': float('nan'),  # Factuel
+    'transition': 'nan_detected',
+    'value': 0.0,  # Convention pour erreur
+    'metadata': {'first_nan_iteration': 150}
+}
+
+# Cas 2 : Test non applicable
+{
+    'test_name': 'SYM-001',
+    'status': 'NOT_APPLICABLE',
+    'message': 'Test symétrie nécessite matrice carrée',
+    'initial_value': 0.0,
+    'final_value': 0.0,
+    'transition': 'not_applicable',
+    'value': 0.0,
+    'metadata': {}
+}
+
+# Cas 3 : Exception Python
+{
+    'test_name': 'UNIV-002',
+    'status': 'ERROR',
+    'message': f'Exception: {str(e)}',
+    'initial_value': 0.0,
+    'final_value': 0.0,
+    'transition': 'error',
+    'value': 0.0,
+    'metadata': {'exception_type': type(e).__name__}
+}
+```
+
+### Scoring des erreurs
+
+```python
+# Le scoring décide comment pénaliser les erreurs
+
+def score_observation(test_name, obs, context, weights):
+    if obs['status'] == 'ERROR':
+        return {'score': 0.0, ...}  # Erreur = score nul
+    
+    if obs['status'] == 'NOT_APPLICABLE':
+        return None  # Exclu du calcul (pas pénalisé)
+    
+    # Sinon interprète observation...
+```
+
+---
+
+## 14.8.5 INTERDICTION CLASSES ET OBJETS
+
+**Règle absolue** : Aucune classe ou objet pour stocker observations.
+
+### ❌ Interdit
+
+```python
+# NE JAMAIS FAIRE
+@dataclass
+class NormResult:
+    initial_norm: float
+    final_norm: float
+    status: str
+
+# NE JAMAIS FAIRE
+class TestResult:
+    def __init__(self, data):
+        self.status = data['status']
+        ...
+```
+
+### ✅ Autorisé
+
+```python
+# TOUJOURS FAIRE : dict pur
+def run_test(history, context):
+    return {
+        'test_name': 'UNIV-001',
+        'status': 'SUCCESS',
+        'initial_value': 10.5,
+        ...
+    }
+```
+
+### Raison
+
+1. **Sérialisabilité** : dict → JSON direct, pas besoin de serializers custom
+2. **Simplicité** : Pas de classes à maintenir, pas de méthodes à documenter
+3. **Compatibilité** : SQLite attend dict, pas d'objets
+4. **Évolutivité** : Ajouter un champ = ajouter une clé, pas modifier une classe
+
+---
+
+## 14.8.6 VALIDATION AUTOMATIQUE
+
+### Test de conformité
+
+Chaque test DOIT être validable automatiquement :
+
+discovery.py gère les maj en cas d'ajout d'un nouveau test, validation.py s'assure de la conformité.
+
+## 14.8.7 TEMPLATE TEST CONFORME
+
+```python
+# tests/test_xxx.py
+"""
+Test XXX : [Description]
+
+Applicable : [Conditions]
+Mesure : [Formule]
+"""
+
+import numpy as np
+
+TEST_ID = "XXX-001"
+REQUIRES_RANK = None  # ou 2, 3
+D_TYPES = ["SYM", "ASY", "R3"]
+WEIGHT_DEFAULT = 1.0
+
+
+def _safe_compute(state):
+    """
+    Helper avec gestion NaN/Inf.
+    Retourne float ou None si erreur.
+    """
+    if np.any(np.isnan(state)) or np.any(np.isinf(state)):
+        return None
+    
+    # Calcul sécurisé
+    return float(np.linalg.norm(state))
+
+
+def run_test(history, context):
+    """
+    Mesure [propriété factuelle].
+    
+    Args:
+        history: Liste états [D_0, ..., D_T]
+        context: dict {d_base_id, gamma_id, seed, modifier_id}
+    
+    Returns:
+        dict standardisé conforme Section 14.8.2
+    """
+    # Vérification base
+    if not history or len(history) < 2:
+        return {
+            'test_name': TEST_ID,
+            'status': 'ERROR',
+            'message': 'Historique insuffisant',
+            'initial_value': 0.0,
+            'final_value': 0.0,
+            'transition': 'error',
+            'value': 0.0,
+            'metadata': {}
+        }
+    
+    # Vérifier applicabilité
+    if context['d_base_id'].startswith('R3') and REQUIRES_RANK == 2:
+        return {
+            'test_name': TEST_ID,
+            'status': 'NOT_APPLICABLE',
+            'message': 'Test nécessite rang 2',
+            'initial_value': 0.0,
+            'final_value': 0.0,
+            'transition': 'not_applicable',
+            'value': 0.0,
+            'metadata': {}
+        }
+    
+    # Calcul observation
+    values = [_safe_compute(state) for state in history]
+    
+    # Gestion erreurs numériques
+    if any(v is None for v in values):
+        first_error = next(i for i, v in enumerate(values) if v is None)
+        return {
+            'test_name': TEST_ID,
+            'status': 'ERROR',
+            'message': f'NaN/Inf détecté à itération {first_error}',
+            'initial_value': values[0] if values[0] else 0.0,
+            'final_value': 0.0,
+            'transition': 'nan_detected',
+            'value': 0.0,
+            'metadata': {'first_error_iteration': first_error}
+        }
+    
+    # Calcul transition (description factuelle)
+    initial = values[0]
+    final = values[-1]
+    ratio = final / (initial + 1e-10)
+    
+    if abs(ratio - 1.0) < 0.1:
+        transition = "stable"
+    elif ratio > 1.0:
+        transition = "increasing"
+    else:
+        transition = "decreasing"
+    
+    # Retour conforme
+    return {
+        'test_name': TEST_ID,
+        'status': 'SUCCESS',
+        'message': f'Mesure: {initial:.2f} → {final:.2f}',
+        'initial_value': initial,
+        'final_value': final,
+        'transition': transition,
+        'value': final,
+        'metadata': {
+            'max': max(values),
+            'min': min(values),
+            'ratio': ratio,
+            'values': values  # Historique complet si nécessaire
+        }
+    }
+```
+
+---
+
+## 14.8.8 MODIFICATIONS SECTIONS EXISTANTES
+
+### Section 14.4 (Tests et Scoring)
+
+**Ajout en tête de section** :
+
+```
+SÉPARATION FONDAMENTALE (Section 14.8) :
+  Tests → Observations factuelles (dict standardisé)
+  Scoring → Interprétations contextuelles (scores 0-1)
+
+Tout test DOIT retourner format défini Section 14.8.2.
+Aucune interprétation (PASS/FAIL/verdict) dans les tests.
+```
+
+### Section 7 (Protocole tests modulaires)
+
+**Remplacement paragraphe** :
+
+```
+ANCIEN :
+  "Les tests retournent NormResult, SymmetryResult, DiversityResult..."
+
+NOUVEAU :
+  "Les tests retournent un dict standardisé (Section 14.8.2).
+   Format unique pour tous les tests, pas de classes custom."
+```
+
+---
+
+## 14.8.9 COMPATIBILITÉ BATCH_RUNNER
+
+### Lecture dans batch_runner.py
+
+**Règle** : `batch_runner.py` ne doit JAMAIS utiliser `.attribute`, toujours `['key']`.
+
+---
+
+## 14.8.10 STATUT DE CETTE SECTION
+
+**Section 14.8 est NORMATIVE et NON NÉGOCIABLE.**
+
+Toute modification du format dict DOIT :
+1. Mettre à jour Section 14.8.2
+2. Versionner le changement
+3. Migrer la DB si nécessaire
+4. Valider tous les tests existants
+
+**En cas de doute** :
+- Format dict standardisé prime sur tout
+- Observation factuelle prime sur interprétation
+- Simplicité prime sur abstraction
+
+---
+
+## 14.8.11 VALIDATION AVANT COMMIT
+
+Avant tout commit modifiant un test :
+
+```bash
+# Valider format output
+python tests/utilities/validation.py test_univ_001
+
+# Valider tous les tests
+python tests/utilities/validation.py --all
+
+# Sortie attendue :
+✅ test_univ_001: Format valide
+✅ test_univ_002: Format valide
+✅ test_sym_001: Format valide
+...
+✅ 15/15 tests conformes Section 14.8
+```
+
+---
+
+```
+\VALIDATION_SECTION_14_8{
+  mandatory = true
+  any_deviation = invalid_framework
+  dict_only = enforced
+  no_classes = enforced
+  observation_not_interpretation = enforced
+}
+```
+
+**FIN SECTION 14.8**
 
 ### Caractère normatif
 
