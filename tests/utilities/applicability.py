@@ -210,6 +210,22 @@ TEST_APPLICABILITY = {
         "gamma_types": ["any"],
         "description": "Compte valeurs distinctes avec tolérance",
     },
+	# Nouveaux tests diversité
+    "UNIV-002b": {
+        "requires_rank": 2,
+        "requires_square": False,  # Peut être rectangulaire
+        "requires_min_size": 5,    # Pour patches 5×5
+        "d_types": ["SYM", "ASY"],
+        "description": "Diversité locale via patches",
+    },
+    
+    "DIV-HETERO": {
+        "requires_rank": 2,
+        "requires_square": False,
+        "requires_min_size": 10,   # Pour grille 10×10
+        "d_types": ["SYM", "ASY"],
+        "description": "Hétérogénéité spatiale",
+    },
     
     # =========================================================================
     # TESTS CONVERGENCE COMPLÉMENTAIRES
@@ -261,58 +277,52 @@ TEST_APPLICABILITY = {
 # FONCTIONS DE VÉRIFICATION
 # =============================================================================
 
-def is_test_applicable(test_name: str, 
-                       d_base_id: str, 
-                       state_shape: Tuple[int, ...],
-                       gamma_id: str = None) -> bool:
+def is_test_applicable(test_name: str, d_base_id: str, 
+                       state_shape: tuple, gamma_id: str = None) -> bool:
     """
-    Vérifie si un test est techniquement applicable.
+    Vérifie si un test est applicable au contexte donné.
     
     Args:
-        test_name: Nom du test (ex: "SYM-001")
+        test_name: Nom du test (ex: "UNIV-002b")
         d_base_id: ID de la base D (ex: "SYM-001")
-        state_shape: Shape du tenseur (ex: (50, 50) ou (20, 20, 20))
-        gamma_id: ID du Γ (optionnel, pour tests Γ-spécifiques)
+        state_shape: Shape de l'état (ex: (50, 50))
+        gamma_id: ID du Γ (optionnel, pour tests spécifiques Γ)
     
     Returns:
         True si test applicable, False sinon
-    
-    Exemple:
-        >>> is_test_applicable("SYM-001", "SYM-001", (50, 50))
-        True
-        >>> is_test_applicable("SYM-001", "R3-001", (20, 20, 20))
-        False  # Rang 3 non compatible
     """
     if test_name not in TEST_APPLICABILITY:
         return False
     
     spec = TEST_APPLICABILITY[test_name]
     
-    # 1. Vérifier type D (SYM, ASY, R3)
-    d_type = d_base_id.split('-')[0]  # "SYM-001" → "SYM"
-    if d_type not in spec["d_types"]:
-        return False
-    
-    # 2. Vérifier rang
-    rank = len(state_shape)
-    if spec["requires_rank"] is not None:
-        if rank != spec["requires_rank"]:
+    # Vérifier rang
+    if spec.get("requires_rank") is not None:
+        if len(state_shape) != spec["requires_rank"]:
             return False
     
-    # 3. Vérifier carré (si nécessaire)
-    if spec["requires_square"]:
-        if rank != 2:
-            return False
-        if state_shape[0] != state_shape[1]:
+    # Vérifier carré
+    if spec.get("requires_square", False):
+        if len(state_shape) == 2 and state_shape[0] != state_shape[1]:
             return False
     
-    # 4. Vérifier type Γ (si spécifié)
-    if gamma_id and "gamma_types" in spec:
-        gamma_types = spec["gamma_types"]
-        if "any" not in gamma_types:
-            # TODO: Implémenter détection type Γ depuis metadata
-            # Pour l'instant, assume applicable
-            pass
+    # Vérifier taille minimale (NOUVEAU)
+    if spec.get("requires_min_size") is not None:
+        min_size = spec["requires_min_size"]
+        if any(dim < min_size for dim in state_shape):
+            return False
+    
+    # Vérifier type D
+    d_types = spec.get("d_types", [])
+    if d_types:
+        if not any(d_base_id.startswith(dt) for dt in d_types):
+            return False
+    
+    # Vérifier type Γ (si spécifié)
+    gamma_types = spec.get("gamma_types")
+    if gamma_types and gamma_id:
+        if gamma_id not in gamma_types:
+            return False
     
     return True
 

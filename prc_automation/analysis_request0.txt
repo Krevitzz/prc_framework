@@ -1,0 +1,151 @@
+================================================================================
+RÉSUMÉ DONNÉES R0 - DEMANDE D'ANALYSE DE PATTERNS
+================================================================================
+Export: 2025-12-27 09:05
+
+VUE D'ENSEMBLE
+--------------------------------------------------------------------------------
+Runs totaux: 2880
+Γ testés: 12
+Verdicts calculés: 12
+
+DISTRIBUTION VERDICTS (config/threshold par défaut)
+--------------------------------------------------------------------------------
+FLAGGED_FOR_REVIEW: 2
+SURVIVES[R0]: 6
+WIP[R0-closed]: 4
+
+VERDICTS PAR Γ
+--------------------------------------------------------------------------------
+Γ            Verdict              Score    Maj%     Rob%    
+--------------------------------------------------------------------------------
+GAM-012      SURVIVES[R0]           13.25     97.0    100.0
+GAM-001      SURVIVES[R0]           12.27     66.9     69.2
+GAM-008      SURVIVES[R0]           12.27     66.9     69.2
+GAM-004      SURVIVES[R0]           11.27     53.8     53.8
+GAM-005      SURVIVES[R0]           11.27     53.8     53.8
+GAM-009      SURVIVES[R0]            9.90     42.3     61.5
+GAM-006      WIP[R0-closed]          9.66      3.8      7.7
+GAM-002      WIP[R0-closed]          9.52      0.0      0.0
+GAM-007      WIP[R0-closed]          9.52      0.0      0.0
+GAM-010      WIP[R0-closed]          8.89      3.8      7.7
+GAM-013      FLAGGED_FOR_REVIEW      6.16      0.0      0.0
+GAM-003      FLAGGED_FOR_REVIEW      4.46      0.0      0.0
+
+SCORES MOYENS PAR TEST (tous Γ)
+--------------------------------------------------------------------------------
+Test            Avg      Min      Max      N Γ     
+--------------------------------------------------------------------------------
+BND-001           0.847    0.000    1.000       12
+CONV-LYAPUNOV     0.861    0.000    1.000       12
+DIV-ENTROPY       0.500    0.500    0.500       12
+DIV-UNIFORM       0.500    0.500    0.500       12
+STR-002           0.500    0.500    0.500       12
+SYM-001           0.375    0.000    1.000       12
+SYM-002           0.373    0.000    1.000       12
+SYM-003           0.500    0.500    0.500       12
+UNIV-001          0.360    0.000    0.600       12
+UNIV-002          0.235    0.000    1.000       12
+UNIV-003          0.646    0.000    1.000       12
+
+MATRICE Γ × TEST (scores moyens)
+--------------------------------------------------------------------------------
+Γ            BND-001 CONV-LYAPUNOV DIV-ENTROPY DIV-UNIFORM STR-002 SYM-001 SYM-002 SYM-003 UNIV-001 UNIV-002
+--------------------------------------------------------------------------------
+GAM-001        1.000   0.909   0.500   0.500   0.500   0.300   0.300   0.500   0.425   0.591
+GAM-002        1.000   1.000   0.500   0.500   0.500   0.300   0.300   0.500   0.600   0.020
+GAM-003        0.000   0.000   0.500   0.500   0.500   0.275   0.275   0.500   0.000   0.300
+GAM-004        1.000   1.000   0.500   0.500   0.500   0.700   0.700   0.500   0.100   0.000
+GAM-005        1.000   1.000   0.500   0.500   0.500   0.700   0.700   0.500   0.100   0.000
+GAM-006        1.000   1.000   0.500   0.500   0.500   0.300   0.300   0.500   0.600   0.042
+GAM-007        1.000   1.000   0.500   0.500   0.500   0.300   0.300   0.500   0.600   0.020
+GAM-008        1.000   0.909   0.500   0.500   0.500   0.300   0.300   0.500   0.425   0.591
+GAM-009        1.000   0.913   0.500   0.500   0.500   0.150   0.150   0.500   0.500   0.415
+GAM-010        1.000   0.990   0.500   0.500   0.500   0.175   0.175   0.500   0.500   0.010
+GAM-012        1.000   0.918   0.500   0.500   0.500   0.700   0.700   0.500   0.410   0.543
+GAM-013        0.095   0.746   0.500   0.500   0.500   0.287   0.275   0.500   0.065   0.269
+
+================================================================================
+ANALYSE DES CORRÉLATIONS ENTRE TESTS
+================================================================================
+
+Analysant corrélations entre 11 tests sur 12 Γ...
+
+C:\Users\Windows-Pc\prc_framework\prc_automation\analyze_patterns.py:106: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, p_value = spearmanr(scores_a, scores_b)
+✓ [70%] CORRELATION: BND-001 et UNIV-003 sont positivement corrélés
+✓ [72%] CORRELATION: CONV-LYAPUNOV et UNIV-002 sont négativement corrélés
+✓ [100%] CORRELATION: SYM-001 et SYM-002 sont positivement corrélés
+✓ [74%] CORRELATION: SYM-001 et UNIV-003 sont positivement corrélés
+✓ [74%] CORRELATION: SYM-002 et UNIV-003 sont positivement corrélés
+
+================================================================================
+ANALYSE DES FAMILLES DE COMPORTEMENT
+================================================================================
+
+Clustering de 12 Γ...
+
+✓ [17%] FAMILY: Famille 1: GAM-003, GAM-013 - échouent BND-001, SYM-001, SYM-002
+✓ [42%] FAMILY: Famille 2: GAM-002, GAM-006, GAM-007, GAM-009, GAM-010 - réussissent BND-001, CONV-LYAPUNOV et échouent SYM-001, SYM-002, UNIV-002
+✓ [42%] FAMILY: Famille 3: GAM-001, GAM-004, GAM-005, GAM-008, GAM-012 - réussissent BND-001, CONV-LYAPUNOV, UNIV-003 et échouent UNIV-001
+
+================================================================================
+ANALYSE DES TESTS DISCRIMINANTS
+================================================================================
+
+Analysant variance de 11 tests...
+
+✓ [72%] DISCRIMINANT: BND-001 est très discriminant (std=0.360)
+✓ [70%] DISCRIMINANT: UNIV-003 est très discriminant (std=0.348)
+✓ [62%] DISCRIMINANT: SYM-002 est très discriminant (std=0.312)
+
+Tests peu discriminants (faible variance):
+  ℹ STR-002: std=0.000 (peu informatif)
+  ℹ DIV-UNIFORM: std=0.000 (peu informatif)
+  ℹ DIV-ENTROPY: std=0.000 (peu informatif)
+
+================================================================================
+ANALYSE DES BASES D
+================================================================================
+
+Analysant 13 bases D...
+
+
+================================================================================
+SUGGESTIONS DE CONTRAINTES CON-GAM-XXX
+================================================================================
+
+Analysant 0 familles de Γ...
+
+💡 [77%] CONSTRAINT: SUGGESTION CON-GAM-XXX: Test UNIV-002 échoue pour tous les Γ (avg=0.235)
+
+================================================================================
+RÉSUMÉ DES PATTERNS DÉTECTÉS
+================================================================================
+
+
+CONSTRAINT (1):
+  [77%] CONSTRAINT: SUGGESTION CON-GAM-XXX: Test UNIV-002 échoue pour tous les Γ (avg=0.235)
+
+CORRELATION (5):
+  [100%] CORRELATION: SYM-001 et SYM-002 sont positivement corrélés
+  [74%] CORRELATION: SYM-001 et UNIV-003 sont positivement corrélés
+  [74%] CORRELATION: SYM-002 et UNIV-003 sont positivement corrélés
+  [72%] CORRELATION: CONV-LYAPUNOV et UNIV-002 sont négativement corrélés
+  [70%] CORRELATION: BND-001 et UNIV-003 sont positivement corrélés
+
+DISCRIMINANT (3):
+  [72%] DISCRIMINANT: BND-001 est très discriminant (std=0.360)
+  [70%] DISCRIMINANT: UNIV-003 est très discriminant (std=0.348)
+  [62%] DISCRIMINANT: SYM-002 est très discriminant (std=0.312)
+
+FAMILY (3):
+  [42%] FAMILY: Famille 2: GAM-002, GAM-006, GAM-007, GAM-009, GAM-010 - réussissent BND-001, CONV-LYAPUNOV et échouent SYM-001, SYM-002, UNIV-002
+  [42%] FAMILY: Famille 3: GAM-001, GAM-004, GAM-005, GAM-008, GAM-012 - réussissent BND-001, CONV-LYAPUNOV, UNIV-003 et échouent UNIV-001
+  [17%] FAMILY: Famille 1: GAM-003, GAM-013 - échouent BND-001, SYM-001, SYM-002
+
+================================================================================
+Total: 12 patterns détectés
+================================================================================
+
+================================================================================

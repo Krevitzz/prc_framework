@@ -139,6 +139,61 @@ def score_diversity_preservation(obs: DiversityResult, context: Dict[str, Any]) 
         return 0.3  # Augmentation excessive
     
     return 0.5  # Par défaut neutre
+	
+def score_diversity_revised(obs: DiversityResult, context: dict) -> float:
+    """
+    Scoring UNIV-002 révisé (post-audit 2025-12-28).
+    
+    CHANGEMENTS vs version originale :
+    - Bornes adaptées : [0.1, 10.0] au lieu de [0.3, 3.0]
+    - Mapping linéaire par morceaux (moins compressif)
+    - Saturation plancher réduite
+    
+    Justification (Audit UNIV-002 Section 3) :
+    - 57% des ratios < 0.3 dans version originale (saturation)
+    - Corrélation linéaire r=0.775 meilleure que sigmoïde
+    - Zone informative originale trop étroite (21%)
+    
+    Mapping :
+    - ratio < 0.1  : score = 0.0 (collapse total)
+    - [0.1, 1.0]   : score = ratio (décroissance linéaire)
+    - [1.0, 10.0]  : score = 1.0 (maintien/croissance)
+    - ratio > 10.0 : score = 0.5 (explosion, pénaliser légèrement)
+    
+    Args:
+        obs: DiversityResult avec ratio diversity_final/initial
+        context: Contexte d'exécution
+    
+    Returns:
+        Score entre 0.0 et 1.0
+    """
+    ratio = obs.ratio
+    
+    # Gérer cas pathologiques
+    if np.isnan(ratio) or np.isinf(ratio):
+        return 0.0
+    
+    # Mapping révisé
+    if ratio < 0.1:
+        # Collapse très sévère
+        score = 0.0
+    
+    elif ratio < 1.0:
+        # Décroissance : mapping linéaire
+        # ratio=0.1 → 0.0, ratio=1.0 → 1.0
+        score = (ratio - 0.1) / 0.9
+    
+    elif ratio <= 10.0:
+        # Maintien ou croissance contrôlée : score maximal
+        score = 1.0
+    
+    else:
+        # Explosion (ratio > 10) : pénaliser légèrement
+        # Peut indiquer instabilité, pas nécessairement bon
+        score = 0.5
+    
+    return np.clip(score, 0.0, 1.0)
+
 
 
 def score_convergence(obs: ConvergenceResult, context: Dict[str, Any]) -> float:
@@ -271,7 +326,74 @@ def score_lyapunov(obs: ConvergenceResult, context: Dict[str, Any]) -> float:
         # λ ∈ [-0.01, 0.1] → score ∈ [1.0, 0.0]
         return 1.0 - (lambda_estimate + 0.01) / 0.11
 
+def score_local_diversity(obs: DiversityResult, context: dict) -> float:
+    """
+    Scoring UNIV-002b : Diversité locale.
+    
+    Mapping similaire à UNIV-002 révisé, mais interprétation différente :
+    - Score élevé : Structure locale maintenue
+    - Score faible : Lissage local
+    
+    Comparaison UNIV-002 vs UNIV-002b :
+    - Si UNIV-002 bas, UNIV-002b haut : Collapse global, structure locale OK
+    - Si UNIV-002 haut, UNIV-002b bas : Variance globale, mais lisse localement
+    - Si les deux bas : Homogénéisation complète
+    - Si les deux hauts : Maintien diversité à toutes échelles
+    
+    Args:
+        obs: DiversityResult avec ratio local
+        context: Contexte
+    
+    Returns:
+        Score 0-1
+    """
+    ratio = obs.ratio_final_initial
+    
+    if np.isnan(ratio) or np.isinf(ratio):
+        return 0.0
+    
+    # Même mapping que UNIV-002 révisé
+    if ratio < 0.1:
+        score = 0.0
+    elif ratio < 1.0:
+        score = (ratio - 0.1) / 0.9
+    elif ratio <= 10.0:
+        score = 1.0
+    else:
+        score = 0.5
+    
+    return np.clip(score, 0.0, 1.0)
 
+
+def score_heterogeneity(obs: DiversityResult, context: dict) -> float:
+    """
+    Scoring DIV-HETERO : Hétérogénéité spatiale.
+    
+    Mapping :
+    - ratio < 0.5  : score = 0.0 (homogénéisation)
+    - [0.5, 1.5]   : score = linéaire
+    - ratio > 1.5  : score = 1.0 (maintien/augmentation)
+    
+    Args:
+        obs: DiversityResult avec ratio hétérogénéité
+        context: Contexte
+    
+    Returns:
+        Score 0-1
+    """
+    ratio = obs.ratio_final_initial
+    
+    if np.isnan(ratio) or np.isinf(ratio):
+        return 0.0
+    
+    if ratio < 0.5:
+        score = 0.0
+    elif ratio < 1.5:
+        score = (ratio - 0.5) / 1.0
+    else:
+        score = 1.0
+    
+    return np.clip(score, 0.0, 1.0)
 # =============================================================================
 # FONCTION PRINCIPALE DE SCORING
 # =============================================================================
@@ -308,7 +430,16 @@ def score_observation(test_name: str,
         score = score_norm_evolution(observation, context)
     
     elif test_name == "UNIV-002":
-        score = score_diversity_preservation(observation, context)
+        score = score_diversity_revised(observation, context)
+		
+		    
+    elif test_name == "UNIV-002b":
+        # Nouveau test diversité locale
+        score = score_local_diversity(observation, context)
+    
+    elif test_name == "DIV-HETERO":
+        # Nouveau test hétérogénéité
+        score = score_heterogeneity(observation, context)
     
     elif test_name == "UNIV-003":
         score = score_convergence(observation, context)

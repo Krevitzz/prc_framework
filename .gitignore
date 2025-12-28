@@ -37,3 +37,9 @@ D_encodings/__pycache__/example_usage.cpython-313.pyc
 *.pyc
 prc_automation/prc_database/prc_r0_raw.db
 prc_automation/prc_database/prc_r0_results.db
+prc_automation/figures_audit_univ_002/audit2_temporal.png
+prc_automation/figures_audit_univ_002/audit3_scoring.png
+prc_automation/figures_audit_univ_002/audit4_sensitivity.png
+prc_automation/figures_audit_univ_002/audit5_correlations.png
+prc_automation/figures_audit_univ_002/audit6_local_global.png
+prc_automation/figures_audit_univ_002/audit7_scale.png

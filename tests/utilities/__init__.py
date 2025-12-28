@@ -42,6 +42,8 @@ from .test_diversity import (
     test_range_evolution,
     test_uniformity,
     test_distinct_values,
+    test_local_diversity_preservation,  # NOUVEAU
+    test_spatial_heterogeneity,         # NOUVEAU
     DiversityResult,
 )
 
@@ -183,6 +185,21 @@ def run_all_applicable_tests(history, D_base, d_base_id, gamma_id):
                     history,
                     name=test_name
                 )
+				
+            elif test_name == "UNIV-002b":
+                results[test_name] = test_local_diversity_preservation(
+                    history,
+                    patch_size=5,
+                    n_patches=20,
+                    name=test_name
+                )
+            
+            elif test_name == "DIV-HETERO":
+                results[test_name] = test_spatial_heterogeneity(
+                    history,
+                    grid_size=10,
+                    name=test_name
+                )
         
         except Exception as e:
             # En cas d'erreur, logger mais continuer
@@ -219,6 +236,8 @@ __all__ = [
     'test_uniformity',
     'test_distinct_values',
     'DiversityResult',
+	'test_local_diversity_preservation',  # NOUVEAU
+    'test_spatial_heterogeneity', 
     
     # Tests convergence
     'test_convergence_to_fixed_point',
