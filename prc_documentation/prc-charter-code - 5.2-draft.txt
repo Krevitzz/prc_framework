@@ -224,9 +224,15 @@ prc_framework/
 │
 ├── tests/
 │   ├── test_xxx_yyy.py    			 # Tests modulaires réutilisables
+│   │
+│   ├── config/               		 #contient les différents fichiers de configuration pour le scoring et les verdicts
+│   │   ├── test_parameters.yaml	 #configuartion des tests
+│   │
 │   ├── utilities/               
 │   │   ├── parameters.py			 #paramètres pour chaque tests
 │   │   ├── validation_tests.py		 #validation de conformité structurelle les tests
+│   │   ├── validation_structure.py      # Validation format dict ← NOUVEAU
+│   │   ├── validation_functional.py    # Validation logique ← NOUVEAU
 │   │   ├── discovery.py			 #mises à jour des fichiers relatifs après ajout d'un nouveau test (append paramètres, lists etc)
 │   │   └── template_test_xxx_yyy.py #template standard pour les tests
 │   │
@@ -1645,7 +1651,7 @@ MÉTRIQUES CONTINUES (vitesse convergence, rayon spectral)
 
 ---
 
-### Applicabilité technique (à mettre à jour)
+### Applicabilité technique (à mettre à jour voir 14.8)
 
 **Matrice d'applicabilité obligatoire** : `tests/utilities/applicability.py`
 

@@ -12,33 +12,59 @@
 -- ===========================================================================
 
 CREATE TABLE IF NOT EXISTS TestObservations (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  
-  -- Référence au run dans db_raw (OBLIGATOIRE)
-  exec_id INTEGER NOT NULL,
-  
-  -- Identification du test
-  test_name TEXT NOT NULL,              -- "TEST-UNIV-001", "TEST-SYM-001", etc.
-  test_category TEXT NOT NULL,          -- "UNIV", "SYM", "STR", "BND", etc.
-  
-  -- Applicabilité technique
-  applicable BOOLEAN NOT NULL,          -- False si test non applicable à ce contexte
-  
-  -- Observations brutes (JSON)
-  observation_data TEXT NOT NULL,       -- JSON sérialisé de l'observation
-  
-  -- Métriques clés extraites (pour requêtes rapides)
-  initial_value REAL,
-  final_value REAL,
-  transition TEXT,                      -- "preserved" | "created" | "destroyed" | "absent"
-  
-  -- Métadonnées
-  computed_at TEXT NOT NULL,
-  
-  -- Contraintes
-  FOREIGN KEY (exec_id) REFERENCES Executions(id),
-  UNIQUE(exec_id, test_name)
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    exec_id INTEGER NOT NULL,
+    test_name TEXT NOT NULL,
+    test_category TEXT NOT NULL,
+    
+    -- =========================================================================
+    -- STATUS
+    -- =========================================================================
+    applicable BOOLEAN NOT NULL,
+    status TEXT NOT NULL CHECK(status IN ('SUCCESS', 'ERROR', 'NOT_APPLICABLE')),
+    message TEXT,
+    
+    -- =========================================================================
+    -- STATISTIQUES (colonnes séparées pour requêtes SQL)
+    -- =========================================================================
+    stat_initial REAL,
+    stat_final REAL,
+    stat_min REAL,
+    stat_max REAL,
+    stat_mean REAL,
+    stat_std REAL,
+    
+    -- =========================================================================
+    -- ÉVOLUTION
+    -- =========================================================================
+    evolution_transition TEXT,  -- "stable" | "increasing" | "explosive" | ...
+    evolution_trend TEXT,       -- "increasing" | "decreasing" | "stable" | ...
+    evolution_trend_coef REAL,
+    
+    -- =========================================================================
+    -- DONNÉES COMPLÈTES (JSON backup)
+    -- =========================================================================
+    observation_data TEXT NOT NULL,  -- JSON complet du dict
+    
+    -- =========================================================================
+    -- MÉTADONNÉES
+    -- =========================================================================
+    computed_at TEXT NOT NULL,
+    
+    FOREIGN KEY (exec_id) REFERENCES raw.Executions(id),
+    UNIQUE(exec_id, test_name)
 );
+
+-- Index pour requêtes fréquentes
+CREATE INDEX IF NOT EXISTS idx_test_stats ON TestObservations(
+    test_name, stat_final, evolution_trend
+);
+
+CREATE INDEX IF NOT EXISTS idx_test_transition ON TestObservations(
+    test_name, evolution_transition
+);
+
+
 
 -- ===========================================================================
 -- TABLE 2 : TestScores - Scores calculés avec config spécifique

@@ -1,0 +1,68 @@
+Voici la liste des éléments **obsolètes et redondants** entre les versions 5.1 et 5.2, avec la section **14.8 v2** comme référence normative :
+
+---
+
+## 🔴 **SECTIONS OBSOLÈTES (à supprimer/réécrire)**
+
+### **1. Section 14.4 – "Tests et Scoring" (5.1)**
+- ❌ **Classes `@dataclass`** (`XxxObservation`, `SymmetryObservation`, etc.)
+- ❌ **Fonction `score_xxx(obs: XxxObservation)`**
+- ❌ **Exemple d’échelle de scoring avec `initial_value`/`final_value`**
+- ❌ **Références à `blocking`, `verdict`, `passed`/`failed` dans les tests**
+- ❌ **Exemple de structure de test avec objets**
+- ✅ **Remplacé par :** Section **14.8.2 v2** (dict standardisé uniquement)
+
+### **2. Section 7 – "Protocole de tests modulaires" (5.1)**
+- ❌ **Paragraphe ancien sur `NormResult`, `SymmetryResult`, etc.**
+- ✅ **Remplacé par :** Section **14.8.2 v2** (dict unique)
+
+### **3. Section 14.8 v1 (obsolète)**
+- ❌ **Tout le contenu de la première version 14.8 (5.1)**
+- ✅ **Remplacé par :** Section **14.8 v2** (5.2) complète
+
+### **4. Références à des "classes d’observation"**
+- ❌ Toute mention de `class XxxObservation` ou `dataclass`
+- ❌ Toute méthode `.attribute` pour lire les résultats
+- ✅ **Remplacé par :** **dict pur** avec clés `['statistics']`, `['evolution']`
+
+---
+
+## 🔄 **REDONDANCES (à fusionner/simplifier)**
+
+### **1. Définition du principe "Tests observent, scoring interprète"**
+- 🔄 **Section 14.4 (5.1)** et **Section 14.8.1 (5.2)**
+- ✅ **Garder :** Section **14.8.1 v2** (plus complète)
+
+### **2. Matrice d’applicabilité**
+- 🔄 **Section 14.4 (5.1)** et **Section 14.8.2 v2 (statut `NOT_APPLICABLE`)**
+- ✅ **Garder :** Section **14.8.2 v2** avec statut explicite
+
+### **3. Paramètres externes**
+- 🔄 **Section 14.4 (5.1)** et **Section 14.8.3 v2**
+- ✅ **Garder :** Section **14.8.3 v2** avec YAML structuré
+
+### **4. Interdiction du hardcoding**
+- 🔄 Mentionné dans **14.4** et **14.8.1**
+- ✅ **Garder :** Section **14.8.1** (principe fondamental)
+
+---
+
+## ✅ **CE QUI RESTE VALIDE (inchangé)**
+
+- Sections **0 à 6** (axiomes, hiérarchie, templates)
+- Sections **8 à 13** (rangs, workflow, interdictions)
+- Sections **14.1 à 14.3** (non-reruns, batch_runner, bases de données)
+- Sections **14.5 à 14.7** (configs, verdicts, validation)
+- **Section 14.8 v2** (normative, remplace tout le reste)
+
+---
+
+## 📌 **RÉCAPITULATIF DES CHANGEMENTS CRITIQUES**
+
+1. **Plus de classes** – uniquement des `dict`
+2. **Plus de `PASS`/`FAIL` dans les tests** – uniquement `SUCCESS`/`ERROR`/`NOT_APPLICABLE`
+3. **Plus de hardcoding** – tout paramètre dans `config/test_parameters.yaml`
+4. **Plus de `initial_value`/`final_value`** – utiliser `statistics['initial']` etc.
+5. **Plus de `blocking`** – le scoring décide
+6. **Plus de `verdict` dans les tests** – le scoring interprète
+

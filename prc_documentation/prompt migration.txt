@@ -1,0 +1,500 @@
+# MISSION : Réécriture Charter PRC 5.2
+
+## CONTEXTE
+Réécrire le Charter PRC depuis version 5.1 vers 5.2 en consolidant la section temporaire 14.8v2 dans le corps principal et en éliminant toutes redondances.
+
+## DOCUMENTS SOURCE
+- Charter PRC 5.1 (fourni)
+- Section 14.8 v2 fournie dans 5.1 
+
+## HIÉRARCHIE NORMATIVE
+En cas de conflit :
+```
+Sections 0-5 (axiomes) > Section 14.8 v2 > Reste
+```
+
+## RÈGLES ABSOLUES
+
+### 1. Migration section 14.8v2
+- **TOUT** le contenu de 14.8v2 doit être intégré dans section 12.4 (Tests)
+- Format dict standardisé (14.8.2) → 12.4.2
+- Paramètres externes (14.8.3) → 12.4.3
+- Séparation obs/interprétation (14.8.4) → 12.4.4
+- Gestion erreurs (14.8.5) → 12.4.5
+- Interdiction classes (14.8.6) → 12.4.6
+- Template (14.8.7) → référence fichier dans 12.4.7
+- Schéma DB (14.8.8) → 12.4.8
+- Compatibilité batch_runner (14.8.10) → 12.4.9
+- Validation (14.8.11) → 12.4.10
+
+### 2. Élimination redondances
+Si un élément existe à la fois dans sections 6-13 ET dans 14.8v2 :
+- **Supprimer** l'ancien (6-13)
+- **Conserver** uniquement 14.8v2 (migré dans 12.4)
+- **Ne jamais dupliquer**
+
+Exemples :
+- Section 7 (Tests modulaires) → SUPPRIMÉE, migrée dans 12.4
+- Section 14.4 ancien (5.1) → REMPLACÉE par contenu 14.8v2
+- Section 14.5-14.6 (5.1) → COMPLÉTÉES mais pas remplacées
+
+### 3. Format templates
+**Tous les templates** (section 9) :
+```markdown
+### 9.X Type de template
+
+**Format minimal :**
+\TEMPLATE_TYPE{
+  champ1 = ...
+  champ2 = ...
+}
+
+**Référence complète :** path/to/template_xxx.py
+
+**Exemple minimal :**
+[3-5 lignes montrant structure et points I/O uniquement  ]
+```
+
+### 4. Arborescence corrigée (section 4)
+```
+nouvelle structure complète: 
+prc_framework/
+├── core/
+│   ├── __init__.py
+│   ├── state_preparation.py    # prepare_state()
+│   └── kernel.py                # run_kernel()
+│
+├── operators/
+│   ├── __init__.py
+│   └── gamma_hyp_XXX.py         # Définitions Γ
+│
+├── D_encodings/
+│   ├── __init__.py
+│   ├── rank2_symmetric.py       # Créateurs D^(base) symétriques
+│   ├── rank2_asymmetric.py      # Créateurs D^(base) asymétriques
+│   └── rank3_correlations.py    # Créateurs D^(base) rang 3
+│
+├── modifiers/
+│   ├── __init__.py
+│   ├── noise.py                 # D^(bruit)
+│   ├── constraints/             # D^(topo_x) - chargement d'une topologie pré-définie ou d'une contrainte agissant sur la topo de base
+│   ├── plugins/                 # D^(plugin) - chargement d'un un plusieurs D^(topo_x) fixes
+│   └── domains/                 # D^(domain) - chargement d'un un plusieurs D^(plugin) fixes
+│
+├── prc_automation/
+│   ├── batch_runner.py    			 # écrit les db
+│   ├── initdatabases.py    		 # initialise les db
+│   ├── analyze_and_export_all_configs.py    			 # écrit un rapport résumé des tests et du scoring
+│   │
+│   ├── config/               		 #contient les différents fichiers de configuration pour le scoring et les verdicts
+│   │   ├── weights_default.yaml	 #poids par défaut pour le scoring
+│   │   └── thresholds_default.yaml	 #seuil par défaut pour les verdicts
+│   │
+│   ├── prc_database/               		
+│   │   ├── prc_r0_raw.db			 #contient tous les snapshots de chaque itération du kernel pour toutes les configurations {opérateurs,base, modifiers}
+│   │   ├── schema_raw.sql			 #définition de prc_r0_raw.db
+│   │   ├── schema_result.sql		 #définition de prc_results.db
+│   │   ├── prc_results.db			 #contient tous les résultats de tests et leur verdict par config et thresholds
+│   │   ├── validate_db_results.py	 \{TODO}
+│   │   └── validate_db_raw.py		 #confirme l'intégrité et la conformité de la db
+│   │
+│   └── TM-GAM-XXX.py          		 # Toy models
+│
+├── tests/
+│   ├── test_xxx_yyy.py    			 # Tests modulaires réutilisables
+│   │
+│   ├── config/               		 #contient les différents fichiers de configuration pour le scoring et les verdicts
+│   │   ├── test_parameters.yaml	 #configuartion des tests
+│   │
+│   ├── utilities/               
+│   │   ├── parameters.py			 #paramètres pour chaque tests
+│   │   ├── validation_tests.py		 #validation de conformité structurelle les tests
+│   │   ├── validation_structure.py      # Validation format dict ← NOUVEAU
+│   │   ├── validation_functional.py    # Validation logique ← NOUVEAU
+│   │   ├── discovery.py			 #mises à jour des fichiers relatifs après ajout d'un nouveau test (append paramètres, lists etc)
+│   │   └── template_test_xxx_yyy.py #template standard pour les tests
+│   │
+│   └── TM-GAM-XXX.py          		 # Toy models
+│
+└── prc_documentation/
+    ├── hypotheses/
+    │   └── gamma.txt
+    ├── constraints/
+    │   └── derived.txt
+    └── logs/
+        └── log.db
+
+```
+
+### 5. Vocabulaire unifié
+Vérifier cohérence terminologie partout :
+- "tenseur rang 2" (jamais "matrice de corrélation")
+- "indices couplés" (jamais "DOF connectés")
+- "itération" (jamais "évolution temporelle")
+- Etc. (voir section 8)
+
+## STRUCTURE CIBLE CHARTER 5.2
+
+```markdown
+# CHARTER PRC 5.2 - ARCHITECTURE NORMALISÉE
+
+\DOCUMENT{
+  ID = PRC-CHARTER-CODE
+  VERSION = 5.2-STABLE
+  STATUS = normative
+  DATE = 2024-12-29
+  PURPOSE = "Architecture normalisée post-consolidation section 14.8v2"
+  REPLACES = 5.1-DEFINITIVE
+}
+
+## PARTIE I : FONDATIONS
+
+### 1. Axiomes du PRC
+[Copie exacte depuis 5.1 - IMMUTABLE]
+
+### 2. Hiérarchie des niveaux
+[Copie exacte depuis 5.1 - IMMUTABLE]
+
+### 3. Architecture du core
+[Copie exacte depuis 5.1 - IMMUTABLE]
+
+### 4. Arborescence des modules
+[VERSION CORRIGÉE ci-dessus]
+
+### 5. Nomenclature des états D
+[Copie exacte depuis 5.1 - STABLE]
+
+### 6. Conventions d'identification
+[Copie exacte depuis 5.1 - STABLE]
+
+---
+
+## PARTIE II : CONTRAINTES LLMS CODING
+
+### 7. Interdictions par niveau
+[Copie exacte depuis Section 10 (5.1) - STABLE]
+
+### 8. Vocabulaire normatif
+[Section 11 (5.1) RÉDUITE - 1 tableau unifié au lieu de 3]
+
+---
+
+## PARTIE III : TEMPLATES ET PROTOCOLES
+
+### 9. Templates par niveau
+
+#### 9.1 Niveau L0 - Axiomes
+[Format minimal + note "immutable"]
+
+#### 9.2 Niveau L1 - Définitions
+Format : \DEFINITION{...}
+Référence : prc_documentation/templates/template_definition.md
+[Exemple minimal 5 lignes]
+
+#### 9.3 Niveau L2 - Hypothèses
+Format : \HYPOTHESIS{...}
+Référence : prc_documentation/templates/template_hypothesis.md
+[Exemple minimal 10 lignes]
+
+#### 9.4 Niveau L3 - Toy Models
+Format : \TOY_MODEL{...}
+Référence : [PLACEHOLDER - à développer selon contexte]
+
+#### 9.5 Niveau L3 - Opérateurs Γ
+Format : class GammaHypXXX
+Référence : operators/template_gamma_hyp_xxx.py
+[PLACEHOLDER - à développer]
+
+#### 9.6 Niveau L3 - Encodages D^(base)
+Format : def create_xxx
+Référence : D_encodings/template_d_encoding.py
+[PLACEHOLDER - à développer]
+
+#### 9.7 Niveau L3 - Modificateurs D
+Format : def modify_xxx
+Référence : modifiers/template_modifier.py
+[PLACEHOLDER - à développer]
+
+#### 9.8 Niveau L3 - Tests
+Format : def run_test(history, context) -> dict
+Référence : tests/utilities/template_test_xxx_yyy.py
+[Exemple minimal - structure dict seulement]
+
+#### 9.9 Niveau L3 - Scoring
+Format : [PLACEHOLDER]
+Référence : tests/utilities/template_scoring_function.py
+[PLACEHOLDER - à développer]
+
+#### 9.10 Niveau L4 - Logs
+Format : \LOG{...}
+Référence : prc_documentation/templates/template_log.md
+[Exemple minimal]
+
+#### 9.11 Niveau L4 - Results
+Format : \RESULT{...}
+Référence : prc_documentation/templates/template_result.md
+[Exemple minimal]
+
+#### 9.12 Niveau L4 - Journals
+Format : \JOURNAL{...}
+Référence : prc_documentation/templates/template_journal.md
+[Exemple minimal]
+
+#### 9.13 Niveau L2 - Contraintes dérivées
+Format : \CONSTRAINT{...}
+Référence : prc_documentation/templates/template_constraint.md
+[Exemple minimal]
+
+*\{NOTE} Le niveau L3 regroupe des entités hétérogènes partageant un même niveau d’abstraction, sans hiérarchie interne ni ordre d’exécution implicite.
+
+#### 9.14 Configurations
+- tests/config/template_test_parameters.yaml [PLACEHOLDER]
+- prc_automation/config/template_weights.yaml [PLACEHOLDER]
+- prc_automation/config/template_thresholds.yaml [PLACEHOLDER]
+
+### 10. Système de rangs et statuts
+[Section 8 (5.1) - COPIE EXACTE - orthogonal]
+
+---
+
+## PARTIE IV : PIPELINE OPÉRATIONNEL
+
+### 11. Workflow général
+[Section 9 (5.1) SIMPLIFIÉE - supprimer exemples code, garder cycle]
+
+### 12. Architecture pipeline
+
+#### 12.1 Principe de non-reruns
+[Section 14.1 (5.1) - COPIE EXACTE]
+
+#### 12.2 Batch runner
+[Section 14.2 (5.1) - COPIE EXACTE]
+
+#### 12.3 Bases de données
+[Section 14.3 (5.1) - COPIE EXACTE]
+
+#### 12.4 Tests
+
+##### 12.4.1 Principe fondamental
+[Depuis 14.8.1 - observation vs interprétation]
+
+##### 12.4.2 Format dict standardisé v2
+[Depuis 14.8.2 - COMPLET avec structure, règles, exemples]
+
+##### 12.4.3 Paramètres externes
+[Depuis 14.8.3 - COMPLET avec YAML, fonction chargement]
+
+##### 12.4.4 Séparation observation/interprétation
+[Depuis 14.8.4 - exemples phase 1 et 2]
+
+##### 12.4.5 Gestion des cas d'erreur
+[Depuis 14.8.5 - 3 cas types] on distinguera {ERROR pour échec technique, NON_APPLICABLE pour invalidité à inscrire dans db, SUCESS comme log console) Les sorties marquées ERROR ne sont jamais transmises au scoring ni aux verdicts.
+
+##### 12.4.6 Interdiction classes et objets
+[Depuis 14.8.6 - règle + justification]
+
+##### 12.4.7 Template test conforme
+[Depuis 14.8.7 - RÉFÉRENCE FICHIER uniquement, pas code complet]
+Référence : tests/utilities/template_test_xxx_yyy.py
+[Structure dict minimale en exemple]
+
+##### 12.4.8 Schéma DB adapté
+[Depuis 14.8.8 - SQL CREATE TABLE]
+
+##### 12.4.9 Modifications sections existantes
+[Depuis 14.8.9 - notes sur sections 14.4 et 7]
+
+##### 12.4.10 Compatibilité batch_runner
+[Depuis 14.8.10 - exemple insertion DB]
+
+##### 12.4.11 Validation automatique
+[Depuis 14.8.11 - fonction validate_test_output]
+
+##### 12.4.12 Statut normatif
+[Depuis 14.8.12 - règles modification]
+---
+
+## PARTIE INCUBATION : NORMES ÉMERGENTES (NORMATIVES, NON CONSOLIDÉES)
+
+[PLACEHOLDER] \{TODO} "cycle de vie des fichiers"/ fonctions de chargement par nom: L’obsolescence d’un test, d’un scoring ou d’un artefact est déterminée exclusivement par les règles de chargement (nommage, emplacement), et non par suppression rétroactive de fichiers ou de données.
+
+#### 12.5 Scoring
+
+##### 12.5.1 Principe
+Tests observent, scoring interprète.
+
+##### 12.5.2 Structure obligatoire
+[Depuis Section 14.4 (5.1) - fonction score_xxx]
+
+##### 12.5.3 Échelle universelle 0-1
+[Depuis Section 14.4 (5.1) - tableau échelle]
+
+##### 12.5.4 Applicabilité technique
+[PLACEHOLDER] en attendant révision consolidation de [Matrice depuis Section 14.4 (5.1)]
+
+##### 12.5.5 Template
+Référence : tests/utilities/template_scoring_function.py [PLACEHOLDER]
+
+#### 12.6 Configs externes
+
+##### 12.6.1 Règle de configuration
+[Section 14.5 (5.1) - COMPLÈTE]
+
+##### 12.6.2 Structure configs pondération
+[Section 14.5 (5.1) - YAML weights]
+
+##### 12.6.3 Structure configs seuils
+[Section 14.5 (5.1) - YAML thresholds]
+
+##### 12.6.4 Versionnement
+[Section 14.5 (5.1) - règles]
+
+#### 12.7 Verdicts
+
+##### 12.7.1 Règle de multiplicité
+[Section 14.6 (5.1) - COMPLÈTE]
+
+##### 12.7.2 Structure table GammaVerdicts
+[Section 14.6 (5.1) - SQL]
+
+##### 12.7.3 Calcul des 3 critères
+[Section 14.6 (5.1) - formules]
+
+##### 12.7.4 Règles de verdict
+[Section 14.6 (5.1) - logique OU/ET]
+
+##### 12.7.5 Exemple verdicts multiples
+[Section 14.6 (5.1)]
+
+#### 12.8 Validation et cohérence
+[Section 14.7 (5.1) - COPIE EXACTE]
+
+#### 12.A Spécificités exploration R0
+[SECTION NOUVELLE si besoin - sinon omettre]
+[Si éléments spécifiques R0 identifiés, les isoler ici]
+
+**Note :** Cette section accueillera les futurs ajouts avant consolidation.
+Tout nouveau développement commence ici, puis migre vers sections principales
+lors de la prochaine stabilisation (Charter 5.3+).
+
+---
+
+## ANNEXES
+
+### Annexe A : Références templates complets
+
+**Templates implémentés :**
+- tests/utilities/template_test_xxx_yyy.py (Section 12.4.7)
+
+**Templates à développer (placeholders) :**
+- operators/template_gamma_hyp_xxx.py
+- D_encodings/template_d_encoding.py
+- modifiers/template_modifier.py
+- tests/utilities/template_scoring_function.py
+- tests/config/template_test_parameters.yaml
+- prc_automation/config/template_weights.yaml
+- prc_automation/config/template_thresholds.yaml
+- prc_documentation/templates/template_definition.py
+- prc_documentation/templates/template_hypothesis.py
+- prc_documentation/templates/template_log.md
+- prc_documentation/templates/template_result.md
+- prc_documentation/templates/template_journal.md
+- prc_documentation/templates/template_constraint.md
+
+### Annexe B : Changelog 5.1 → 5.2
+
+**Migrations majeures :**
+- Section 14.8v2 (temporaire) → Section 12.4 (normalisée)
+- Section 7 (tests modulaires) → Supprimée, intégrée dans 12.4
+- Section 9 (workflow) → Section 11
+- Section 10 (interdictions) → Section 7
+- Section 11 (vocabulaire) → Section 8 (réduite)
+- Sections 14.1-14.7 → Sections 12.1-12.8
+
+**Corrections :**
+- Section 4 : Arborescence mise à jour (ajout tests/config/, validation files)
+- Section 8 : Vocabulaire unifié (3 tableaux → 1 tableau)
+
+**Suppressions :**
+- Section 7 complète (redondante avec 12.4)
+- Section 14.4 ancienne (remplacée par 14.8v2 → 12.4)
+- Tous exemples code en sections 6-13 (renvoi vers templates)
+
+**Ajouts :**
+- Section 9.5-9.14 : Templates manquants (placeholders)
+- Section 12.A : Spécificités R0 (si applicable)
+- Partie TEMP : Section explicite pour futurs ajouts
+
+**Règles structurelles établies :**
+- Hiérarchie : 0-5 > 14.8v2 > reste
+- Templates : Format minimal + référence fichier
+- Vocabulaire : Unifié et vérifié partout
+- Redondances : Toutes éliminées
+
+---
+
+## VALIDATION FINALE
+
+Avant de considérer Charter 5.2 terminé, vérifier :
+
+- [ ] Sections 1-6 : Vocabulaire cohérent, arborescence corrigée
+- [ ] Section 8 : Vocabulaire réduit à 1 tableau unifié
+- [ ] Section 9 : Tous templates listés (15+ références)
+- [ ] Section 10 : Conservée sans changement
+- [ ] Section 11 : Workflow simplifié
+- [ ] Section 12.4 : **MIGRATION COMPLÈTE** 14.8v2 (rien perdu)
+- [ ] Sections 12.5-12.8 : Complétées depuis 5.1
+- [ ] Partie TEMP : Vidée avec note explicative
+- [ ] Annexe A : Liste complète templates
+- [ ] Annexe B : Changelog détaillé
+- [ ] Aucune redondance détectable
+- [ ] Numérotation logique continue
+- [ ] Aucun conflit normatif
+
+---
+
+## LIVRABLES ATTENDUS
+
+1. **Charter PRC 5.2 complet** (markdown)
+2. **Fichier diff** montrant changements vs 5.1
+3. **Checklist validation** cochée
+
+---
+
+## INSTRUCTIONS SPÉCIALES
+
+**Pour les placeholders :**
+```markdown
+#### 9.X Template XXX
+Format : [description courte]
+Référence : path/to/template_xxx.py
+[PLACEHOLDER - à développer]
+```
+
+**Pour les migrations 14.8v2 :**
+- Copier le contenu COMPLET (pas de résumé)
+- Adapter numérotation (14.8.2 → 12.4.2)
+- Conserver tous exemples code 
+
+**Pour les sections stables :**
+- Copier texte original 5.1
+- Corriger uniquement vocabulaire si nécessaire
+- Ne pas modifier structure/contenu
+
+
+**PLACEHOLDERS** 
+- écrire "[PLACEHOLDER]" spécifiquement sur chaque instance, ne JAMAIS compléter par un remplissage en pseudo code ou texte..
+---
+
+## PRIORITÉ EN CAS DE DOUTE
+
+1. Sections 0-5 sont **immutables**
+2. Contenu 14.8v2 **prime** de charter 5.1 sur tout le reste
+3. Vocabulaire section 8 **prime** sur exemples anciens
+4. En cas d'ambiguïté, **ne rien supprimer** - marquer [TODO]
+5. Template manquant → **[PLACEHOLDER]**
+
+---
+
+FIN DU PROMPT
+```
