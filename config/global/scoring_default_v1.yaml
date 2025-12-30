@@ -1,0 +1,67 @@
+# config/global/scoring_default_v1.yaml
+
+version: "1.0"
+config_id: "scoring_default_v1"
+description: "Configuration scoring par défaut"
+
+tests:
+  UNIV-001:
+    test_weight: 2.0
+    
+    metric_weights:
+      stat_initial: 0.0
+      stat_final: 2.0
+      stat_min: 0.5
+      stat_max: 1.5
+      stat_mean: 1.0
+      stat_std: 1.0
+      evolution_transition: 3.0
+      evolution_trend: 1.0
+      evolution_trend_coefficient: 0.5
+    
+    scoring_rules:
+      stat_final:
+        ranges:
+          - {max: 10, score: 1.0}
+          - {min: 10, max: 1000, score: 0.5}
+          - {min: 1000, score: 0.0}
+      
+      stat_std:
+        linear:
+          min_val: 0.0
+          min_score: 1.0
+          max_val: 100.0
+          max_score: 0.0
+      
+      evolution_transition:
+        mapping:
+          stable: 1.0
+          explosive: 0.0
+          nan_detected: 0.0
+          error: 0.0
+          increasing: 0.6
+          decreasing: 0.4
+          converged: 1.0
+          divergent: 0.0
+      
+      evolution_trend:
+        mapping:
+          stable: 1.0
+          increasing: 0.6
+          decreasing: 0.4
+          unknown: 0.0
+      
+      evolution_trend_coefficient:
+        ranges:
+          - {min: -0.01, max: 0.01, score: 1.0}
+          - {max: -0.01, score: 0.5}
+          - {min: 0.01, max: 1.0, score: 0.5}
+          - {min: 1.0, score: 0.0}
+  
+  UNIV-002:
+    test_weight: 2.0
+    # ...
+  
+  SYM-001:
+    test_weight: 1.5
+    # ...

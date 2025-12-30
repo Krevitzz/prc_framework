@@ -1,0 +1,12 @@
+# config/tests/UNIV-001/params_custom_v1.yaml
+
+version: "1.0"
+config_id: "UNIV-001_params_custom_v1"
+description: "Paramètres spécifiques test UNIV-001"
+
+# Override params globaux
+explosion_threshold: 500.0  # Plus strict
+
+# Nouveaux params spécifiques
+norm_type: 'fro'
+local_threshold_multiplier: 1.5

@@ -1,0 +1,18 @@
+# config/global/params_default_v1.yaml
+
+version: "1.0"
+config_id: "params_default_v1"
+description: "Paramètres par défaut tous tests"
+
+common:
+  explosion_threshold: 1000.0
+  stability_tolerance: 0.1
+  convergence_window: 50
+  trend_polynomial_degree: 1
+
+# Params spécifiques par catégorie (optionnel)
+universal:
+  norm_explosion_threshold: 1000.0
+
+symmetry:
+  symmetry_tolerance: 1e-6
