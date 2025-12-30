@@ -169,12 +169,26 @@ else:
 ## SECTION 4 : Arborescence des modules
 
 ### 4.1 Structure complète
-
 ```
 prc_framework/
+├── config/
+│   ├── global/
+│   │   ├── params_default_v1.yaml
+│   │   ├── params_strict_v1.yaml
+│   │   ├── scoring_default_v1.yaml
+│   │   ├── scoring_conservative_v1.yaml
+│   │   ├── thresholds_strict_v1.yaml
+│   │   └── thresholds_lenient_v1.yaml
+│   │
+│   └── tests/
+│       ├── UNIV-001/
+│       │   ├── params_custom_v1.yaml
+│       │   └── scoring_custom_v1.yaml
+│       └── ... (autres tests avec overrides)
+│
 ├── core/
 │   ├── __init__.py
-│   ├── state_preparation.py    # prepare_state()
+│   ├── state_preparation.py     # prepare_state()
 │   └── kernel.py                # run_kernel()
 │
 ├── operators/
@@ -195,46 +209,48 @@ prc_framework/
 │   └── domains/                 # D^(domain)
 │
 ├── prc_automation/
-│   ├── batch_runner.py
+│   ├── batch_runner.py                    
 │   ├── initdatabases.py
-│   ├── analyze_and_export_all_configs.py
 │   │
-│   ├── config/
-│   │   ├── weights_default.yaml
-│   │   └── thresholds_default.yaml
-│   │
-│   ├── prc_database/
-│   │   ├── prc_r0_raw.db
-│   │   ├── schema_raw.sql
-│   │   ├── schema_result.sql
-│   │   ├── prc_results.db
-│   │   ├── validate_db_results.py
-│   │   └── validate_db_raw.py
-│   │
-│   └── TM-GAM-XXX.py
+│   └── prc_database/
+│       ├── prc_r0_raw.db
+│       ├── prc_r0_results.db              
+│       ├── schema_raw.sql
+│       └── schema_results.sql             
 │
 ├── tests/
-│   ├── test_xxx_yyy.py
+│   ├── test_univ_001.py                   
+│   ├── test_univ_002.py
+│   ├── test_sym_001.py
+│   └── ... (autres tests)
 │   │
-│   ├── config/
-│   │   └── test_parameters.yaml
-│   │
-│   ├── utilities/
-│   │   ├── parameters.py
-│   │   ├── validation_tests.py
-│   │   ├── validation_structure.py
-│   │   ├── validation_functional.py
-│   │   ├── discovery.py
-│   │   └── template_test_xxx_yyy.py
+│   └── utilities/
+│       ├── __init__.py
+│       ├── discovery.py                   
+│       ├── applicability.py               
+│       ├── test_engine.py                 
+│       ├── scoring.py                     
+│       ├── verdict_engine.py              
+│       ├── config_loader.py               
+│       ├── parameters.py                  
+│       ├── validation_tests.py
+│       ├── validation_structure.py        
+│       └── template_test_xxx_yyy.py       
 │
-└── prc_documentation/
-    ├── hypotheses/
-    │   └── gamma.txt
-    ├── constraints/
-    │   └── derived.txt
-    └── logs/
-        └── log.db
-```
+├── prc_documentation/
+│   ├── charter_code_5.3.md                
+│   └── templates/
+│       ├── test_complete_template.py      
+│       ├── config_params_global.yaml     
+│       ├── config_params_specific.yaml    
+│       ├── config_scoring_global.yaml     
+│       ├── config_thresholds_global.yaml  
+│       └── README_config_architecture.md  
+│
+└── reports/                                
+    └── (verdicts générés)
+``````
+
 
 ### 4.2 Responsabilités par module
 
@@ -583,370 +599,13 @@ D_final = prepare_state(D_base, [
 ---
 
 ### 9.8 Niveau L3 - Tests
-"""
-Test {TEST_ID} : {Description courte}
-
-{Description détaillée sur plusieurs lignes}
-"""
-
-import numpy as np
-from typing import Optional, Tuple
-
-# ============================================================================
-# MÉTADONNÉES OBLIGATOIRES
-# ============================================================================
-TEST_ID = "XXX-NNN"  # Ex: "UNIV-001"
-TEST_CATEGORY = "XXX"  # "UNIV" | "SYM" | "STR" | "BND" | "LOC" | etc.
-REQUIRES_RANK = None | 2 | 3  # None = tous rangs, sinon spécifique
-D_TYPES = ["SYM", "ASY", "R3"]  # Types D compatibles
-
-# ============================================================================
-# SPÉCIFICATION PARAMÈTRES
-# ============================================================================
-PARAMETERS_SPEC = {
-    'critical': {
-        'param_name': {
-            'type': float | int | str,
-            'description': "Description claire",
-            'required': True,  # Test SKIPPED si absent
-        },
-    },
-    'optional': {
-        'param_name': {
-            'type': float | int,
-            'description': "Description",
-            'default': valeur,  # Valeur par défaut
-        },
-    },
-}
-
-# ============================================================================
-# SPÉCIFICATION SCORING
-# ============================================================================
-SCORING_SPEC = {
-    'available_metrics': [
-        'stat_initial',
-        'stat_final',
-        'stat_min',
-        'stat_max',
-        'stat_mean',
-        'stat_std',
-        'evolution_transition',
-        'evolution_trend',
-        'evolution_trend_coefficient',
-    ],
-    'critical_for_scoring': [
-        'stat_final',  # Scoring échoue si ces métriques absentes
-        'evolution_transition',
-    ],
-}
-
-# ============================================================================
-# SPÉCIFICATION THRESHOLDS (documentation)
-# ============================================================================
-THRESHOLDS_SPEC = {
-    'recommended_thresholds': {
-        'stat_final': 0.5,
-        'evolution_transition': 0.7,
-    },
-    
-    'interpretation': {
-        'stat_final': "Description interprétation valeurs",
-        'evolution_transition': "Description transitions",
-    },
-    
-    'config_pass_criteria': {
-        'description': "Critère pour qu'une config passe ce test",
-        'threshold_global': 0.6,  # Score global config ≥ seuil
-    },
-    
-    'verdict_implications': """
-    Documentation textuelle :
-    - Si test échoue : implications
-    - Si test passe : implications
-    - Combinaison avec autres tests
-    """
-}
-
-# ============================================================================
-# APPLICABILITÉ
-# ============================================================================
-def is_applicable(context: dict) -> Tuple[bool, str]:
-    """
-    Vérifie applicabilité AVANT exécution.
-    
-    Args:
-        context: {
-            'd_base_id': str,
-            'gamma_id': str,
-            'modifier_id': str,
-            'seed': int,
-            'state_shape': tuple,
-        }
-    
-    Returns:
-        (applicable: bool, reason: str)
-    """
-    # Vérification rang
-    if REQUIRES_RANK is not None:
-        if len(context['state_shape']) != REQUIRES_RANK:
-            return False, f"Nécessite rang {REQUIRES_RANK}, reçu {len(context['state_shape'])}"
-    
-    # Vérification type D
-    d_type = context['d_base_id'].split('_')[0]
-    if d_type not in D_TYPES:
-        return False, f"Type D {d_type} non supporté, accepte {D_TYPES}"
-    
-    # Vérifications spécifiques (ex: matrice carrée)
-    if REQUIRES_RANK == 2:
-        if context['state_shape'][0] != context['state_shape'][1]:
-            return False, "Nécessite matrice carrée"
-    
-    return True, ""
-
-# ============================================================================
-# FORMULE DE CALCUL (LA SEULE PARTIE SPÉCIFIQUE À CE TEST)
-# ============================================================================
-def run_test(history: list, context: dict, config_params_id: str) -> dict:
-    """
-    Mesure propriété factuelle avec formule spécifique au test.
-    
-    AUCUN jugement, AUCUNE interprétation.
-    Retourne observations pures + statistiques.
-    
-    Args:
-        history: Liste états [D_0, ..., D_T]
-        context: dict {d_base_id, gamma_id, seed, modifier_id, state_shape}
-        config_params_id: Identifiant config paramètres (ex: "params_default")
-    
-    Returns:
-        dict {
-            'test_name': str,
-            'config_params_id': str,
-            'status': 'SUCCESS' | 'ERROR',  # Statut opérationnel uniquement
-            'message': str,
-            'statistics': {initial, final, min, max, mean, std},
-            'evolution': {transition, trend, trend_coefficient},
-            'metadata': {...}
-        }
-        
-        OU None si NOT_APPLICABLE (géré en amont par batch_runner)
-    """
-    # -------------------------------------------------------------------------
-    # CHARGEMENT PARAMÈTRES (depuis config/test_parameters_<config_id>.yaml)
-    # -------------------------------------------------------------------------
-    params = get_test_parameters(TEST_ID, config_params_id)
-    explosion_threshold = params['explosion_threshold']
-    stability_tolerance = params['stability_tolerance']
-    # ... autres paramètres spécifiques
-    
-    # -------------------------------------------------------------------------
-    # VALIDATION HISTORIQUE
-    # -------------------------------------------------------------------------
-    if not history or len(history) < 2:
-        return {
-            'test_name': TEST_ID,
-            'config_params_id': config_params_id,
-            'status': 'ERROR',
-            'message': 'Historique insuffisant (< 2 états)',
-            'statistics': {
-                'initial': 0.0, 'final': 0.0,
-                'min': 0.0, 'max': 0.0,
-                'mean': 0.0, 'std': 0.0,
-            },
-            'evolution': {
-                'transition': 'error',
-                'trend': 'unknown',
-                'trend_coefficient': 0.0,
-            },
-            'metadata': {'error_type': 'insufficient_history'}
-        }
-    
-    # -------------------------------------------------------------------------
-    # CALCUL TIMESERIES (LOCAL - PAS STOCKÉ)
-    # -------------------------------------------------------------------------
-    values = []
-    for i, state in enumerate(history):
-        val = _compute_test_metric(state)  # ← FORMULE SPÉCIFIQUE
-        if val is None:
-            return {
-                'test_name': TEST_ID,
-                'config_params_id': config_params_id,
-                'status': 'ERROR',
-                'message': f'NaN/Inf détecté à itération {i}',
-                'statistics': {
-                    'initial': values[0] if values else 0.0,
-                    'final': 0.0,
-                    'min': min(values) if values else 0.0,
-                    'max': max(values) if values else 0.0,
-                    'mean': float(np.mean(values)) if values else 0.0,
-                    'std': float(np.std(values)) if values else 0.0,
-                },
-                'evolution': {
-                    'transition': 'nan_detected',
-                    'trend': 'unknown',
-                    'trend_coefficient': 0.0,
-                },
-                'metadata': {
-                    'error_type': 'numerical_error',
-                    'first_error_iteration': i
-                }
-            }
-        values.append(val)
-    
-    # -------------------------------------------------------------------------
-    # STATISTIQUES (sorties standardisées)
-    # -------------------------------------------------------------------------
-    statistics = {
-        'initial': values[0],
-        'final': values[-1],
-        'min': min(values),
-        'max': max(values),
-        'mean': float(np.mean(values)),
-        'std': float(np.std(values)),
-    }
-    
-    # -------------------------------------------------------------------------
-    # ÉVOLUTION/TENDANCE (sorties standardisées)
-    # -------------------------------------------------------------------------
-    if len(values) > 1:
-        trend_coef = float(np.polyfit(range(len(values)), values, 1)[0])
-    else:
-        trend_coef = 0.0
-    
-    if abs(trend_coef) < 1e-8:
-        trend = "stable"
-    elif trend_coef > 0:
-        trend = "increasing"
-    else:
-        trend = "decreasing"
-    
-    relative_change = abs(statistics['final'] - statistics['initial']) / \
-                      (statistics['initial'] + 1e-10)
-    
-    if statistics['max'] > explosion_threshold:
-        transition = "explosive"
-    elif relative_change < stability_tolerance:
-        transition = "stable"
-    elif statistics['final'] > statistics['initial']:
-        transition = "increasing"
-    else:
-        transition = "decreasing"
-    
-    # -------------------------------------------------------------------------
-    # RETOUR FORMAT STANDARDISÉ
-    # -------------------------------------------------------------------------
-    return {
-        'test_name': TEST_ID,
-        'config_params_id': config_params_id,
-        'status': 'SUCCESS',
-        'message': f"Mesure: {statistics['initial']:.2f} → {statistics['final']:.2f}",
-        
-        'statistics': statistics,
-        
-        'evolution': {
-            'transition': transition,
-            'trend': trend,
-            'trend_coefficient': trend_coef,
-        },
-        
-        'metadata': {
-            'explosion_threshold': explosion_threshold,
-            'stability_tolerance': stability_tolerance,
-            'relative_change': relative_change,
-            'num_iterations': len(values),
-        }
-    }
-
-
----
+# tests/utilities/template_test_xxx_yyy.py
 
 ### 9.9 Niveau L3 - Scoring
+# tests/utilities/scoring.py
 
-**Format** : `def score_xxx(observation, context, weights) -> dict`
-
-**Référence complète** : `tests/utilities/template_scoring_function.py`  
-[PLACEHOLDER - fichier à créer]
-
-**Structure I/O** :
-- **Input** : `observation` (dict v2), `context` (dict), `weights` (dict)
-- **Output** : `dict` avec score 0-1
-
----
-
-### 9.10 Niveau L4 - Logs
-
-**Format minimal** :
-```
-\LOG{
-  ID = LOG-[SUBTYPE]-NNN
-  DATE = YYYY-MM-DD
-  TYPE = test_output | error
-  TARGET = [TM-XXX-NNN or TEST-XXX-NNN]
-  RAW_OUTPUT = {[Données numériques brutes]}
-  NOTES = [optional]
-}
-```
-
-**Référence complète** : `prc_documentation/templates/template_log.md`  
-[PLACEHOLDER - fichier à créer]
-
-**Structure I/O** :
-- **Input** : Sortie brute programme
-- **Output** : Entrée documentaire structurée
-
----
-
-### 9.11 Niveau L4 - Results
-
-**Format minimal** :
-```
-\RESULT{
-  ID = RES-[SUBTYPE]-NNN
-  DATE = YYYY-MM-DD
-  TYPE = analysis
-  ORIGIN = [LOG-XXX-NNN]
-  TARGET = [TM-XXX-NNN]
-  TESTED_RANK = R0 | R1 | ...
-  SUMMARY = {[Interprétation]}
-  VERDICT = {criterion, outcome, reason}
-  STATUS_TRANSITION = {hypothesis_id, previous_status, new_status}
-  IMPLICATIONS = [optional]
-}
-```
-
-**Référence complète** : `prc_documentation/templates/template_result.md`  
-[PLACEHOLDER - fichier à créer]
-
-**Structure I/O** :
-- **Input** : LOG + analyse humaine
-- **Output** : Verdict structuré
-
----
-
-### 9.12 Niveau L4 - Journals
-
-**Format minimal** :
-```
-\JOURNAL{
-  ID = JOUR-NNN
-  DATE = YYYY-MM-DD
-  TYPE = discussion
-  TOPIC = [description courte]
-  CONTENT = {[Discussion libre]}
-  RELATED_ENTRIES = [list of IDs]
-  NOTES = [optional]
-}
-```
-
-**Référence complète** : `prc_documentation/templates/template_journal.md`  
-[PLACEHOLDER - fichier à créer]
-
-**Structure I/O** :
-- **Input** : Réflexion/discussion
-- **Output** : Entrée documentaire non structurée
-
----
+### 9.10 Niveau L4 - rapports
+Générés par le batch_runner
 
 ### 9.13 Niveau L2 - Contraintes dérivées
 
@@ -973,37 +632,6 @@ def run_test(history: list, context: dict, config_params_id: str) -> dict:
 
 ---
 
-### 9.14 Configurations
-
-**Formats** :
-
-#### test_parameters.yaml
-**Référence** : `tests/config/template_test_parameters.yaml`  
-[PLACEHOLDER - fichier à créer]
-
-**Structure I/O** :
-- Fichier YAML définissant tous seuils/paramètres tests
-
-#### weights.yaml
-**Référence** : `prc_automation/config/template_weights.yaml`  
-[PLACEHOLDER - fichier à créer]
-
-**Structure I/O** :
-- Fichier YAML définissant pondérations scoring
-
-#### thresholds.yaml
-**Référence** : `prc_automation/config/template_thresholds.yaml`  
-[PLACEHOLDER - fichier à créer]
-
-**Structure I/O** :
-- Fichier YAML définissant seuils verdicts
-
----
-
-**Note** : Le niveau L3 regroupe des entités hétérogènes partageant un même niveau d'abstraction, sans hiérarchie interne ni ordre d'exécution implicite.
-
----
-
 ## SECTION 10 : Système de rangs et statuts
 
 ### 10.1 Définition des rangs
@@ -1024,7 +652,6 @@ HYP-GAM-001 : \Gamma = saturation pure pointwise
 → Testé seul, sans régulation, sans mémoire, sans composition
 → Exploration de rang 0
 ```
-
 ---
 
 **Rang ≥1 (Rn)** : Test de compositions/enrichissements
@@ -1047,7 +674,6 @@ HYP-GAM-005 [R2] : \Gamma = (saturation + hebbian) + mémoire ordre-1
 → Enrichit une composition de rang 1
 → Exploration de rang 2
 ```
-
 ---
 
 ### 10.2 Statuts granulaires normalisés
@@ -1056,7 +682,6 @@ HYP-GAM-005 [R2] : \Gamma = (saturation + hebbian) + mémoire ordre-1
 ```
 STATUS = [ÉTAT][RANG]
 ```
-
 **États disponibles** :
 - `WIP` 	 : Work In Progress
 - `SURVIVES` : Non éliminé par tests
@@ -1168,7 +793,6 @@ WIP[R0-open] → WIP[R0-closed]
 - 70% cas: Jamais retesté (oublié, non prioritaire)
 - 20% cas: Inclus dans HYP[R1] par opportunité
 - 10% cas: Réévalué avec nouveaux critères
-
 ---
 
 ### 10.5 Statuts SURVIVES détaillés
@@ -1297,113 +921,6 @@ HYP-004[R1] {
   exclusion_reason = "Mécanisme orthogonal, testé séparément"
 }
 ```
-### 10.9 Gestion statuts tests 
-#### 10.9.1 Hiérarchie complète
-STATUS_VALUES = {
-    "SUCCESS": {
-        'description': "Test exécuté avec succès",
-        'impact_db': "Stocké dans TestObservations avec applicable=True",
-        'impact_scoring': "Pris en compte dans calcul scores",
-    },
-    
-    "ERROR": {
-        'description': "Erreur critique durant exécution",
-        'causes': [
-            "Paramètre critique manquant",
-            "NaN/Inf détecté dans compute_metric()",
-            "Exception Python non catchée",
-        ],
-        'impact_batch': "ARRÊT TOTAL batch_runner",
-        'impact_db': "Aucun - batch interrompu",
-        'action_requise': "Fix code, supprimer DB, relancer batch complet",
-    },
-    
-    "NOT_APPLICABLE": {
-        'description': "Test logiquement invalide pour ce contexte",
-        'causes': [
-            "Mauvais rang tenseur",
-            "Shape incompatible",
-            "Type D non supporté",
-        ],
-        'impact_db': "Stocké avec applicable=False",
-        'impact_scoring': "Exclu du calcul (pas pénalisé)",
-        'detection': "Via is_applicable() AVANT exécution",
-    },
-    
-    "SKIPPED": {
-        'description': "Calcul partiel - paramètres optionnels absents",
-        'causes': [
-            "Paramètre optionnel manquant",
-            "Calcul dérivé non effectuable",
-        ],
-        'impact_db': "Métrique concernée = 0.0, reste calculé normalement",
-        'impact_scoring': "Métrique skippée exclue du scoring de ce test",
-        'exemple': "Trend coefficient skippé si convergence_window absent",
-    },
-}
-
-#### Flux de décision
-def execute_test(test_spec, history, context, params_config_id):
-    """Flux complet exécution test"""
-    
-    # 1. Vérifier applicabilité
-    applicable, reason = test_spec.is_applicable(context)
-    if not applicable:
-        return {
-            'test_name': test_spec.TEST_ID,
-            'status': 'NOT_APPLICABLE',
-            'message': reason,
-            'statistics': {all zeros},
-            'evolution': {all 'not_applicable'},
-            'metadata': {'reason': reason},
-        }
-    
-    # 2. Charger paramètres
-    try:
-        params = load_test_parameters(test_spec.TEST_ID, params_config_id)
-    except ConfigNotFoundError:
-        raise CriticalTestError(f"Config {params_config_id} not found")
-    
-    # 3. Vérifier paramètres critiques
-    for param_name in test_spec.PARAMETERS_SPEC['critical']:
-        if param_name not in params:
-            raise CriticalTestError(
-                f"Critical parameter {param_name} missing for test {test_spec.TEST_ID}"
-            )
-    
-    # 4. Charger paramètres optionnels avec defaults
-    for param_name, param_spec in test_spec.PARAMETERS_SPEC['optional'].items():
-        if param_name not in params:
-            params[param_name] = param_spec['default']
-    
-    # 5. Calculer timeseries
-    values = []
-    for state in history:
-        val = test_spec.compute_metric(state, params)
-        if val is None:
-            # NaN/Inf détecté
-            raise CriticalTestError(
-                f"NaN/Inf detected in {test_spec.TEST_ID}.compute_metric()"
-            )
-        values.append(val)
-    
-    # 6. Calculer statistiques standardisées
-    statistics = compute_standard_statistics(values)
-    
-    # 7. Calculer évolution standardisée
-    evolution = compute_standard_evolution(values, params)
-    
-    # 8. Retourner dict v2
-    return {
-        'test_name': test_spec.TEST_ID,
-        'config_params_id': params_config_id,
-        'status': 'SUCCESS',
-        'message': f"Test executed successfully",
-        'statistics': statistics,
-        'evolution': evolution,
-        'metadata': {...}
-    }
----
 
 # PARTIE IV : PIPELINE OPÉRATIONNEL
 
@@ -1743,62 +1260,7 @@ db_results.GammaVerdicts (gamma_id, config_id, threshold_id, verdict, ...)
 
 **Tout test DOIT retourner un dict avec cette structure exacte** : voir/demander template pour l'écriture de tous nouveaux tests: tests/utilities/template_test_xxx_yyy_.py
 
-```python
-{
-    # =========================================================================
-    # IDENTIFICATION (OBLIGATOIRE)
-    # =========================================================================
-    'test_name': str,        # ID du test (ex: "UNIV-001")
-    
-    # =========================================================================
-    # STATUS TECHNIQUE (OBLIGATOIRE)
-    # =========================================================================
-    'status': str,           # Valeurs autorisées :
-                             #   "SUCCESS"          - Test exécuté avec succès
-                             #   "ERROR"            - Erreur technique (NaN, exception)
-                             #   "NOT_APPLICABLE"   - Test non applicable au contexte
-    
-    'message': str,          # Description factuelle (pas de jugement)
-                             # OK : "Norme finale = 15.3, tendance croissante"
-                             # ❌ : "Norme trop élevée, échec"
-    
-    # =========================================================================
-    # STATISTIQUES PRINCIPALES (OBLIGATOIRE)
-    # =========================================================================
-    'statistics': {
-        'initial': float,    # Valeur à t=0
-        'final': float,      # Valeur à t=T (dernière itération)
-        'min': float,        # Valeur minimale observée sur [0,T]
-        'max': float,        # Valeur maximale observée sur [0,T]
-        'mean': float,       # Valeur moyenne sur [0,T]
-        'std': float,        # Écart-type sur [0,T]
-    },
-    
-    # =========================================================================
-    # ÉVOLUTION/TENDANCE (OBLIGATOIRE)
-    # =========================================================================
-    'evolution': {
-        'transition': str,       # Description factuelle de la transition
-                                 # Ex: "stable", "increasing", "decreasing",
-                                 #     "explosive", "collapsed", "oscillating"
-                                 # PAS : "acceptable", "failed", "good"
-        
-        'trend': str,            # Tendance générale
-                                 # "increasing", "decreasing", "stable", "oscillating"
-        
-        'trend_coefficient': float,  # Pente de la régression linéaire
-                                      # (si applicable, sinon 0.0)
-    },
-    
-    # =========================================================================
-    # MÉTADONNÉES ADDITIONNELLES (OPTIONNEL)
-    # =========================================================================
-    'metadata': dict         # Infos spécifiques au test
-                             # Ex: {'convergence_iteration': 150,
-                             #      'threshold_used': 1e-6}
-}
-```
-#### 12.4.2bis Status Complets (NOUVELLE)
+#### 12.4.2bis Status Complets 
 # Status autorisés
 STATUS_VALUES = ["SUCCESS", "ERROR", "NOT_APPLICABLE", "SKIPPED"]
 
@@ -1901,7 +1363,7 @@ Tous les seuils, fenêtres, tolérances, bornes doivent être :
 
 #### 12.4.4 Séparation observation / interprétation
 
-##### Phase 0: Chargement de la liste de test: “La présence dans le namespace importé vaut activation \TODO
+##### Phase 0: Chargement de la liste de test: “La présence dans le namespace importé vaut activation 
 
 ##### Phase 1 : Test (observation pure)
 
@@ -1957,7 +1419,7 @@ def run_test(history, context):
     }
 ```
 
-##### Phase 2 : Scoring (interprétation contextuelle) \TODO
+##### Phase 2 : Scoring (interprétation contextuelle) 
 
 ```python
 def score_observation(test_name, observation, context, weights):
@@ -2605,116 +2067,13 @@ voir guthub prc_automation/databse/schema_results.sql
 
 ### 13.1 Arborescence complète mise à jour
 
-```
-prc_framework/
-├── config/
-│   ├── global/
-│   │   ├── params_default_v1.yaml
-│   │   ├── params_strict_v1.yaml
-│   │   ├── scoring_default_v1.yaml
-│   │   ├── scoring_conservative_v1.yaml
-│   │   ├── thresholds_strict_v1.yaml
-│   │   └── thresholds_lenient_v1.yaml
-│   │
-│   └── tests/
-│       ├── UNIV-001/
-│       │   ├── params_custom_v1.yaml
-│       │   └── scoring_custom_v1.yaml
-│       └── ... (autres tests avec overrides)
-│
-├── core/
-│   ├── __init__.py
-│   ├── state_preparation.py
-│   └── kernel.py
-│
-├── operators/
-│   ├── __init__.py
-│   └── gamma_hyp_XXX.py
-│
-├── D_encodings/
-│   ├── __init__.py
-│   ├── rank2_symmetric.py
-│   ├── rank2_asymmetric.py
-│   └── rank3_correlations.py
-│
-├── modifiers/
-│   ├── __init__.py
-│   ├── noise.py
-│   └── constraints/
-│
-├── prc_automation/
-│   ├── batch_runner.py                    # ✏️ MODIFIÉ
-│   ├── initdatabases.py
-│   │
-│   └── prc_database/
-│       ├── prc_r0_raw.db
-│       ├── prc_r0_results.db              # ✏️ SCHÉMA MODIFIÉ
-│       ├── schema_raw.sql
-│       └── schema_results.sql             # ✏️ MODIFIÉ
-│
-├── tests/
-│   ├── test_univ_001.py                   # ✏️ FORMAT MODIFIÉ
-│   ├── test_univ_002.py
-│   ├── test_sym_001.py
-│   └── ... (autres tests)
-│   │
-│   └── utilities/
-│       ├── __init__.py
-│       ├── discovery.py                   # ✅ NOUVEAU
-│       ├── applicability.py               # ✅ NOUVEAU
-│       ├── test_engine.py                 # ✅ NOUVEAU
-│       ├── scoring.py                     # ✅ NOUVEAU
-│       ├── verdict_engine.py              # ✅ NOUVEAU
-│       ├── config_loader.py               # ✅ NOUVEAU
-│       ├── parameters.py                  # ✏️ MODIFIÉ
-│       ├── validation_tests.py
-│       ├── validation_structure.py        # ✏️ MODIFIÉ (nouveau validator)
-│       └── template_test_xxx_yyy.py       # ✏️ MODIFIÉ
-│
-├── prc_documentation/
-│   ├── charter_code_5.3.md                # ✅ CE FICHIER
-│   └── templates/
-│       ├── test_complete_template.py      # ✅ NOUVEAU
-│       ├── config_params_global.yaml      # ✅ NOUVEAU
-│       ├── config_params_specific.yaml    # ✅ NOUVEAU
-│       ├── config_scoring_global.yaml     # ✅ NOUVEAU
-│       ├── config_thresholds_global.yaml  # ✅ NOUVEAU
-│       └── README_config_architecture.md  # ✅ NOUVEAU
-│
-└── reports/                                # ✅ NOUVEAU DOSSIER
-    └── (verdicts générés)
-```
+
 
 ### 13.2 Fichiers à créer (nouveaux)
 
-```python
-# Liste exhaustive avec priorités
-
-PRIORITÉ 1 (fondations):
-1. tests/utilities/discovery.py
-2. tests/utilities/applicability.py
-3. tests/utilities/config_loader.py
-4. config/global/params_default_v1.yaml
-5. config/global/scoring_default_v1.yaml
-6. config/global/thresholds_strict_v1.yaml
-
-PRIORITÉ 2 (moteurs):
-7. tests/utilities/test_engine.py
-8. tests/utilities/scoring.py
-9. tests/utilities/verdict_engine.py
-
-PRIORITÉ 3 (templates):
-10. prc_documentation/templates/test_complete_template.py
-11. prc_documentation/templates/config_params_global.yaml
-12. prc_documentation/templates/config_scoring_global.yaml
-13. prc_documentation/templates/config_thresholds_global.yaml
 14. prc_documentation/templates/README_config_architecture.md
 
-PRIORITÉ 4 (infrastructure):
-15. prc_database/schema_results.sql (mise à jour)
-16. prc_automation/batch_runner.py (réécriture complète)
-17. reports/ (dossier)
-```
+
 
 ### 13.3 Fichiers à modifier (existants)
 
@@ -2908,62 +2267,6 @@ common:
   stability_tolerance: 0.1
   convergence_window: 50
 ```
-
-### B.2 Exemple test complet
-
-```python
-# tests/test_univ_001.py
-"""Test UNIV-001: Évolution norme Frobenius"""
-
-import numpy as np
-
-TEST_ID = "UNIV-001"
-TEST_CATEGORY = "UNIV"
-REQUIRES_RANK = None
-D_TYPES = ["SYM", "ASY", "R3"]
-
-PARAMETERS_SPEC = {
-    'critical': {
-        'explosion_threshold': {'type': float, 'required': True},
-    },
-    'optional': {
-        'convergence_window': {'type': int, 'default': 50},
-    },
-}
-
-SCORING_SPEC = {
-    'available_metrics': ['stat_final', 'evolution_transition'],
-    'critical_for_scoring': ['stat_final'],
-}
-
-THRESHOLDS_SPEC = {
-    'recommended_thresholds': {'stat_final': 0.5},
-    'interpretation': {
-        'stat_final': "< 10: excellent, 10-1000: acceptable, > 1000: explosion"
-    },
-    'config_pass_criteria': {
-        'description': "Config passe si score ≥ 0.6",
-        'threshold_global': 0.6,
-    },
-    'verdict_implications': """
-    Si échec: Gamma instable, rejet probable
-    Si passe: Gamma stable, continuer tests
-    """
-}
-
-def is_applicable(context: dict):
-    return True, ""
-
-def compute_metric(state: np.ndarray, params: dict):
-    if np.any(np.isnan(state)) or np.any(np.isinf(state)):
-        return None
-    
-    try:
-        return float(np.linalg.norm(state, 'fro'))
-    except:
-        return None
-```
-
 ### B.3 Exemple usage batch_runner
 
 ```bash
