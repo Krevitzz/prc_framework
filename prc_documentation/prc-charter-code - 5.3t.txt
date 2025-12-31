@@ -991,6 +991,8 @@ HYP-004[R1] {
 #### Règle structurelle
 
 **Un seul point d'entrée : `batch_runner.py`**
+# prc_automation/batch_runner.py
+
 
 Le script unique gère trois modes d'exécution avec **chaînage automatique** des dépendances.
 
@@ -2059,9 +2061,6 @@ Plus tard : Raffiner avec expérience.
 12.11 Schéma DB (CONSOLIDÉ)
 voir guthub prc_automation/databse/schema_results.sql
 
-
-12.12 Architecture batch_runner (CONSOLIDÉ)
-# prc_automation/batch_runner.py
 
 ## SECTION 13 : Liste Fichiers et Emplacements (NOUVELLE)
 
