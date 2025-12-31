@@ -11,9 +11,6 @@ REQUIRED_ATTRIBUTES = [
     'TEST_CATEGORY',
     'REQUIRES_RANK',
     'D_TYPES',
-    'PARAMETERS_SPEC',
-    'SCORING_SPEC',
-    'THRESHOLDS_SPEC',
     'is_applicable',
     'compute_metric',
 ]

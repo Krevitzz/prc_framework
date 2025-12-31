@@ -1,0 +1,1735 @@
+# CHARTER PRC 5.4 - VERSION COMPACTE
+
+> Version condensée pour usage LLM. Référence complète : `prc-charter-code-5.3t.txt`
+
+---
+
+## SECTION 1-3 : Fondations
+
+### Axiomes (A1-A3)
+- A1: Dissymétrie informationnelle D irréductible
+- A2: Mécanisme Γ agissant sur D
+- A3: Aucun Γ stable ne peut annuler D complètement
+
+### Hiérarchie niveaux
+```
+L0=ontological → L1=epistemic → L2=theoretical → L3=operative → L4=documentary
+Règle : L(n) ne référence que L(≤n-1)
+```
+
+### Core = 2 fonctions aveugles
+```python
+prepare_state(base, modifiers) → np.ndarray
+run_kernel(state, gamma, ...) → Generator[iteration, state]
+```
+
+**Règles K1-K5** : Core aveugle (pas de validation, pas de sémantique, pas de classes)
+
+---
+
+## SECTION 4 : Architecture modules
+
+```
+prc_framework/
+├── config/
+│   ├── global/
+│   │   ├── params_default_v1.yaml
+│   │   ├── params_strict_v1.yaml
+│   │   ├── scoring_default_v1.yaml
+│   │   ├── scoring_conservative_v1.yaml
+│   │   ├── thresholds_strict_v1.yaml
+│   │   └── thresholds_lenient_v1.yaml
+│   │
+│   └── tests/
+│       ├── UNIV-001/
+│       │   ├── params_custom_v1.yaml
+│       │   └── scoring_custom_v1.yaml
+│       └── ... (autres tests avec overrides)
+│
+├── core/
+│   ├── __init__.py
+│   ├── state_preparation.py     # prepare_state()
+│   └── kernel.py                # run_kernel()
+│
+├── operators/
+│   ├── __init__.py
+│   └── gamma_hyp_XXX.py         # Définitions \Gamma
+│
+├── D_encodings/
+│   ├── __init__.py
+│   ├── rank2_symmetric.py       # Créateurs D^(base) symétriques
+│   ├── rank2_asymmetric.py      # Créateurs D^(base) asymétriques
+│   └── rank3_correlations.py    # Créateurs D^(base) rang 3
+│
+├── modifiers/
+│   ├── __init__.py
+│   ├── noise.py                 # D^(bruit)
+│   ├── constraints/             # D^(topo_x)
+│   ├── plugins/                 # D^(plugin)
+│   └── domains/                 # D^(domain)
+│
+├── prc_automation/
+│   ├── batch_runner.py                    
+│   ├── initdatabases.py
+│   │
+│   └── prc_database/
+│       ├── prc_r0_raw.db
+│       ├── prc_r0_results.db              
+│       ├── schema_raw.sql
+│       └── schema_results.sql             
+│
+├── tests/
+│   ├── test_univ_001.py                   
+│   ├── test_univ_002.py
+│   ├── test_sym_001.py
+│   ├── ... (autres tests)
+│   │
+│   └── utilities/
+│       ├── __init__.py
+│       ├── discovery.py                   
+│       ├── applicability.py               
+│       ├── test_engine.py                 
+│       ├── scoring.py                     
+│       ├── verdict_engine.py              
+│       ├── config_loader.py               
+│       ├── parameters.py                  
+│       ├── validation_tests.py
+│       ├── validation_structure.py        
+│       ├── template_test_xxx_yyy.py  
+│  		│ 
+│		└── regestries
+│			├── __init__.py
+│			├── base_registry.py              # Classe abstraite BaseRegistry
+│			├── registry_manager.py           # Singleton RegistryManager
+│			├── post_processors.py            # Registre transformations post-calcul
+│			│
+│			├── algebra_registry.py           # Normes, traces, déterminants
+│			├── spectral_registry.py          # FFT, wavelets, fréquentiel
+│			├── spatial_registry.py           # Convolutions, corrélations
+│			├── topological_registry.py       # Invariants topologiques
+│			├── statistical_registry.py       # Distributions, moments
+│			├── graph_registry.py             # Métriques graphes
+│			├── pattern_registry.py           # Reconnaissance patterns
+│			│
+│			└── templates/                    # Templates YAML (optionnel)
+│			    ├── kernels.yaml
+│			    ├── masks.yaml
+│			    └── patterns.yaml    
+│
+├── prc_documentation/
+│   ├── charter_code_5.3.md                
+│   └── templates/
+│       ├── template_test_xxx_yyy.py      
+│       ├── config_params_global.yaml     
+│       ├── config_params_specific.yaml    
+│       ├── config_scoring_global.yaml     
+│       ├── config_thresholds_global.yaml  
+│       └── README_config_architecture.md  
+│
+└── reports/                                
+    └── (verdicts générés)
+```
+
+**Séparation stricte** :
+- `core/` : Exécution aveugle, zéro validation
+- `encodings/` : Création D avec validation
+- `modifiers/` : Transformations D, passthrough
+- `operators/` : Définitions Γ, passthrough
+- `tests/` : Observation pure, pas de verdict
+
+---
+
+## SECTION 6-10 : Nomenclature
+
+### Types D
+- **D^(base)** : Champ possibles (SYM, ASY, R3)
+- **D^(bruit)** : Variations aléatoires
+- **D^(topo)** : Contraintes expérimentales
+- **D^(plugin)** : Patterns pré-identifiés
+- **D^(domaine)** : Compilation plugins
+
+### IDs
+```
+HYP-GAM-001  # Hypothesis
+TM-GAM-001   # Toy Model
+TEST-XXX-001 # Test Protocol
+CON-GAM-001  # Constraint (dérivée)
+```
+
+### Statuts
+```
+WIP[R0-open]         # Exploration en cours
+WIP[R0-closed]       # R0 terminé, ambigu → mise en attente
+SURVIVES[R0]         # Non éliminé
+REJECTED[R0]         # Éliminé comme autonome (peut être testé en composition)
+REJECTED[GLOBAL]     # Éliminé définitif tous rangs
+```
+
+**Rangs** :
+- R0 : Mécanisme isolé
+- R1+ : Compositions/enrichissements
+
+---
+
+## SECTION 11-12 : Pipeline opérationnel
+
+### Workflow
+```
+1. Formulation HYP → 2. Spécification D/Γ → 3. Création TM
+→ 4. Exécution kernel (db_raw) → 5. Tests+scoring (db_results)
+→ 6. Discussion → 7. Mise à jour STATUS → 8. CON si pertinent
+→ 9. Nouvelle HYP[R1] si pertinent
+```
+
+### Architecture batch_runner
+
+**Principe** : 1 point d'entrée, 3 modes, chaînage auto
+
+```bash
+# Mode 1 : Collecte données
+batch_runner --brut --gamma GAM-001
+# → Exécute kernel, stocke db_raw (append-only, immuable)
+
+# Mode 2 : Application tests
+batch_runner --test --gamma GAM-001 --params default --scoring default
+# → Vérifie db_raw, auto-lance --brut si manquant
+# → Applique tests, calcule scores, stocke db_results
+
+# Mode 3 : Génération verdicts
+batch_runner --verdict --gamma GAM-001 --params default --scoring default --thresholds strict
+# → Vérifie db_results, auto-lance --test si manquant
+# → Calcule 3 critères, applique seuils, stocke verdict
+
+# Raccourci
+batch_runner --all --gamma GAM-001 --params default --scoring default --thresholds strict
+```
+
+**Règle non-reruns** : Toute modification scoring/verdict SANS réexécuter kernel
+
+### Bases de données
+
+**db_raw** (immuable, append-only) :
+```sql
+Executions   -- Métadonnées runs
+Snapshots    -- États sauvegardés (compressed)
+Metrics      -- Métriques brutes par iteration
+```
+
+**db_results** (rejouable, versionné) :
+```sql
+TestObservations  -- Résultats bruts tests
+TestScores        -- Scores calculés (config_id)
+GammaVerdicts     -- Verdicts agrégés (config_id + threshold_id)
+```
+
+---
+
+## SECTION 12.4 : Tests - Format dict obligatoire
+
+**Principe** : Tests OBSERVENT (pas de jugement), scoring INTERPRÈTE
+
+### Status
+- `SUCCESS` : Test exécuté normalement
+- `ERROR` : Erreur technique → ARRÊT BATCH (bug code)
+- `NOT_APPLICABLE` : Test invalide pour contexte (pas pénalisé)
+- `SKIPPED` : Métrique spécifique omise (reste du test OK)
+
+### Transitions factuelles (exemples)
+```
+"stable"      # Dans ±10% initial
+"increasing"  # Croissance monotone
+"explosive"   # Croissance > seuil
+"converged"   # Distance successive < ε
+"preserved"   # Propriété maintenue
+"destroyed"   # Propriété perdue
+```
+
+### Interdictions formelles
+```python
+# ❌ JAMAIS dans retour test
+'passed': bool
+'failed': bool
+'verdict': str
+'score': float
+'weight': float
+
+# ❌ JAMAIS en code (YAML obligatoire)
+if norm > 1000.0:  # Hardcodé
+    ...
+
+# ✅ TOUJOURS
+params = load_test_parameters('UNIV-001')
+if norm > params['explosion_threshold']:
+    ...
+```
+
+---
+
+## SECTION 12.5 : Scoring
+
+
+### Échelle 0-1
+```
+Propriétés conservables (symétrie, diversité) :
+  0.0 = Destruction
+  0.5 = Neutre/conservation
+  1.0 = Création/amélioration
+
+Métriques continues :
+  Normalisation selon distribution ou ranges
+```
+
+---
+
+## SECTION 12.6-12.7 : Configs et Verdicts
+
+### Architecture configs
+```
+config/global/              # Réutilisables
+  params_default_v1.yaml
+  scoring_default_v1.yaml
+  thresholds_strict_v1.yaml
+
+config/tests/UNIV-001/      # Overrides spécifiques
+  params_custom_v1.yaml
+```
+
+### Verdict : 3 critères → 1 décision
+
+**Critères** :
+```python
+majority_pct = (n_configs_pass / n_total_configs) * 100
+robustness_pct = (n_D_with_viable_config / n_total_D) * 100
+global_score = mean(all_config_scores)  # 0-1
+```
+
+**Logique (baseline)** :
+```yaml
+# SURVIVES[R0] : OU logique (1 critère suffit)
+survives:
+  score_min: 12.0      # /20
+  robustness_min: 60.0 # %
+  majority_min: 50.0   # %
+
+# FLAGGED_FOR_REVIEW : ET logique (tous échouent)
+flagged:
+  score_max: 8.0
+  robustness_max: 40.0
+  majority_max: 20.0
+
+# WIP[R0-closed] : Ni SURVIVES ni FLAGGED
+```
+
+**Verdicts** :
+- `SURVIVES[R0]` : Non éliminé, viable pour exploration/composition
+- `WIP[R0-closed]` : Ambigu, mise en attente (pas de promesse R1)
+- `FLAGGED_FOR_REVIEW` : Échec probable, review manuelle obligatoire avant REJECTED
+
+---
+
+## SECTION 12.10-12.12 : Moteurs utilitaires
+
+### Discovery
+```python
+discover_active_tests() → Dict[test_id, module]
+# Scanne tests/*.py, skip _deprecated, valide structure
+```
+
+### Applicability
+```python
+filter_applicable_tests(all_tests, context) → Dict[test_id, module]
+# Appelle test_module.is_applicable(context)
+# context = {d_base_id, gamma_id, state_shape, ...}
+```
+
+### Test Engine
+```python
+run_observation(test_module, history, context, params_config_id) → dict
+# Charge params, exécute test_module.compute_metric(), retourne dict v2
+```
+
+### Verdict Engine
+```python
+compute_gamma_verdict(gamma_id, params_id, scoring_id, thresholds_id) → dict
+# Agrège tous tests/configs, calcule 3 critères, applique règles
+```
+
+---
+
+## INTERDICTIONS CRITIQUES (condensé)
+
+### Core
+```
+❌ Validation contenu (symétrie, bornes, positivité)
+❌ Classes State, Operator
+❌ Branchements dépendant de D ou Γ
+✅ 2 fonctions aveugles uniquement
+```
+
+### Tests
+```
+❌ Retourner "PASS"/"FAIL"
+❌ Classes/objets pour observations
+❌ Paramètres hardcodés
+❌ Jugements ("bon", "mauvais")
+✅ Dict JSON pur
+✅ Transitions factuelles
+✅ Params depuis YAML
+```
+
+### Pipeline
+```
+❌ Reruns pour changer scoring
+❌ Mélanger db_raw et db_results
+❌ Modifier rétroactivement db_raw
+✅ Modes séparés rejouables
+✅ Chaînage auto dépendances
+```
+
+### Vocabulaire
+```
+❌ "matrice de corrélation" → ✅ "tenseur rang 2"
+❌ "graphe" → ✅ "patterns dans tenseur"
+❌ "position (i,j)" → ✅ "indice (i,j)"
+```
+# partie pipeline ARCHITECTURE À REGISTRES
+
+---
+
+## SECTION 0 : Principes Directeurs
+
+### 0.1. Philosophie
+
+Le système à registres transforme le pipeline en un framework **extensible par conception**. Chaque registre est un **module autonome** encapsulant un domaine mathématique.
+
+### 0.2. Règles Fondamentales
+
+**R0-1** : Extensibilité sans modification du core  
+**R0-2** : Découverte dynamique des registres au démarrage  
+**R0-3** : Validation statique des signatures avant exécution  
+**R0-4** : Documentation intégrée auto-générée  
+**R0-5** : Aucun mode legacy - architecture unique
+
+### 0.3. Terminologie Normalisée
+
+| Terme | Définition |
+|-------|------------|
+| **run_metadata** | Métadonnées d'une exécution : {gamma_id, d_base_id, modifier_id, seed, state_shape} |
+| **history** | Liste complète des snapshots d'un run (~200 états) |
+| **snapshot** | UN état à une itération donnée (np.ndarray) |
+| **registry** | Module contenant des fonctions mathématiques réutilisables |
+| **registry_key** | Identifiant unique "registre.fonction" (ex: "algebra.matrix_norm") |
+| **post_processor** | Transformation appliquée au résultat brut d'une métrique |
+
+---
+
+## SECTION 1 : Structure des Tests
+
+### 1.1. Format Obligatoire
+# prc_documentation/templates/test_xxx_yyy.py
+
+
+### 1.2. Règles Strictes
+
+**R1-1** : TEST_ID format "CAT-NNN" (3 lettres, tiret, 3 chiffres)  
+**R1-2** : TEST_VERSION = "5.4" obligatoire  
+**R1-3** : Docstring complète obligatoire (objectif + métriques + exclusions)  
+**R1-4** : COMPUTATION_SPECS contient 1 à 5 métriques (pas 0, pas 10)  
+**R1-5** : Chaque métrique a 'registry_key' et 'default_params' obligatoires  
+**R1-6** : 'post_process' doit être une clé de POST_PROCESSORS (pas lambda string)  
+**R1-7** : Aucun attribut FORMULAS (obsolète)
+
+### 1.3. Validation
+
+```python
+# Validation automatique par discovery.py
+def validate_test_structure(test_module):
+    assert hasattr(test_module, 'TEST_ID')
+    assert hasattr(test_module, 'TEST_VERSION')
+    assert test_module.TEST_VERSION == "5.4"
+    assert hasattr(test_module, 'APPLICABILITY_SPEC')
+    assert hasattr(test_module, 'COMPUTATION_SPECS')
+    assert not hasattr(test_module, 'FORMULAS')  # Obsolète
+    assert 1 <= len(test_module.COMPUTATION_SPECS) <= 5
+    
+    for metric_name, spec in test_module.COMPUTATION_SPECS.items():
+        assert 'registry_key' in spec
+        assert 'default_params' in spec
+        assert '.' in spec['registry_key']  # Format registre.fonction
+```
+
+---
+
+## SECTION 2 : Architecture des Registres
+
+### 2.2. BaseRegistry (Classe Abstraite)
+
+# prc_framework/tests/utilities/registries/base_registry.py
+
+### 2.3. Structure d'un Registre
+# prc_framework/tests/utilities/registries/algebra_registry.py
+
+### 2.4. Règles de Création Registre
+
+**R2-1** : Hériter de BaseRegistry  
+**R2-2** : REGISTRY_KEY unique, lowercase, sans espaces  
+**R2-3** : Décorateur @register_function obligatoire  
+**R2-4** : Signature: `func(state, **params) -> float`  
+**R2-5** : `state` toujours premier paramètre  
+**R2-6** : Tous paramètres après `state` ont valeurs par défaut  
+**R2-7** : Retourner float ou convertible en float  
+**R2-8** : Docstring complète (Args, Returns, Raises, Notes)  
+**R2-9** : Gestion erreurs explicite (raise ValueError avec message clair)  
+**R2-10** : Fonction pure (pas d'effets de bord, pas de modification state)
+
+---
+
+## SECTION 3 : Post-Processors
+
+### 3.1. Registre Post-Processors
+# prc_framework/tests/utilities/registries/post_processors.py
+
+### 3.2. Usage Post-Processors
+
+```python
+# Dans test
+COMPUTATION_SPECS = {
+    'asymmetry': {
+        'registry_key': 'algebra.matrix_asymmetry',
+        'default_params': {'norm_type': 'frobenius'},
+        'post_process': 'round_4',  # ← Clé string safe
+    }
+}
+
+# Ou override dans YAML
+# config/tests/SYM-001/params_custom.yaml
+asymmetry:
+  post_process: 'log'  # Override
+```
+
+### 3.3. Règles Post-Processors
+
+**R3-1** : Signature: `(float) -> float`  
+**R3-2** : Fonctions pures (pas d'effets de bord)  
+**R3-3** : Retourner float valide (np.isfinite)  
+**R3-4** : Gestion NaN/Inf dans la fonction si pertinent  
+**R3-5** : Clés lowercase, underscore seulement
+
+---
+
+## SECTION 4 : RegistryManager (Singleton)
+
+### 4.1. Implémentation
+# prc_framework/utilities/registries/registry_manager.py
+
+
+### 4.2. Règles RegistryManager
+
+**R4-1** : Singleton (une seule instance)  
+**R4-2** : Chargement automatique au démarrage  
+**R4-3** : Cache des fonctions pour performance  
+**R4-4** : Validation stricte des paramètres  
+**R4-5** : Erreurs explicites avec suggestions
+
+---
+
+## SECTION 5 : Applicability
+
+### 5.1. Implémentation
+
+```python
+# prc_framework/utilities/applicability.py
+
+from typing import Tuple, Dict, Any, Callable
+
+# Registre extensible de validators
+VALIDATORS: Dict[str, Callable] = {
+    'requires_rank': lambda run_metadata, expected: 
+        len(run_metadata['state_shape']) == expected,
+    
+    'requires_square': lambda run_metadata, _: 
+        len(run_metadata['state_shape']) == 2 and 
+        run_metadata['state_shape'][0] == run_metadata['state_shape'][1],
+    
+    'allowed_d_types': lambda run_metadata, allowed: 
+        'ALL' in allowed or run_metadata['d_base_id'].split('-')[0] in allowed,
+    
+    'requires_even_dimension': lambda run_metadata, _: 
+        all(dim % 2 == 0 for dim in run_metadata['state_shape']),
+    
+    'minimum_dimension': lambda run_metadata, min_dim:
+        all(dim >= min_dim for dim in run_metadata['state_shape']),
+}
+
+
+def check(test_module, run_metadata: Dict[str, Any]) -> Tuple[bool, str]:
+    """
+    Vérifie applicabilité sur métadonnées uniquement.
+    
+    Args:
+        test_module: Module test importé
+        run_metadata: {
+            'gamma_id': str,
+            'd_base_id': str,
+            'modifier_id': str,
+            'seed': int,
+            'state_shape': tuple,  # Déduit du premier snapshot
+        }
+    
+    Returns:
+        (applicable: bool, reason: str)
+    
+    Examples:
+        >>> check(test_sym_001, {'state_shape': (10, 10), 'd_base_id': 'SYM-001', ...})
+        (True, "")
+        
+        >>> check(test_sym_001, {'state_shape': (10, 20), 'd_base_id': 'SYM-001', ...})
+        (False, "requires_square = True non satisfait")
+    """
+    spec = test_module.APPLICABILITY_SPEC
+    
+    for constraint_name, constraint_value in spec.items():
+        if constraint_name not in VALIDATORS:
+            return False, f"Contrainte inconnue : {constraint_name}"
+        
+        validator = VALIDATORS[constraint_name]
+        
+        try:
+            is_valid = validator(run_metadata, constraint_value)
+            
+            if not is_valid:
+                return False, f"{constraint_name} = {constraint_value} non satisfait"
+        
+        except KeyError as e:
+            return False, f"Info manquante : {e}"
+        
+        except Exception as e:
+            return False, f"Erreur validation {constraint_name}: {e}"
+    
+    return True, ""
+
+
+def add_validator(name: str, validator: Callable) -> None:
+    """
+    Ajoute un validator custom.
+    
+    Args:
+        name: Nom unique du validator
+        validator: Fonction (run_metadata, constraint_value) -> bool
+    
+    Raises:
+        ValueError: Si nom déjà existant
+    """
+    if name in VALIDATORS:
+        raise ValueError(f"Validator '{name}' déjà existant")
+    
+    VALIDATORS[name] = validator
+```
+
+### 5.2. Règles Applicability
+
+**R5-1** : Validation SANS chargement snapshots complets  
+**R5-2** : state_shape déduit du premier snapshot uniquement  
+**R5-3** : VALIDATORS extensible (ajout 1 ligne)  
+**R5-4** : Contraintes TECHNIQUES uniquement (pas sémantiques)  
+**R5-5** : Erreur explicite si info manquante
+
+---
+
+## SECTION 6 : Test Engine
+
+### 6.1. Implémentation
+
+```python
+# prc_framework/utilities/test_engine.py
+
+import numpy as np
+import time
+import traceback
+from typing import Dict, Any, List
+
+from .registries.registry_manager import RegistryManager
+
+class TestEngine:
+    """
+    Moteur exécution tests PRC 5.4.
+    
+    Responsabilités :
+    1. Valider COMPUTATION_SPECS via RegistryManager
+    2. Exécuter formules sur tous snapshots
+    3. Appliquer post_processors
+    4. Calculer statistics/evolution
+    5. Retourner dict standardisé
+    """
+    
+    VERSION = "5.4"
+    
+    def __init__(self):
+        self.registry_manager = RegistryManager()
+        self.computation_cache: Dict[str, Dict] = {}
+    
+    def execute_test(
+        self,
+        test_module,
+        run_metadata: Dict[str, Any],
+        history: List[np.ndarray],
+        params_config_id: str
+    ) -> Dict[str, Any]:
+        """
+        Exécute un test.
+        
+        Args:
+            test_module: Module test importé
+            run_metadata: {gamma_id, d_base_id, modifier_id, seed, state_shape}
+            history: Liste complète des snapshots (~200)
+            params_config_id: ID config params
+        
+        Returns:
+            Dict format standardisé 5.4
+        """
+        result = self._init_result(test_module, run_metadata, params_config_id)
+        
+        try:
+            # Charger params YAML
+            yaml_params = self._load_yaml_params(test_module.TEST_ID, params_config_id)
+            
+            # Préparer computations
+            computations = self._prepare_computations(
+                test_module.COMPUTATION_SPECS,
+                yaml_params
+            )
+            
+            if not computations:
+                result['status'] = 'ERROR'
+                result['message'] = 'Aucune spécification valide'
+                return result
+            
+            # Buffers
+            metric_buffers = {name: [] for name in computations.keys()}
+            skipped_iterations = {}
+            
+            # Exécution
+            start_time = time.time()
+            
+            for iteration, snapshot in enumerate(history):
+                for metric_name, computation in computations.items():
+                    try:
+                        # Exécuter fonction registre
+                        func = computation['function']
+                        params = computation['params']
+                        
+                        raw_value = func(snapshot, **params)
+                        
+                        # Post-process
+                        if computation['post_process']:
+                            raw_value = computation['post_process'](raw_value)
+                        
+                        # Validation
+                        if not np.isfinite(raw_value):
+                            raise ValueError(f"Valeur non finie: {raw_value}")
+                        
+                        metric_buffers[metric_name].append(float(raw_value))
+                    
+                    except Exception as e:
+                        if metric_name not in skipped_iterations:
+                            skipped_iterations[metric_name] = []
+                        skipped_iterations[metric_name].append({
+                            'iteration': iteration,
+                            'error': str(e)
+                        })
+            
+            execution_time = time.time() - start_time
+            
+            # Compiler résultats
+            return self._compile_results(
+                result, metric_buffers, skipped_iterations, 
+                computations, execution_time
+            )
+        
+        except Exception as e:
+            result['status'] = 'ERROR'
+            result['message'] = f"Erreur: {str(e)}"
+            result['traceback'] = traceback.format_exc()
+            return result
+    
+    def _init_result(self, test_module, run_metadata, params_config_id) -> Dict:
+        """Initialise structure résultat."""
+        return {
+            # Traçabilité
+            'run_metadata': {
+                'gamma_id': run_metadata['gamma_id'],
+                'd_base_id': run_metadata['d_base_id'],
+                'modifier_id': run_metadata['modifier_id'],
+                'seed': run_metadata['seed'],
+            },
+            
+            # Identification test
+            'test_name': test_module.TEST_ID,
+            'test_category': test_module.TEST_CATEGORY,
+            'test_version': test_module.TEST_VERSION,
+            'config_params_id': params_config_id,
+            
+            # Status
+            'status': 'PENDING',
+            'message': '',
+            
+            # Résultats
+            'statistics': {},
+            'evolution': {},
+            
+            # Metadata
+            'metadata': {
+                'engine_version': self.VERSION,
+                'computations': {},
+            }
+        }
+    
+    def _prepare_computations(self, specs, yaml_params) -> Dict:
+        """Prépare et valide toutes les spécifications."""
+        computations = {}
+        
+        for metric_name, spec in specs.items():
+            cache_key = f"{metric_name}_{hash(str(spec))}"
+            
+            if cache_key in self.computation_cache:
+                computations[metric_name] = self.computation_cache[cache_key]
+                continue
+            
+            # Fusionner avec YAML
+            merged_spec = spec.copy()
+            if metric_name in yaml_params:
+                merged_spec['default_params'] = {
+                    **spec.get('default_params', {}),
+                    **yaml_params[metric_name]
+                }
+                
+                if 'post_process' in yaml_params[metric_name]:
+                    merged_spec['post_process'] = yaml_params[metric_name]['post_process']
+            
+            # Valider
+            try:
+                prepared = self.registry_manager.validate_computation_spec(merged_spec)
+                computations[metric_name] = prepared
+                self.computation_cache[cache_key] = prepared
+            
+            except Exception as e:
+                print(f"[TestEngine] Ignoré '{metric_name}': {e}")
+                continue
+        
+        return computations
+    
+    def _compile_results(self, result, buffers, skipped, computations, exec_time) -> Dict:
+        """Compile résultats finaux."""
+        for metric_name, values in buffers.items():
+            if len(values) < 2:
+                continue
+            
+            # Statistics
+            result['statistics'][metric_name] = {
+                'initial': values[0],
+                'final': values[-1],
+                'min': float(np.min(values)),
+                'max': float(np.max(values)),
+                'mean': float(np.mean(values)),
+                'std': float(np.std(values)),
+                'median': float(np.median(values)),
+                'q1': float(np.percentile(values, 25)),
+                'q3': float(np.percentile(values, 75)),
+                'n_valid': len(values),
+            }
+            
+            # Evolution
+            result['evolution'][metric_name] = self._analyze_evolution(values)
+            
+            # Metadata métrique
+            result['metadata']['computations'][metric_name] = {
+                'registry_key': computations[metric_name]['registry_key'],
+                'params_used': computations[metric_name]['params'],
+                'has_post_process': computations[metric_name]['post_process'] is not None,
+            }
+        
+        # Metadata globale
+        result['metadata'].update({
+            'execution_time_sec': exec_time,
+            'num_iterations_processed': len(next(iter(buffers.values()), [])),
+            'total_metrics': len(buffers),
+            'successful_metrics': sum(1 for v in buffers.values() if len(v) >= 2),
+            'skipped_iterations': skipped,
+        })
+        
+        # Status final
+        if not result['statistics']:
+            result['status'] = 'ERROR'
+            result['message'] = 'Aucune métrique valide'
+        else:
+            result['status'] = 'SUCCESS'
+            total_skipped = sum(len(v) for v in skipped.values())
+            if total_skipped > 0:
+                result['message'] = f"SUCCESS avec {total_skipped} itérations sautées"
+            else:
+                result['message'] = 'SUCCESS'
+        
+        return result
+    
+    def _analyze_evolution(self, values: List[float]) -> Dict:
+        """Analyse évolution série temporelle."""
+        if len(values) < 2:
+            return {'transition': 'insufficient_data', 'trend': 'unknown'}
+        
+        # Tendance
+        x = np.arange(len(values))
+        slope = float(np.polyfit(x, values, 1)[0])
+        
+        if abs(slope) < 1e-10:
+            trend = "stable"
+        elif slope > 0:
+            trend = "increasing"
+        else:
+            trend = "decreasing"
+        
+        # Transition
+        initial = values[0]
+        final = values[-1]
+        max_val = max(values)
+        relative_change = abs(final - initial) / (abs(initial) + 1e-10)
+        
+        if max_val > 1000.0:
+            transition = "explosive"
+        elif relative_change < 0.1:
+            transition = "stable"
+        elif final > initial * 1.5:
+            transition = "growing"
+        elif final < initial * 0.5:
+            transition = "shrinking"
+        else:
+            transition = "oscillating"
+        
+        volatility = np.std(np.diff(values)) / (np.mean(np.abs(values)) + 1e-10)
+        
+        return {
+            'transition': transition,
+            'trend': trend,
+            'slope': slope,
+            'volatility': float(volatility),
+            'relative_change': float(relative_change),
+        }
+    
+    def _load_yaml_params(self, test_id, config_id):
+        """Charge params YAML (placeholder)."""
+        # TODO: Implémenter chargement YAML
+        return {}
+```
+
+### 6.2. Format Sortie Standardisé
+
+```python
+{
+    # Traçabilité
+    'run_metadata': {
+        'gamma_id': 'GAM-001',
+        'd_base_id': 'SYM-001',
+        'modifier_id': 'M0',
+        'seed': 42,
+    },
+    
+    # Identification
+    'test_name': 'SYM-001',
+    'test_category': 'SYM',
+    'test_version': '5.4',
+    'config_params_id': 'params_default_v1',
+    
+    # Status
+    'status': 'SUCCESS' | 'ERROR' | 'NOT_APPLICABLE',
+    'message': str,
+    
+    # Résultats (dict de dicts)
+    'statistics': {
+        'metric_name_1': {
+            'initial': float,
+            'final': float,
+            'min': float,
+            'max': float,
+            'mean': float,
+            'std': float,
+            'median': float,
+            'q1': float,
+            'q3': float,
+            'n_valid': int,
+        },
+        # ... autres métriques
+    },
+    
+    # Evolution (dict de dicts)
+    'evolution': {
+        'metric_name_1': {
+            'transition': str,
+            'trend': str,
+            'slope': float,
+            'volatility': float,
+            'relative_change': float,
+        },
+        # ... autres métriques
+    },
+    
+    # Metadata
+    'metadata': {
+        'engine_version': '5.4',
+        'execution_time_sec': float,
+        'num_iterations_processed': int,
+        'total_metrics': int,
+        'successful_metrics': int,
+        'skipped_iterations': dict,
+        'computations': {
+            'metric_name_1': {
+                'registry_key': str,
+                'params_used': dict,
+                'has_post_process': bool,
+            },
+            # ... autres métriques
+        }
+    }
+}
+```
+
+---
+
+## SECTION 7 : Workflow Complet
+
+### 7.1. Pipeline
+
+```
+batch_runner --test --gamma GAM-001 --params default_v1
+    ↓
+[1] discovery.scan_tests()
+    → {test_id: module} (COMPUTATION_SPECS obligatoire)
+    ↓
+[2] db.query("SELECT gamma_id, d_base_id, modifier_id, seed FROM Executions WHERE gamma_id=?")
+    → Liste runs
+    ↓
+[3] Pour chaque run:
+        run_metadata = {gamma_id, d_base_id, modifier_id, seed}
+        ↓
+        first_snapshot = db.load_first_snapshot(run_metadata)
+        run_metadata['state_shape'] = first_snapshot.shape
+        ↓
+        Pour chaque test:
+            ↓
+            [4] applicability.check(test, run_metadata)
+                ├─ Non → store NOT_APPLICABLE
+                └─ Oui → continue
+                    ↓
+                    [5] history = db.load_all_snapshots(run_metadata)
+                    ↓
+                    [6] result = test_engine.execute_test(test, run_metadata, history, params_config_id)
+                        ↓
+                        RegistryManager.validate_computation_spec()
+                        ↓
+                        Pour chaque snapshot:
+                            Pour chaque métrique:
+                                function = registry.get_function(registry_key)
+                                value = function(snapshot, **params)
+                                post_process = POST_PROCESSORS[key]
+                                final_value = post_process(value)
+                                buffer.append(final_value)
+                        ↓
+                        Calculer statistics/evolution
+                        ↓
+                        return result
+                    ↓
+                    [7] store_result(result) → db_results
+```
+
+### 7.2. Optimisations
+
+**O1** : Cache RegistryManager (fonctions)  
+**O2** : Cache TestEngine (computations préparées)  
+**O3** : Chargement state_shape = 1 snapshot uniquement  
+**O4** : Chargement history = tous snapshots seulement si applicable
+
+---
+
+## SECTION 8 : Exemples Complets
+
+### 8.1. Test Simple (1 métrique)
+
+```python
+# tests/test_univ_001.py
+"""
+Évolution norme Frobenius.
+
+Objectif :
+- Mesurer stabilité globale du tenseur sous action Γ
+
+Métriques :
+- frobenius_norm : Discrimine explosions/effondrements/stabilité
+
+Algorithmes utilisés :
+- algebra.matrix_norm : Standard, robuste, O(n²)
+
+Exclusions :
+- Norme spectrale : Trop coûteuse, peu discriminante ici
+- Norme nucléaire : Redondante avec Frobenius pour détection explosions
+"""
+
+import numpy as np
+
+TEST_ID = "UNIV-001"
+TEST_CATEGORY = "UNIV"
+TEST_VERSION = "5.4"
+
+APPLICABILITY_SPEC = {
+    "requires_rank": None,
+    "requires_square": False,
+    "allowed_d_types": ["ALL"],
+    "minimum_dimension": None,
+    "requires_even_dimension": False,
+}
+
+COMPUTATION_SPECS = {
+    'frobenius_norm': {
+        'registry_key': 'algebra.matrix_norm',
+        'default_params': {
+            'norm_type': 'frobenius',
+        },
+        'post_process': 'round_4',
+    }
+}
+```
+
+### 8.2. Test Multi-Métriques
+
+```python
+# tests/test_sym_001.py
+"""
+Évolution asymétrie matrices.
+
+Objectif :
+- Mesurer création/destruction/préservation symétrie
+
+Métriques :
+- asymmetry_norm : Discriminant principal (global)
+- asymmetry_norm_normalized : Comparable entre tailles différentes
+
+Algorithmes utilisés :
+- algebra.matrix_asymmetry : Norme ||A - A^T||, paramétrable
+
+Exclusions :
+- Trace asymétrie : Masque patterns spatiaux (trop agrégée)
+- Max asymétrie : Sensible outliers, peu robuste
+"""
+
+import numpy as np
+
+TEST_ID = "SYM-001"
+TEST_CATEGORY = "SYM"
+TEST_VERSION = "5.4"
+
+APPLICABILITY_SPEC = {
+    "requires_rank": 2,
+    "requires_square": True,
+    "allowed_d_types": ["SYM", "ASY"],
+    "minimum_dimension": None,
+    "requires_even_dimension": False,
+}
+
+COMPUTATION_SPECS = {
+    'asymmetry_norm': {
+        'registry_key': 'algebra.matrix_asymmetry',
+        'default_params': {
+            'norm_type': 'frobenius',
+            'normalize': False,
+        },
+        'post_process': 'round_6',
+    },
+    
+    'asymmetry_norm_normalized': {
+        'registry_key': 'algebra.matrix_asymmetry',
+        'default_params': {
+            'norm_type': 'frobenius',
+            'normalize': True,
+        },
+        'post_process': 'round_6',
+    }
+}
+```
+
+### 8.3. Config YAML Override
+
+```yaml
+# config/tests/SYM-001/params_custom_v1.yaml
+
+version: "1.0"
+config_id: "custom_v1"
+description: "Configuration stricte pour SYM-001"
+
+# Override params
+asymmetry_norm:
+  norm_type: 'spectral'  # Change type norme
+  post_process: 'log'    # Change post-processing
+
+asymmetry_norm_normalized:
+  epsilon: 1e-8  # Plus strict
+```
+
+---
+
+## SECTION 9 : Anti-Patterns
+
+### 9.1. Tests
+
+**AP1** : Trop de métriques
+```python
+# ❌ MAUVAIS (10 métriques)
+COMPUTATION_SPECS = {
+    'metric1': ...,
+    'metric2': ...,
+    # ... 10 au total
+}
+
+# ✅ BON (3 métriques bien choisies)
+COMPUTATION_SPECS = {
+    'metric1': ...,  # Principal
+    'metric2': ...,  # Complémentaire
+    'metric3': ...,  # Validation
+}
+```
+
+**AP2** : Documentation absente
+```python
+# ❌ MAUVAIS
+"""Test symétrie."""
+
+# ✅ BON
+"""
+Évolution asymétrie matrices.
+
+Objectif: ...
+Métriques: ...
+Exclusions: ...
+"""
+```
+
+**AP3** : FORMULAS legacy
+```python
+# ❌ OBSOLÈTE
+FORMULAS = {
+    'metric': lambda state: np.linalg.norm(state),
+}
+
+# ✅ CORRECT
+COMPUTATION_SPECS = {
+    'metric': {
+        'registry_key': 'algebra.matrix_norm',
+        'default_params': {'norm_type': 'frobenius'},
+    }
+}
+```
+
+### 9.2. Registres
+
+**AP4** : Fonction impure
+```python
+# ❌ MAUVAIS (modifie state)
+def bad_function(state):
+    state[0, 0] = 0
+    return np.sum(state)
+
+# ✅ BON (pure)
+def good_function(state):
+    return float(np.sum(state**2))
+```
+
+**AP5** : Docstring absente
+```python
+# ❌ MAUVAIS
+def func(state, p):
+    return state[0, 0]
+
+# ✅ BON
+def func(state, parameter=1.0):
+    """
+    Description complète.
+    
+    Args:
+        state: Tenseur
+        parameter: Description
+    
+    Returns:
+        float: Valeur calculée
+    """
+    return float(state[0, 0] * parameter)
+```
+
+---
+
+## SECTION 10 : Checklist Conformité
+
+### 10.1. Pour Créer un Registre
+
+- [ ] Nom fichier : `*_registry.py`
+- [ ] Hérite de `BaseRegistry`
+- [ ] `REGISTRY_KEY` unique défini
+- [ ] Fonctions décorées `@register_function`
+- [ ] Signature : `func(state, **params) -> float`
+- [ ] Tous params ont valeurs par défaut
+- [ ] Docstring complète (Args, Returns, Raises, Notes)
+- [ ] Gestion erreurs explicite
+- [ ] Fonctions pures (pas effets de bord)
+- [ ] Tests unitaires pour chaque fonction
+
+### 10.2. Pour Créer un Test
+
+- [ ] Nom fichier : `test_cat_nnn.py`
+- [ ] `TEST_ID` format "CAT-NNN"
+- [ ] `TEST_VERSION = "5.4"`
+- [ ] Docstring complète (objectif + métriques + exclusions)
+- [ ] `APPLICABILITY_SPEC` défini
+- [ ] `COMPUTATION_SPECS` avec 1-5 métriques
+- [ ] Chaque métrique a `registry_key` + `default_params`
+- [ ] `post_process` = clé string (pas lambda)
+- [ ] Pas de `FORMULAS` legacy
+- [ ] Documentation justifie choix métriques
+
+### 10.3. Pour Modifier Architecture
+
+- [ ] Modifier `base_registry.py` → Tester TOUS registres
+- [ ] Modifier `registry_manager.py` → Tester chargement
+- [ ] Modifier `applicability.py` → Tester TOUS tests
+- [ ] Modifier `test_engine.py` → Tester workflow complet
+- [ ] Ajouter `VALIDATORS` → Documenter usage
+- [ ] Ajouter `POST_PROCESSORS` → Documenter usage
+
+---
+
+## SECTION 11 : Workflow Développement
+
+### 11.1. Créer Nouveau Registre
+
+```bash
+# 1. Créer fichier
+touch prc_framework/utilities/registries/my_domain_registry.py
+
+# 2. Structure minimale
+cat > my_domain_registry.py << 'EOF'
+import numpy as np
+from .base_registry import BaseRegistry, register_function
+
+class MyDomainRegistry(BaseRegistry):
+    REGISTRY_KEY = "mydomain"
+    
+    @register_function("my_function")
+    def compute_something(self, state: np.ndarray, param1: float = 1.0) -> float:
+        """
+        Description.
+        
+        Args:
+            state: Tenseur
+            param1: Description
+        
+        Returns:
+            float: Valeur
+        """
+        return float(np.sum(state) * param1)
+EOF
+
+# 3. Tester chargement
+python -c "from prc_framework.utilities.registries.registry_manager import RegistryManager; rm = RegistryManager(); print(rm.list_available_functions())"
+
+# 4. Tester fonction
+python -c "
+from prc_framework.utilities.registries.registry_manager import RegistryManager
+import numpy as np
+rm = RegistryManager()
+func = rm.get_function('mydomain.my_function')
+state = np.ones((10, 10))
+result = func(state, param1=2.0)
+print(f'Result: {result}')
+"
+```
+
+### 11.2. Créer Nouveau Test
+
+```bash
+# 1. Copier template
+cp prc_documentation/templates/test_registry_template.py tests/test_mydomain_001.py
+
+# 2. Adapter
+# - TEST_ID = "MYDOMAIN-001"
+# - APPLICABILITY_SPEC
+# - COMPUTATION_SPECS (référencer registre)
+
+# 3. Valider structure
+python -c "
+from tests.utilities.discovery import discover_active_tests
+tests = discover_active_tests()
+print('Test chargé:', 'MYDOMAIN-001' in tests)
+"
+
+# 4. Tester applicabilité
+python -c "
+from tests import test_mydomain_001
+from tests.utilities.applicability import check
+run_metadata = {
+    'gamma_id': 'GAM-001',
+    'd_base_id': 'SYM-001',
+    'modifier_id': 'M0',
+    'seed': 42,
+    'state_shape': (10, 10),
+}
+applicable, reason = check(test_mydomain_001, run_metadata)
+print(f'Applicable: {applicable}, Reason: {reason}')
+"
+```
+
+### 11.3. Tester Workflow Complet
+
+```bash
+# 1. Préparer données test
+python tests/utilities/prepare_test_data.py
+
+# 2. Lancer test
+python batch_runner.py --test --gamma GAM-001 --params default_v1
+
+# 3. Vérifier résultats
+python -c "
+import sqlite3
+conn = sqlite3.connect('prc_database/prc_r0_results.db')
+cursor = conn.cursor()
+cursor.execute('SELECT test_name, status FROM TestObservations WHERE test_name=?', ('MYDOMAIN-001',))
+print(cursor.fetchall())
+"
+```
+
+---
+
+## SECTION 12 : Maintenance
+
+### 12.1. Ajouter Validator
+
+```python
+# Dans applicability.py
+
+# Ajouter au registre VALIDATORS
+VALIDATORS['requires_positive_definite'] = lambda run_metadata, _: 
+    _check_positive_definite(run_metadata)
+
+def _check_positive_definite(run_metadata):
+    """Helper pour vérifier matrice définie positive."""
+    # Note: Nécessite chargement premier snapshot
+    # À implémenter selon besoins
+    return True
+```
+
+### 12.2. Ajouter Post-Processor
+
+```python
+# Dans post_processors.py
+
+# Ajouter au registre POST_PROCESSORS
+POST_PROCESSORS['sigmoid'] = lambda x: 1 / (1 + np.exp(-x))
+POST_PROCESSORS['tanh'] = lambda x: np.tanh(x)
+```
+
+### 12.3. Migrer Test Legacy
+
+```python
+# Avant (5.3)
+FORMULAS = {
+    'norm': lambda state: np.linalg.norm(state),
+}
+
+# Après (5.4)
+# 1. Créer fonction dans registre (si pas déjà existante)
+@register_function("frobenius_norm")
+def compute_frobenius(state: np.ndarray) -> float:
+    return float(np.linalg.norm(state, 'fro'))
+
+# 2. Référencer dans test
+COMPUTATION_SPECS = {
+    'norm': {
+        'registry_key': 'algebra.frobenius_norm',
+        'default_params': {},
+    }
+}
+```
+
+---
+
+## SECTION 13 : Référence Rapide
+
+### 13.1. Commandes Essentielles
+
+```bash
+# Lister registres chargés
+python -c "from prc_framework.utilities.registries.registry_manager import RegistryManager; print(RegistryManager().list_available_functions())"
+
+# Lister tests actifs
+python -c "from tests.utilities.discovery import discover_active_tests; print(list(discover_active_tests().keys()))"
+
+# Tester applicabilité
+python -c "from tests import test_sym_001; from tests.utilities.applicability import check; print(check(test_sym_001, {'state_shape': (10,10), 'd_base_id': 'SYM-001', 'gamma_id': 'GAM-001', 'modifier_id': 'M0', 'seed': 42}))"
+
+# Valider COMPUTATION_SPECS
+python -c "
+from prc_framework.utilities.registries.registry_manager import RegistryManager
+rm = RegistryManager()
+spec = {'registry_key': 'algebra.matrix_norm', 'default_params': {'norm_type': 'frobenius'}}
+print(rm.validate_computation_spec(spec))
+"
+```
+
+### 13.2. Formats Clés
+
+**run_metadata** :
+```python
+{
+    'gamma_id': str,
+    'd_base_id': str,
+    'modifier_id': str,
+    'seed': int,
+    'state_shape': tuple,
+}
+```
+
+**COMPUTATION_SPECS** :
+```python
+{
+    'metric_name': {
+        'registry_key': 'registre.fonction',  # OBLIGATOIRE
+        'default_params': {...},              # OBLIGATOIRE
+        'post_process': 'round_4',            # OPTIONNEL
+        'validation': {...},                  # OPTIONNEL
+    }
+}
+```
+
+**Result** :
+```python
+{
+    'run_metadata': {...},
+    'test_name': str,
+    'status': 'SUCCESS' | 'ERROR' | 'NOT_APPLICABLE',
+    'statistics': {metric_name: {...}},
+    'evolution': {metric_name: {...}},
+    'metadata': {...},
+}
+```
+
+---
+
+## SECTION 14 : Évolution Future
+
+### 14.1. Extensions Prévues
+
+**E1** : Registres avancés
+- `information_registry` : Entropies mutuelles
+- `geometric_registry` : Courbures, distances
+- `compression_registry` : PCA, SVD, compression
+
+**E2** : Post-processors paramétriques
+```python
+# Actuellement
+'clip_01': lambda x: np.clip(x, 0, 1)
+
+# Future
+'clip': lambda x, a=0, b=1: np.clip(x, a, b)  # Paramétrable
+```
+
+**E3** : Templates avancés
+```yaml
+# templates/kernels.yaml
+gaussian_3x3:
+  type: convolution_kernel
+  size: [3, 3]
+  values: [[1, 2, 1], [2, 4, 2], [1, 2, 1]]
+  normalize: true
+```
+
+**E4** : Validation automatique
+- CI/CD vérifie structure tests
+- Lint registres (docstrings, signatures)
+- Benchmarks performance
+
+### 14.2. Compatibilité
+
+**C1** : Version 5.4 STABLE  
+**C2** : Pas de mode legacy 5.3  
+**C3** : Breaking changes → version 6.0  
+**C4** : Registres rétro-compatibles (ajout fonctions OK)
+
+---
+
+## SECTION 15 : Glossaire
+
+| Terme | Définition | Exemple |
+|-------|------------|---------|
+| **Registre** | Module contenant fonctions réutilisables | `algebra_registry.py` |
+| **registry_key** | Identifiant unique fonction | `"algebra.matrix_norm"` |
+| **run_metadata** | Métadonnées exécution | `{gamma_id, d_base_id, ...}` |
+| **history** | Liste snapshots (~200) | `[state_0, ..., state_199]` |
+| **snapshot** | UN état à une itération | `np.ndarray (10, 10)` |
+| **post_processor** | Transformation post-calcul | `"round_4"` |
+| **COMPUTATION_SPECS** | Spécifications métriques | `{'metric': {'registry_key': ...}}` |
+| **APPLICABILITY_SPEC** | Contraintes techniques | `{'requires_rank': 2}` |
+
+---
+
+## APPENDICE A : Templates
+
+### A.1. Template Registre
+
+```python
+# prc_framework/utilities/registries/template_registry.py
+"""
+Description du domaine mathématique.
+
+Fonctions disponibles :
+- fonction_1 : Description
+- fonction_2 : Description
+"""
+
+import numpy as np
+from .base_registry import BaseRegistry, register_function
+
+class TemplateRegistry(BaseRegistry):
+    """Registre template."""
+    
+    REGISTRY_KEY = "template"
+    
+    @register_function("fonction_exemple")
+    def compute_example(
+        self,
+        state: np.ndarray,
+        param1: float = 1.0,
+        param2: str = 'default'
+    ) -> float:
+        """
+        Description claire et concise.
+        
+        Args:
+            state: Description du tenseur attendu
+            param1: Description paramètre 1
+            param2: Description paramètre 2
+        
+        Returns:
+            float: Description de la valeur retournée
+        
+        Raises:
+            ValueError: Conditions d'erreur
+        
+        Notes:
+            - Note 1
+            - Note 2
+        
+        Examples:
+            >>> func(np.ones((10,10)), param1=2.0)
+            20.0
+        """
+        # Validation
+        if state.ndim != 2:
+            raise ValueError(f"Attendu 2D, reçu {state.ndim}D")
+        
+        # Calcul
+        result = np.sum(state) * param1
+        
+        return float(result)
+```
+
+### A.2. Template Test
+
+```python
+# tests/test_template_001.py
+"""
+[Titre descriptif du test]
+
+Objectif :
+- [Description du phénomène mesuré]
+
+Métriques :
+- [nom_metrique_1] : [Pourquoi pertinente]
+- [nom_metrique_2] : [Pourquoi pertinente]
+
+Algorithmes utilisés :
+- [registry_key_1] : [Justification choix]
+
+Exclusions :
+- [Métrique évidente non incluse] : [Pourquoi]
+"""
+
+import numpy as np
+
+TEST_ID = "CAT-001"
+TEST_CATEGORY = "CAT"
+TEST_VERSION = "5.4"
+
+APPLICABILITY_SPEC = {
+    "requires_rank": None,
+    "requires_square": False,
+    "allowed_d_types": ["ALL"],
+    "minimum_dimension": None,
+    "requires_even_dimension": False,
+}
+
+COMPUTATION_SPECS = {
+    'metric_name': {
+        'registry_key': 'registre.fonction',
+        'default_params': {
+            'param1': valeur1,
+        },
+        'post_process': 'round_4',
+    }
+}
+```
+
+---
+
+## APPENDICE B : FAQ
+
+**Q1 : Pourquoi pas de mode legacy 5.3 ?**  
+R : Complexité maintien 2 systèmes. Gain long terme > overhead initial.
+
+**Q2 : Comment tester un registre avant de créer test ?**  
+R : Voir Section 11.1 "Créer Nouveau Registre"
+
+**Q3 : Puis-je avoir plus de 5 métriques dans un test ?**  
+R : Non. Si besoin > 5, créer 2 tests séparés.
+
+**Q4 : Comment override params dans YAML ?**  
+R : Voir Section 8.3 "Config YAML Override"
+
+**Q5 : Que faire si validator manquant ?**  
+R : Ajouter dans `VALIDATORS` (Section 12.1)
+
+**Q6 : Comment déboguer "registry_key not found" ?**  
+R : Vérifier chargement : `RegistryManager().list_available_functions()`
+
+**Q7 : state_shape toujours disponible ?**  
+R : Oui, déduit du premier snapshot avant applicabilité.
+
+---
+
+## APPENDICE C : Changelog
+
+**5.4.0 (2025-01-01)** :
+- Architecture registres introduite
+- Post-processors registry
+- COMPUTATION_SPECS obligatoire
+- Mode legacy 5.3 supprimé
+- run_metadata normalisé
+- Validation stricte signatures
+
+**5.3.0 (2024-12-28)** :
+- FORMULAS lambda
+- Tests déclaratifs
+- Pipeline générique
+
+---
+
+**FIN CHARTER PRC 5.4**
+
+Ce charter est la **référence opérationnelle unique** pour l'architecture 5.4.  
+Toute implémentation DOIT se conformer strictement à ces spécifications.
+
+**Version** : 5.4.0  
+**Date** : 2025-01-01  
+**Statut** : PRODUCTION
