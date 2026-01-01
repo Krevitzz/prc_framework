@@ -18,8 +18,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from tests.utilities.test_engine import TestEngine
-from tests.utilities.discovery import discover_active_tests
+from .test_engine import TestEngine
+from .discovery import discover_active_tests
 
 
 def generate_synthetic_history(test_id: str, num_snapshots: int = 100) -> list:

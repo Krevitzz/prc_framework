@@ -116,7 +116,7 @@ class TestEngine:
             # Compiler résultats
             return self._compile_results(
                 result, metric_buffers, skipped_iterations, 
-                computations, execution_time
+                computations, execution_time, common_params
             )
         
         except Exception as e:
@@ -191,7 +191,7 @@ class TestEngine:
         
         return computations
     
-    def _compile_results(self, result, buffers, skipped, computations, exec_time) -> Dict:
+    def _compile_results(self, result, buffers, skipped, computations, exec_time, params) -> Dict:
         """Compile résultats finaux."""
         for metric_name, values in buffers.items():
             if len(values) < 2:
@@ -212,7 +212,7 @@ class TestEngine:
             }
             
             # Evolution
-            result['evolution'][metric_name] = self._analyze_evolution(values)
+            result['evolution'][metric_name] = self._analyze_evolution(values, params)
             
             # Metadata métrique
             result['metadata']['computations'][metric_name] = {
@@ -244,7 +244,7 @@ class TestEngine:
         
         return result
     
-    def _analyze_evolution(self, values: List[float]) -> Dict:
+    def _analyze_evolution(self, values: List[float], params: dict) -> Dict:
         """Analyse évolution série temporelle."""
         if len(values) < 2:
             return {'transition': 'insufficient_data', 'trend': 'unknown'}
