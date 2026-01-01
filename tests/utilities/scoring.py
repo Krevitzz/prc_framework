@@ -33,7 +33,9 @@ def score_observation(
         }
     """
     # Charger config scoring
-    config = load_scoring_config(test_spec.TEST_ID, scoring_config_id)
+    def load_scoring_config(test_id, scoring_config_id):
+       global_path = f"tests/config/global/{scoring_config_id}.yaml"
+       specific_path = f"tests/config/tests/{test_id}/scoring_*.yaml"
     
     # Scorer chaque métrique
     metric_scores = {}

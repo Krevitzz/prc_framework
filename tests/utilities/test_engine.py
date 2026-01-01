@@ -233,11 +233,19 @@ class TestEngine:
         if len(values) < 2:
             return {'transition': 'insufficient_data', 'trend': 'unknown'}
         
+		    
+        # Récupérer params
+        explosion_threshold = params.get('explosion_threshold', 1000.0)
+        stability_tolerance = params.get('stability_tolerance', 0.1)
+        growth_factor = params.get('growth_factor', 1.5)
+        epsilon = params.get('epsilon', 1e-10)
+		shrink_factor= params.get('shrink_factor', 0.5)
+   
         # Tendance
         x = np.arange(len(values))
         slope = float(np.polyfit(x, values, 1)[0])
         
-        if abs(slope) < 1e-10:
+        if abs(slope) < epsilon:
             trend = "stable"
         elif slope > 0:
             trend = "increasing"
@@ -245,24 +253,23 @@ class TestEngine:
             trend = "decreasing"
         
         # Transition
-		#\todo 0.1 1.5 0.5 1000 et 1e-10 chargés par yaml
         initial = values[0]
         final = values[-1]
         max_val = max(values)
-        relative_change = abs(final - initial) / (abs(initial) + 1e-10)
+        relative_change = abs(final - initial) / (abs(initial) + epsilon)
         
-        if max_val > 1000.0:
+        if max_val > explosion_threshold:
             transition = "explosive"
-        elif relative_change < 0.1:
+        elif relative_change < stability_tolerance:
             transition = "stable"
-        elif final > initial * 1.5:
+        elif final > initial * growth_factor:
             transition = "growing"
-        elif final < initial * 0.5:
+        elif final < initial * shrink_factor:
             transition = "shrinking"
         else:
             transition = "oscillating"
         
-        volatility = np.std(np.diff(values)) / (np.mean(np.abs(values)) + 1e-10)
+        volatility = np.std(np.diff(values)) / (np.mean(np.abs(values)) + epsilon)
         
         return {
             'transition': transition,
@@ -271,8 +278,26 @@ class TestEngine:
             'volatility': float(volatility),
             'relative_change': float(relative_change),
         }
+		
+		
+	def _load_yaml_params(self, test_id, config_id):
+        import yaml
+        from pathlib import Path
     
-    def _load_yaml_params(self, test_id, config_id):
-        """Charge params YAML (placeholder)."""
-        # TODO: Implémenter chargement YAML
-        return {}
+        # Charger global
+        global_path = Path(f"tests/config/global/{config_id}.yaml")
+        with open(global_path) as f:
+            global_params = yaml.safe_load(f)
+    
+        # Chercher override spécifique
+        specific_dir = Path(f"tests/config/tests/{test_id}")
+        if specific_dir.exists():
+            specific_files = list(specific_dir.glob("params_*.yaml"))
+            if specific_files:
+                 with open(specific_files[0]) as f:
+                    specific_params = yaml.safe_load(f)
+                    # Merge
+                    return {**global_params.get('common', {}), **specific_params}
+    
+        return global_params.get('common', {})
+    

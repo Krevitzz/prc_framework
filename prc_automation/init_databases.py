@@ -133,13 +133,6 @@ def main():
     print("  1. Lancer collecte données:")
     print("     python batch_runner.py --brut --gamma GAM-001")
     print()
-    print("  2. Appliquer tests:")
-    print("     python batch_runner.py --test --gamma GAM-001 --config weights_default")
-    print()
-    print("  3. Calculer verdict:")
-    print("     python batch_runner.py --verdict --gamma GAM-001 --config weights_default --thresholds thresholds_default")
-    print()
-
 
 if __name__ == "__main__":
     main()

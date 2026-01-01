@@ -15,11 +15,11 @@ def load_test_parameters(
         dict params fusionnés
     """
     # 1. Charger global
-    global_path = f"config/global/{global_config_id}.yaml"
+    global_path = f"tests/config/global/{global_config_id}.yaml"
     global_params = load_yaml(global_path)
     
     # 2. Chercher override spécifique (auto-détection)
-    specific_path = f"config/tests/{test_id}/params_*.yaml"
+    specific_path = f"tests/config/tests/{test_id}/params_*.yaml"
     specific_files = glob.glob(specific_path)
     
     if not specific_files:

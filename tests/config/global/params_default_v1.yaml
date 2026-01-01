@@ -1,18 +1,192 @@
-# config/global/params_default_v1.yaml
+# tests/config/global/params_default_v1.yaml
+# Configuration par défaut Phase TEST (observations brutes)
+# Architecture Charter 5.4
 
 version: "1.0"
 config_id: "params_default_v1"
-description: "Paramètres par défaut tous tests"
+description: "Paramètres par défaut pour génération observations tests"
+created_date: "2025-01-01"
+charter_reference: "Section 12.4 - Tests observations"
+
+# =============================================================================
+# SECTION 1 : PARAMÈTRES GLOBAUX (tous tests)
+# =============================================================================
 
 common:
+  # --- Analyse évolution temporelle ---
+  
+  # Seuil explosion (métrique > threshold → "explosive")
   explosion_threshold: 1000.0
+  
+  # Tolérance stabilité (relative_change < tolerance → "stable")
   stability_tolerance: 0.1
-  convergence_window: 50
+  
+  # Multiplicateur croissance (final > initial * factor → "growing")
+  growth_factor: 1.5
+  
+  # Multiplicateur décroissance (final < initial * factor → "shrinking")
+  shrink_factor: 0.5
+  
+  # Protection division par zéro
+  epsilon: 1.0e-10
+  
+  # --- Analyse tendance ---
+  
+  # Degré polynôme fit tendance (1=linéaire, 2=quadratique)
   trend_polynomial_degree: 1
+  
+  # Seuil pente nulle (|slope| < threshold → "stable")
+  slope_zero_threshold: 1.0e-10
+  
+  # Fenêtre glissante convergence (nombre iterations)
+  convergence_window: 50
+  
+  # Tolérance convergence (distance successive < tolerance)
+  convergence_tolerance: 1.0e-6
+  
+  # --- Analyse volatilité ---
+  
+  # Seuil volatilité haute (std(diff) / mean > threshold → "volatile")
+  high_volatility_threshold: 0.5
+  
+  # Seuil volatilité basse (std(diff) / mean < threshold → "smooth")
+  low_volatility_threshold: 0.05
 
-# Params spécifiques par catégorie (optionnel)
+# =============================================================================
+# SECTION 2 : CATÉGORIES SPÉCIFIQUES (overrides optionnels)
+# =============================================================================
+
+# --- Tests UNIV (universels) ---
 universal:
+  # Seuil explosion spécifique normes
   norm_explosion_threshold: 1000.0
+  
+  # Tolérance stabilité normes (plus stricte)
+  norm_stability_tolerance: 0.05
+  
+  # Détection NaN/Inf
+  check_finite: true
 
+# --- Tests SYM (symétrie) ---
 symmetry:
-  symmetry_tolerance: 1e-6
+  # Tolérance asymétrie numérique (||A - A^T|| < tolerance → symétrique)
+  symmetry_tolerance: 1.0e-6
+  
+  # Tolérance asymétrie relative (normalisée)
+  asymmetry_relative_tolerance: 1.0e-4
+  
+  # Seuil création asymétrie (initial < threshold, final > threshold)
+  asymmetry_creation_threshold: 0.01
+  
+  # Seuil destruction asymétrie (initial > threshold, final < threshold)
+  asymmetry_destruction_threshold: 0.01
+
+# --- Tests PAT (patterns) ---
+pattern:
+  # Nombre bins histogramme distribution
+  histogram_bins: 50
+  
+  # Seuil détection pattern spatial (corrélation > threshold)
+  spatial_correlation_threshold: 0.7
+  
+  # Taille fenêtre locale analyse
+  local_window_size: 3
+
+# --- Tests TOP (topologie) ---
+topological:
+  # Tolérance invariants topologiques
+  invariant_tolerance: 1.0e-8
+  
+  # Seuil détection trous (Betti numbers)
+  hole_detection_threshold: 0.1
+
+# --- Tests SPA (spatial) ---
+spatial:
+  # Nombre échelles analyse multi-résolution
+  num_scales: 5
+  
+  # Facteur zoom entre échelles
+  scale_factor: 2.0
+  
+  # Seuil gradients
+  gradient_threshold: 0.1
+
+# =============================================================================
+# SECTION 3 : PARAMÈTRES REGISTRES (par défaut fonction)
+# =============================================================================
+
+# Utilisés si test ne spécifie pas dans COMPUTATION_SPECS
+
+algebra:
+  # matrix_norm
+  default_norm_type: "frobenius"
+  
+  # matrix_asymmetry
+  asymmetry_norm_type: "frobenius"
+  asymmetry_normalize: true
+  asymmetry_epsilon: 1.0e-10
+
+spectral:
+  # fft_analysis
+  fft_normalize: true
+  fft_window: "hamming"
+  
+  # eigenvalues_analysis
+  eigen_sort: true
+  eigen_absolute: false
+
+statistical:
+  # entropy
+  entropy_bins: 50
+  entropy_normalize: true
+  
+  # correlation
+  correlation_method: "pearson"
+
+# =============================================================================
+# SECTION 4 : GESTION ERREURS
+# =============================================================================
+
+error_handling:
+  # Skip métrique si erreur (vs arrêt complet)
+  skip_on_metric_error: true
+  
+  # Nombre max erreurs consécutives avant arrêt total
+  max_consecutive_errors: 10
+  
+  # Log erreurs détaillées
+  verbose_errors: true
+  
+  # Valeur retour si métrique échoue (null ou 0.0)
+  fallback_value: null
+
+# =============================================================================
+# SECTION 5 : PERFORMANCE
+# =============================================================================
+
+performance:
+  # Cache résultats coûteux (SVD, FFT, etc.)
+  enable_caching: true
+  
+  # Parallélisation calculs métriques (future)
+  enable_parallel: false
+  
+  # Nombre workers si parallel=true
+  num_workers: 4
+
+# =============================================================================
+# NOTES D'USAGE
+# =============================================================================
+#
+# Ce fichier contient les VALEURS PAR DÉFAUT globales.
+#
+# Pour override spécifique à un test :
+#   tests/config/tests/UNIV-001/params_custom_v1.yaml
+#
+# Exemple override :
+#   explosion_threshold: 500.0  # Plus strict pour UNIV-001
+#
+# Les valeurs sont chargées par test_engine._load_yaml_params()
+# Fusion : global (ce fichier) + specific (si existe)
+#
+# =============================================================================
