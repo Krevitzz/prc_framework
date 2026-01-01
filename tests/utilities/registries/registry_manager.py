@@ -168,7 +168,7 @@ class RegistryManager:
         Valide paramètres contre signature fonction.
         
         Args:
-            function: Fonction du registre
+            function: Fonction du registre (méthode bound)
             user_params: Paramètres fournis
         
         Returns:
@@ -180,10 +180,27 @@ class RegistryManager:
         sig = inspect.signature(function)
         parameters = sig.parameters
         
-        if 'state' not in parameters:
-            raise ValueError("Fonction doit avoir 'state' comme premier paramètre")
+        # Debug : afficher paramètres détectés
+        param_names = list(parameters.keys())
         
-        # Valeurs par défaut de la fonction
+        # Vérifier que 'state' est présent (premier ou après self si bound)
+        if 'state' not in param_names:
+            raise ValueError(
+                f"Fonction doit avoir paramètre 'state'. "
+                f"Paramètres détectés : {param_names}"
+            )
+        
+        # Vérifier que state est bien le premier (après self si présent)
+        # Note: pour méthode bound, self a disparu de la signature
+        first_param = param_names[0]
+        if first_param != 'state':
+            raise ValueError(
+                f"Paramètre 'state' doit être en premier. "
+                f"Trouvé : {first_param} en premier. "
+                f"Signature complète : {param_names}"
+            )
+        
+        # Valeurs par défaut de la fonction (exclure state)
         defaults = {
             name: param.default
             for name, param in parameters.items()
@@ -196,7 +213,7 @@ class RegistryManager:
             if param_name not in parameters:
                 raise ValueError(
                     f"Paramètre '{param_name}' invalide. "
-                    f"Attendus: {list(parameters.keys())[1:]}"
+                    f"Attendus : {[p for p in param_names if p != 'state']}"
                 )
             
             expected_param = parameters[param_name]
@@ -205,13 +222,18 @@ class RegistryManager:
             if expected_param.annotation is not inspect.Parameter.empty:
                 expected_type = expected_param.annotation
                 
+                # Skip validation si type générique (typing.*)
+                if hasattr(expected_type, '__origin__'):
+                    validated[param_name] = param_value
+                    continue
+                
                 if not isinstance(param_value, expected_type):
                     try:
                         param_value = expected_type(param_value)
                     except (ValueError, TypeError):
                         raise ValueError(
-                            f"Paramètre '{param_name}' attend {expected_type}, "
-                            f"reçu {type(param_value)}"
+                            f"Paramètre '{param_name}' attend {expected_type.__name__}, "
+                            f"reçu {type(param_value).__name__}"
                         )
             
             validated[param_name] = param_value

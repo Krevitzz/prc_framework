@@ -50,14 +50,27 @@ class TestEngine:
         result = self._init_result(test_module, run_metadata, params_config_id)
         
         try:
-            # Charger params YAML
-            params = load_params(params_config_id, test_module.TEST_ID)
+            # Charger params YAML avec fusion auto
+            params = self.config_loader.load(
+                config_type='params',
+                config_id=params_config_id,
+                test_id=test_module.TEST_ID
+            )
+            
+            # Extraire section common + catégorie
+            common_params = params.get('common', {})
+            
+            # Ajouter params catégorie si définis (ex: 'symmetry' pour SYM-001)
+            category = test_module.TEST_CATEGORY.lower()
+            if category in params:
+                common_params = {**common_params, **params[category]}
             
             # Préparer computations
             computations = self._prepare_computations(
                 test_module.COMPUTATION_SPECS,
-                params
-            )
+                {}  # yaml_params vide pour l'instant (override metrics futur)
+            )           
+
             
             if not computations:
                 result['status'] = 'ERROR'

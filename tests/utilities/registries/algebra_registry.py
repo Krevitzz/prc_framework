@@ -1,4 +1,9 @@
-# prc_framework/tests/utilities/registries/algebra_registry.py
+# tests/utilities/registries/algebra_registry.py
+"""
+Registre opérations algébriques sur tenseurs.
+
+Architecture Charter 5.4 - Section 2
+"""
 
 import numpy as np
 from .base_registry import BaseRegistry, register_function
@@ -18,6 +23,7 @@ class AlgebraRegistry(BaseRegistry):
     
     @register_function("matrix_asymmetry")
     def compute_asymmetry(
+        self,                    # ← CRITIQUE : self obligatoire
         state: np.ndarray,
         norm_type: str = 'frobenius',
         normalize: bool = True,
@@ -67,6 +73,7 @@ class AlgebraRegistry(BaseRegistry):
     
     @register_function("matrix_norm")
     def compute_norm(
+        self,                    # ← CRITIQUE : self obligatoire
         state: np.ndarray,
         norm_type: str = 'frobenius'
     ) -> float:
