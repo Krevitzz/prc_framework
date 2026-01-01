@@ -1,4 +1,5 @@
 # tests/utilities/verdict_engine.py
+from tests.utilities.config_loader import get_loader
 
 def compute_gamma_verdict(
     gamma_id: str,
@@ -24,8 +25,16 @@ def compute_gamma_verdict(
             'verdict_reason': str,
         }
     """
-    # Charger thresholds
-    thresholds = load_thresholds_config(thresholds_config_id)
+    # Charger thresholds (global uniquement, pas de test_id)
+    loader = get_loader()
+    thresholds = loader.load(
+        config_type='thresholds',
+        config_id=thresholds_config_id
+    )
+    
+    # Récupérer critères
+    survives_criteria = thresholds['survives']
+    flagged_criteria = thresholds['flagged']
     
     # Calculer 3 critères
     majority_pct = calculate_majority(

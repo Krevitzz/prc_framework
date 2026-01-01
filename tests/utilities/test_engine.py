@@ -6,6 +6,7 @@ import traceback
 from typing import Dict, Any, List
 
 from .registries.registry_manager import RegistryManager
+from .config_loader import get_loader
 
 class TestEngine:
     """
@@ -44,16 +45,17 @@ class TestEngine:
         Returns:
             Dict format standardisé 5.4
         """
+		
         result = self._init_result(test_module, run_metadata, params_config_id)
         
         try:
             # Charger params YAML
-            yaml_params = self._load_yaml_params(test_module.TEST_ID, params_config_id)
+            params = load_params(params_config_id, test_module.TEST_ID)
             
             # Préparer computations
             computations = self._prepare_computations(
                 test_module.COMPUTATION_SPECS,
-                yaml_params
+                params
             )
             
             if not computations:
@@ -235,11 +237,15 @@ class TestEngine:
         
 		    
         # Récupérer params
-        explosion_threshold = params.get('explosion_threshold', 1000.0)
-        stability_tolerance = params.get('stability_tolerance', 0.1)
-        growth_factor = params.get('growth_factor', 1.5)
-        epsilon = params.get('epsilon', 1e-10)
-		shrink_factor= params.get('shrink_factor', 0.5)
+        # Charger params (avec fusion auto si test_id)
+        params = self.config_loader.load(
+            config_type='params',
+            config_id=params_config_id,
+            test_id=test_module.TEST_ID
+        )
+        
+        # Utiliser params
+        common_params = params.get('common', {})
    
         # Tendance
         x = np.arange(len(values))

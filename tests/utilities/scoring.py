@@ -1,5 +1,7 @@
 # tests/utilities/scoring.py
 
+from tests.utilities.config_loader import get_loader
+
 def score_observation(
     observation: dict,
     test_spec,
@@ -33,10 +35,16 @@ def score_observation(
         }
     """
     # Charger config scoring
-    def load_scoring_config(test_id, scoring_config_id):
-       global_path = f"tests/config/global/{scoring_config_id}.yaml"
-       specific_path = f"tests/config/tests/{test_id}/scoring_*.yaml"
+    loader = get_loader()
+    config = loader.load(
+        config_type='scoring',
+        config_id=scoring_config_id,
+        test_id=test_module.TEST_ID
+    )
     
+    # Récupérer poids et règles
+    test_weight = config['tests'][test_module.TEST_ID]['test_weight']
+    scoring_rules = config['tests'][test_module.TEST_ID]['scoring_rules']    
     # Scorer chaque métrique
     metric_scores = {}
     for metric_key in test_spec.SCORING_SPEC['available_metrics']:

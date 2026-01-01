@@ -7,6 +7,7 @@ from tests.utilities.applicability import filter_applicable_tests
 from tests.utilities.test_engine import run_observation
 from tests.utilities.scoring import score_observation
 from tests.utilities.verdict_engine import compute_gamma_verdict
+from tests.utilities.config_loader import get_loader
 
 class CriticalTestError(Exception):
     """Exception pour erreurs critiques nécessitant arrêt"""
@@ -225,9 +226,20 @@ def run_batch_test(args):
     Calcule observations et scores.
     Stocke dans db_results.
     """
+	
     gamma_id = args.gamma
     params_config_id = args.params
     scoring_config_id = args.scoring
+	
+	    # Vérifier configs existent
+    loader = get_loader()
+    
+    try:
+        # Test chargement config
+        _ = loader.load('params', args.params)
+    except FileNotFoundError as e:
+        log.error(f"Config params invalide: {e}")
+        sys.exit(1)
     
     # Vérifier que runs existent
     exec_ids = get_exec_ids_for_gamma(gamma_id)
