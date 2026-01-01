@@ -41,7 +41,7 @@ class RegistryManager:
     
     def _load_all_registries(self) -> None:
         """Charge dynamiquement tous les registres."""
-        package_name = "prc_framework.utilities.registries"
+        package_name = "tests.utilities.registries"
         
         try:
             package = importlib.import_module(package_name)
@@ -79,7 +79,8 @@ class RegistryManager:
         except Exception as e:
             print(f"[RegistryManager] Erreur initialisation: {e}")
             raise
-    
+
+			
     def get_function(self, registry_key: str) -> Callable:
         """
         Récupère fonction par clé complète.

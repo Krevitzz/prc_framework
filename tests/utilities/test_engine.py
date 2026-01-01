@@ -25,6 +25,7 @@ class TestEngine:
     def __init__(self):
         self.registry_manager = RegistryManager()
         self.computation_cache: Dict[str, Dict] = {}
+        self.config_loader = get_loader()
     
     def execute_test(
         self,
@@ -285,25 +286,4 @@ class TestEngine:
             'relative_change': float(relative_change),
         }
 		
-		
-	def _load_yaml_params(self, test_id, config_id):
-        import yaml
-        from pathlib import Path
-    
-        # Charger global
-        global_path = Path(f"tests/config/global/{config_id}.yaml")
-        with open(global_path) as f:
-            global_params = yaml.safe_load(f)
-    
-        # Chercher override spécifique
-        specific_dir = Path(f"tests/config/tests/{test_id}")
-        if specific_dir.exists():
-            specific_files = list(specific_dir.glob("params_*.yaml"))
-            if specific_files:
-                 with open(specific_files[0]) as f:
-                    specific_params = yaml.safe_load(f)
-                    # Merge
-                    return {**global_params.get('common', {}), **specific_params}
-    
-        return global_params.get('common', {})
     
