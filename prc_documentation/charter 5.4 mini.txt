@@ -32,19 +32,7 @@ run_kernel(state, gamma, ...) → Generator[iteration, state]
 ```
 prc_framework/
 ├── config/
-│   ├── global/
-│   │   ├── params_default_v1.yaml
-│   │   ├── params_strict_v1.yaml
-│   │   ├── scoring_default_v1.yaml
-│   │   ├── scoring_conservative_v1.yaml
-│   │   ├── thresholds_strict_v1.yaml
-│   │   └── thresholds_lenient_v1.yaml
-│   │
-│   └── tests/
-│       ├── UNIV-001/
-│       │   ├── params_custom_v1.yaml
-│       │   └── scoring_custom_v1.yaml
-│       └── ... (autres tests avec overrides)
+│
 │
 ├── core/
 │   ├── __init__.py
@@ -83,6 +71,22 @@ prc_framework/
 │   ├── test_univ_002.py
 │   ├── test_sym_001.py
 │   ├── ... (autres tests)
+│   │   
+│   ├── config/
+│   │   ├── global/
+│   │   │   ├── params_default_v1.yaml
+│   │   │   ├── params_strict_v1.yaml
+│   │   │   ├── scoring_default_v1.yaml
+│   │   │   ├── scoring_conservative_v1.yaml
+│   │   │   ├── thresholds_default_v1.yaml
+│   │   │   ├── thresholds_strict_v1.yaml
+│   │   │   └── thresholds_lenient_v1.yaml
+│   │   │
+│	│   └── tests/
+│	│        ├── UNIV-001/
+│	│        │   ├── params_custom_v1.yaml
+│	│        │   └── scoring_custom_v1.yaml
+│	│        └── ... (autres tests avec overrides)
 │   │
 │   └── utilities/
 │       ├── __init__.py

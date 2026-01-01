@@ -245,6 +245,7 @@ class TestEngine:
             trend = "decreasing"
         
         # Transition
+		#\todo 0.1 1.5 0.5 1000 et 1e-10 chargés par yaml
         initial = values[0]
         final = values[-1]
         max_val = max(values)
