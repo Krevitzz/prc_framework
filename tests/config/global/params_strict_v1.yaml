@@ -1,0 +1,33 @@
+# tests/config/global/params_strict_v1.yaml
+version: "1.0"
+config_id: "params_strict_v1"
+description: "Paramètres stricts (seuils plus exigeants)"
+created_date: "2025-01-01"
+charter_reference: "Section 12.4"
+
+common:
+  # Seuils plus stricts que default
+  explosion_threshold: 500.0        # vs 1000.0
+  stability_tolerance: 0.05         # vs 0.1
+  growth_factor: 1.3                # vs 1.5
+  shrink_factor: 0.7                # vs 0.5
+  epsilon: 1.0e-10
+  
+  trend_polynomial_degree: 1
+  slope_zero_threshold: 1.0e-10
+  convergence_window: 50
+  convergence_tolerance: 1.0e-6
+  
+  high_volatility_threshold: 0.3   # vs 0.5
+  low_volatility_threshold: 0.02   # vs 0.05
+
+universal:
+  norm_explosion_threshold: 500.0
+  norm_stability_tolerance: 0.02
+  check_finite: true
+
+symmetry:
+  symmetry_tolerance: 1.0e-8       # vs 1.0e-6
+  asymmetry_relative_tolerance: 1.0e-5
+  asymmetry_creation_threshold: 0.005
+  asymmetry_destruction_threshold: 0.005

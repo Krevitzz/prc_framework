@@ -120,10 +120,12 @@ def validate_observation(observation: dict, test_id: str) -> bool:
     
     # Status SUCCESS
     if observation['status'] != 'SUCCESS':
-        print(f"    ✗ Status : {observation['status']} (attendu SUCCESS)")
+        print(f"    ✗ Status : {observation['status']}")
         print(f"    Message : {observation['message']}")
-        return False
-    
+        if 'traceback' in observation:
+            print(f"    Traceback complet :")
+            print(observation['traceback'])
+        return False  
     print(f"    ✓ Status : SUCCESS")
     
     # Statistics non vide

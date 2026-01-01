@@ -26,7 +26,6 @@ class TestEngine:
         self.registry_manager = RegistryManager()
         self.computation_cache: Dict[str, Dict] = {}
         self.config_loader = get_loader()
-    
     def execute_test(
         self,
         test_module,
@@ -46,10 +45,10 @@ class TestEngine:
         Returns:
             Dict format standardisé 5.4
         """
-		
         result = self._init_result(test_module, run_metadata, params_config_id)
         
         try:
+            
             # Charger params YAML avec fusion auto
             params = self.config_loader.load(
                 config_type='params',
@@ -57,20 +56,32 @@ class TestEngine:
                 test_id=test_module.TEST_ID
             )
             
+            # Gérer cas YAML vide ou mal formé
+            if params is None or not isinstance(params, dict):
+                raise ValueError(f"Config {params_config_id} invalide (vide ou mal formé)")
+            
             # Extraire section common + catégorie
             common_params = params.get('common', {})
             
-            # Ajouter params catégorie si définis (ex: 'symmetry' pour SYM-001)
+            # Si common vide, lever erreur
+            if not common_params:
+                raise ValueError(
+                    f"Config {params_config_id} manque section 'common'. "
+                    f"Clés présentes : {list(params.keys())}"
+                )
+            
+            # Ajouter params catégorie si définis
             category = test_module.TEST_CATEGORY.lower()
             if category in params:
                 common_params = {**common_params, **params[category]}
             
+            
             # Préparer computations
             computations = self._prepare_computations(
                 test_module.COMPUTATION_SPECS,
-                {}  # yaml_params vide pour l'instant (override metrics futur)
-            )           
-
+                {},  # yaml_params vide pour l'instant
+                params_config_id
+            )
             
             if not computations:
                 result['status'] = 'ERROR'
@@ -89,9 +100,9 @@ class TestEngine:
                     try:
                         # Exécuter fonction registre
                         func = computation['function']
-                        params = computation['params']
+                        func_params = computation['params']
                         
-                        raw_value = func(snapshot, **params)
+                        raw_value = func(snapshot, **func_params)
                         
                         # Post-process
                         if computation['post_process']:
@@ -157,12 +168,12 @@ class TestEngine:
             }
         }
     
-    def _prepare_computations(self, specs, yaml_params) -> Dict:
+    def _prepare_computations(self, specs, yaml_params, config_id: str) -> Dict:
         """Prépare et valide toutes les spécifications."""
         computations = {}
         
         for metric_name, spec in specs.items():
-            cache_key = f"{metric_name}_{hash(str(spec))}"
+            cache_key = f"{config_id}_{metric_name}_{hash(str(spec))}"
             
             if cache_key in self.computation_cache:
                 computations[metric_name] = self.computation_cache[cache_key]
@@ -243,24 +254,20 @@ class TestEngine:
                 result['message'] = 'SUCCESS'
         
         return result
+
     
     def _analyze_evolution(self, values: List[float], params: dict) -> Dict:
         """Analyse évolution série temporelle."""
         if len(values) < 2:
             return {'transition': 'insufficient_data', 'trend': 'unknown'}
         
-		    
         # Récupérer params
-        # Charger params (avec fusion auto si test_id)
-        params = self.config_loader.load(
-            config_type='params',
-            config_id=params_config_id,
-            test_id=test_module.TEST_ID
-        )
+        explosion_threshold = params.get('explosion_threshold', 1000.0)
+        stability_tolerance = params.get('stability_tolerance', 0.1)
+        growth_factor = params.get('growth_factor', 1.5)
+        epsilon = params.get('epsilon', 1e-10)
+        shrink_factor = params.get('shrink_factor', 0.5)
         
-        # Utiliser params
-        common_params = params.get('common', {})
-   
         # Tendance
         x = np.arange(len(values))
         slope = float(np.polyfit(x, values, 1)[0])
@@ -298,5 +305,4 @@ class TestEngine:
             'volatility': float(volatility),
             'relative_change': float(relative_change),
         }
-		
     
