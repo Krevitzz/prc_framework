@@ -1,67 +1,321 @@
-# config/global/scoring_default_v1.yaml
+# tests/config/global/scoring_default_v1.yaml
+# Configuration scoring pathologies R0 - Par défaut
+# Architecture Charter 5.4 - Section 12.8
 
 version: "1.0"
 config_id: "scoring_default_v1"
-description: "Configuration scoring par défaut"
+description: "Scoring pathologies R0 - configuration par défaut"
+created_date: "2025-01-02"
+charter_reference: "Section 12.8"
 
+# Mode agrégation test (R0 default)
+aggregation_mode: "max"  # max | weighted_mean | weighted_max
+
+# Poids tests (pour verdict global)
+test_weights:
+  UNIV-001: 2.0
+  UNIV-002: 2.0
+  SYM-001: 1.5
+  SPE-001: 1.5
+  PAT-001: 1.0
+  SPA-001: 1.0
+  TOP-001: 1.0
+  GRA-001: 1.0
+
+# Règles scoring par test
 tests:
+  # =========================================================================
+  # UNIV-001 : Évolution norme Frobenius
+  # =========================================================================
   UNIV-001:
-    test_weight: 2.0
-    
-    metric_weights:
-      stat_initial: 0.0
-      stat_final: 2.0
-      stat_min: 0.5
-      stat_max: 1.5
-      stat_mean: 1.0
-      stat_std: 1.0
-      evolution_transition: 3.0
-      evolution_trend: 1.0
-      evolution_trend_coefficient: 0.5
-    
     scoring_rules:
+      # Statistics pathology
       stat_final:
-        ranges:
-          - {max: 10, score: 1.0}
-          - {min: 10, max: 1000, score: 0.5}
-          - {min: 1000, score: 0.0}
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 1000.0
+        critical_high: 10000.0
+        weight: 2.0
+        mode: "soft"
+      
+      stat_min:
+        pathology_type: "S1_COLLAPSE"
+        threshold_low: 0.01
+        critical_low: 0.001
+        weight: 0.5
+        mode: "soft"
+      
+      stat_max:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 1000.0
+        critical_high: 10000.0
+        weight: 1.5
+        mode: "soft"
+      
+      stat_mean:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 500.0
+        critical_high: 5000.0
+        weight: 1.0
+        mode: "soft"
       
       stat_std:
-        linear:
-          min_val: 0.0
-          min_score: 1.0
-          max_val: 100.0
-          max_score: 0.0
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 100.0
+        critical_high: 1000.0
+        weight: 1.0
+        mode: "soft"
       
+      # Evolution pathology
       evolution_transition:
+        pathology_type: "MAPPING"
         mapping:
-          stable: 1.0
-          explosive: 0.0
-          nan_detected: 0.0
-          error: 0.0
-          increasing: 0.6
-          decreasing: 0.4
-          converged: 1.0
-          divergent: 0.0
+          explosive: 1.0
+          divergent: 1.0
+          stable: 0.0
+          converged: 0.0
+          growing: 0.3
+          shrinking: 0.3
+          oscillating: 0.3
+        weight: 3.0
       
       evolution_trend:
+        pathology_type: "MAPPING"
         mapping:
-          stable: 1.0
-          increasing: 0.6
-          decreasing: 0.4
-          unknown: 0.0
+          stable: 0.0
+          increasing: 0.3
+          decreasing: 0.3
+          unknown: 0.5
+        weight: 1.0
       
       evolution_trend_coefficient:
-        ranges:
-          - {min: -0.01, max: 0.01, score: 1.0}
-          - {max: -0.01, score: 0.5}
-          - {min: 0.01, max: 1.0, score: 0.5}
-          - {min: 1.0, score: 0.0}
-  
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 1.0
+        critical_high: 10.0
+        weight: 0.5
+        mode: "soft"
+
+  # =========================================================================
+  # UNIV-002 : Trace normalisée
+  # =========================================================================
   UNIV-002:
-    test_weight: 2.0
-    # ...
-  
+    scoring_rules:
+      stat_final:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 100.0
+        critical_high: 1000.0
+        weight: 2.0
+        mode: "soft"
+      
+      stat_std:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 50.0
+        critical_high: 500.0
+        weight: 1.0
+        mode: "soft"
+      
+      evolution_transition:
+        pathology_type: "MAPPING"
+        mapping:
+          explosive: 1.0
+          divergent: 1.0
+          stable: 0.0
+          converged: 0.0
+          growing: 0.3
+          shrinking: 0.3
+          oscillating: 0.3
+        weight: 3.0
+      
+      evolution_trend:
+        pathology_type: "MAPPING"
+        mapping:
+          stable: 0.0
+          increasing: 0.3
+          decreasing: 0.3
+          unknown: 0.5
+        weight: 1.0
+
+  # =========================================================================
+  # SYM-001 : Asymétrie matrices
+  # =========================================================================
   SYM-001:
-    test_weight: 1.5
-    # ...
+    scoring_rules:
+      # Asymétrie (NON normalisée)
+      stat_final:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 10.0
+        critical_high: 100.0
+        weight: 2.0
+        mode: "soft"
+      
+      stat_std:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 5.0
+        critical_high: 50.0
+        weight: 1.0
+        mode: "soft"
+      
+      evolution_transition:
+        pathology_type: "MAPPING"
+        mapping:
+          explosive: 1.0
+          stable: 0.0
+          growing: 0.5
+          shrinking: 0.3  # Perte asymétrie = moins pathologique
+          converged: 0.2
+        weight: 2.0
+      
+      evolution_trend:
+        pathology_type: "MAPPING"
+        mapping:
+          stable: 0.0
+          increasing: 0.5  # Création asymétrie
+          decreasing: 0.3  # Destruction asymétrie
+          unknown: 0.5
+        weight: 1.0
+
+  # =========================================================================
+  # SPE-001 : Spectre valeurs propres
+  # =========================================================================
+  SPE-001:
+    scoring_rules:
+      stat_final:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 100.0
+        critical_high: 1000.0
+        weight: 2.0
+        mode: "soft"
+      
+      stat_std:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 50.0
+        critical_high: 500.0
+        weight: 1.0
+        mode: "soft"
+      
+      evolution_transition:
+        pathology_type: "MAPPING"
+        mapping:
+          explosive: 1.0
+          divergent: 1.0
+          stable: 0.0
+          converged: 0.0
+          growing: 0.4
+          shrinking: 0.4
+          oscillating: 0.5
+        weight: 3.0
+
+  # =========================================================================
+  # PAT-001 : Diversité et concentration
+  # =========================================================================
+  PAT-001:
+    scoring_rules:
+      # Diversité Simpson (collapse si trop faible)
+      stat_final:
+        pathology_type: "S1_COLLAPSE"
+        threshold_low: 0.3
+        critical_low: 0.1
+        weight: 2.0
+        mode: "soft"
+      
+      stat_std:
+        pathology_type: "S1_COLLAPSE"
+        threshold_low: 0.1
+        critical_low: 0.01
+        weight: 1.0
+        mode: "soft"
+      
+      # Concentration (plateau toxique si trop élevé)
+      evolution_transition:
+        pathology_type: "MAPPING"
+        mapping:
+          stable: 0.0
+          growing: 0.5   # Concentration augmente
+          shrinking: 0.3 # Diversification
+          converged: 0.2
+        weight: 2.0
+
+  # =========================================================================
+  # SPA-001 : Rugosité spatiale
+  # =========================================================================
+  SPA-001:
+    scoring_rules:
+      stat_final:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 10.0
+        critical_high: 100.0
+        weight: 2.0
+        mode: "soft"
+      
+      stat_std:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 5.0
+        critical_high: 50.0
+        weight: 1.0
+        mode: "soft"
+      
+      evolution_transition:
+        pathology_type: "MAPPING"
+        mapping:
+          explosive: 1.0
+          stable: 0.0
+          growing: 0.4
+          shrinking: 0.4
+          oscillating: 0.5
+        weight: 2.0
+
+  # =========================================================================
+  # TOP-001 : Invariants topologiques
+  # =========================================================================
+  TOP-001:
+    scoring_rules:
+      stat_final:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 100.0
+        critical_high: 1000.0
+        weight: 2.0
+        mode: "soft"
+      
+      stat_std:
+        pathology_type: "S2_EXPLOSION"
+        threshold_high: 50.0
+        critical_high: 500.0
+        weight: 1.0
+        mode: "soft"
+      
+      evolution_transition:
+        pathology_type: "MAPPING"
+        mapping:
+          explosive: 1.0
+          stable: 0.0
+          growing: 0.5
+          shrinking: 0.5
+          oscillating: 0.6
+        weight: 2.0
+
+  # =========================================================================
+  # GRA-001 : Propriétés graphe
+  # =========================================================================
+  GRA-001:
+    scoring_rules:
+      stat_final:
+        pathology_type: "S3_PLATEAU"
+        interval_toxic: [0.9, 1.0]  # Densité trop élevée
+        weight: 2.0
+        mode: "soft"
+      
+      stat_std:
+        pathology_type: "S1_COLLAPSE"
+        threshold_low: 0.01
+        critical_low: 0.001
+        weight: 1.0
+        mode: "soft"
+      
+      evolution_transition:
+        pathology_type: "MAPPING"
+        mapping:
+          explosive: 1.0
+          stable: 0.0
+          growing: 0.4
+          shrinking: 0.4
+          converged: 0.2
+        weight: 2.0

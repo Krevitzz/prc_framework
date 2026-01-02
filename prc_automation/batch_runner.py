@@ -538,3 +538,229 @@ def run_batch_all(args):
     run_batch_verdict(args)
     
     log.info("✓ Full pipeline completed")
+    
+def run_batch_test(args):
+    """
+    Applique tests sur runs existants.
+    Calcule observations et scores.
+    Stocke dans db_results.
+    """
+    gamma_id = args.gamma
+    params_config_id = args.params
+    scoring_config_id = args.scoring
+    
+    # ... (code existant jusqu'à la boucle scoring)
+    
+    # Après avoir calculé observation, ajouter scoring:
+    for test_id, test_module in applicable_tests.items():
+        try:
+            # Phase 1: Observation (EXISTANT)
+            observation = run_observation(
+                test_module, history, context, params_config_id
+            )
+            
+            # Stocker observation (EXISTANT)
+            store_test_observation(exec_id, observation)
+            
+            # Si NOT_APPLICABLE ou ERROR, skip scoring
+            if observation['status'] not in ['SUCCESS']:
+                continue
+            
+            # Phase 2: Scoring (NOUVEAU)
+            scores = score_observation(
+                observation=observation,
+                test_module=test_module,
+                context=context,
+                params_config_id=params_config_id,
+                scoring_config_id=scoring_config_id
+            )
+            
+            # Stocker scores (MODIFIÉ)
+            store_test_scores_v2(exec_id, scores)
+            
+            log.info(f"    ✓ {test_id}: score={scores['test_score']:.3f}")
+        
+        except Exception as e:
+            log.error(f"    ✗ {test_id}: {e}")
+            continue
+    
+    log.info(f"✓ Batch test completed for {gamma_id}")
+
+
+def store_test_scores_v2(exec_id: int, scores: dict):
+    """
+    Stocke scores dans db_results (nouveau schema).
+    
+    Args:
+        exec_id: ID run
+        scores: Résultat de score_observation()
+    """
+    conn = sqlite3.connect('prc_database/prc_r0_results.db')
+    cursor = conn.cursor()
+    
+    # Convertir metric_scores en JSON
+    metric_scores_json = json.dumps(scores['metric_scores'])
+    pathology_flags_json = json.dumps(scores['pathology_flags'])
+    critical_metrics_json = json.dumps(scores['critical_metrics'])
+    
+    cursor.execute("""
+        INSERT OR REPLACE INTO TestScores (
+            exec_id,
+            test_name,
+            params_config_id,
+            scoring_config_id,
+            test_score,
+            aggregation_mode,
+            metric_scores,
+            pathology_flags,
+            critical_metrics,
+            test_weight,
+            computed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    """, (
+        exec_id,
+        scores['test_name'],
+        scores['params_config_id'],
+        scores['scoring_config_id'],
+        scores['test_score'],
+        scores['aggregation_mode'],
+        metric_scores_json,
+        pathology_flags_json,
+        critical_metrics_json,
+        scores['test_weight']
+    ))
+    
+    conn.commit()
+    conn.close()
+
+
+def run_batch_verdict(args):
+    """
+    Calcule verdict global pour gamma.
+    Agrège tous tests/configs.
+    Stocke dans db_results.
+    Génère rapport.
+    """
+    gamma_id = args.gamma
+    params_config_id = args.params
+    scoring_config_id = args.scoring
+    thresholds_config_id = args.thresholds
+    
+    # Vérifier que scores existent
+    scores_exist = check_scores_exist(
+        gamma_id, params_config_id, scoring_config_id
+    )
+    
+    if not scores_exist:
+        log.warning("Scores not found, running --test first...")
+        run_batch_test(args)
+    
+    # Calculer verdict
+    log.info(f"Computing verdict for {gamma_id}")
+    
+    conn = sqlite3.connect('prc_database/prc_r0_results.db')
+    
+    verdict = compute_gamma_verdict(
+        gamma_id=gamma_id,
+        params_config_id=params_config_id,
+        scoring_config_id=scoring_config_id,
+        thresholds_config_id=thresholds_config_id,
+        db_connection=conn
+    )
+    
+    # Stocker verdict
+    store_gamma_verdict_v2(verdict, conn)
+    
+    # Générer rapport
+    report_text = generate_verdict_report(verdict)
+    
+    # Sauvegarder rapport
+    report_dir = Path("reports")
+    report_dir.mkdir(exist_ok=True)
+    
+    report_filename = (
+        f"verdict_{gamma_id}_"
+        f"{params_config_id}_"
+        f"{scoring_config_id}_"
+        f"{thresholds_config_id}_"
+        f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    )
+    
+    report_path = report_dir / report_filename
+    
+    with open(report_path, 'w') as f:
+        f.write(report_text)
+    
+    conn.close()
+    
+    # Afficher résumé
+    log.info("=" * 80)
+    log.info(f"VERDICT: {verdict['verdict']}")
+    log.info("=" * 80)
+    log.info(f"  Global score:  {verdict['global_score']:.3f}")
+    log.info(f"  Robustness:    {verdict['robustness_pct']:.1f}%")
+    log.info(f"  Majority:      {verdict['majority_pct']:.1f}%")
+    log.info("")
+    log.info(f"Rapport complet: {report_path}")
+
+
+def store_gamma_verdict_v2(verdict: dict, conn):
+    """
+    Stocke verdict dans db_results (nouveau schema).
+    
+    Args:
+        verdict: Résultat de compute_gamma_verdict()
+        conn: Connection db_results
+    """
+    cursor = conn.cursor()
+    
+    # Convertir details en JSON
+    details_json = json.dumps(verdict['details'])
+    
+    cursor.execute("""
+        INSERT OR REPLACE INTO GammaVerdicts (
+            gamma_id,
+            params_config_id,
+            scoring_config_id,
+            thresholds_config_id,
+            majority_pct,
+            robustness_pct,
+            global_score,
+            verdict,
+            verdict_reason,
+            details,
+            computed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    """, (
+        verdict['gamma_id'],
+        verdict['params_config_id'],
+        verdict['scoring_config_id'],
+        verdict['thresholds_config_id'],
+        verdict['majority_pct'],
+        verdict['robustness_pct'],
+        verdict['global_score'],
+        verdict['verdict'],
+        verdict['verdict_reason'],
+        details_json
+    ))
+    
+    conn.commit()
+
+
+def check_scores_exist(gamma_id, params_config_id, scoring_config_id) -> bool:
+    """Vérifie si scores existent pour cette config."""
+    conn = sqlite3.connect('prc_database/prc_r0_results.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT COUNT(*) FROM TestScores ts
+        JOIN Executions e ON ts.exec_id = e.id
+        WHERE e.gamma_id = ?
+          AND ts.params_config_id = ?
+          AND ts.scoring_config_id = ?
+    """, (gamma_id, params_config_id, scoring_config_id))
+    
+    count = cursor.fetchone()[0]
+    conn.close()
+    
+    return count > 0

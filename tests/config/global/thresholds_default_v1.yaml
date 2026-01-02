@@ -1,0 +1,123 @@
+# tests/config/global/thresholds_default_v1.yaml
+# Seuils verdicts R0 - Configuration nominale
+# Architecture Charter 5.4 - Section 12.9
+
+version: "1.0"
+config_id: "thresholds_default_v1"
+description: "Seuils verdicts R0 - configuration nominale"
+created_date: "2025-01-02"
+charter_reference: "Section 12.9"
+
+# =============================================================================
+# PRINCIPE VERDICTS R0 (Section 12.9.1)
+# =============================================================================
+#
+# Trois verdicts possibles pour Phase R0 :
+#   1. SURVIVES[R0]   - Non éliminé comme absurde, potentiellement ajustable
+#   2. REJECTED[R0]   - Pathologie systématique détectée
+#   3. WIP[R0-open]   - Indécidable (variance élevée, données insuffisantes)
+#
+# IMPORTANT : 
+# - SURVIVES ≠ "intéressant" (seulement "non absurde")
+# - Logique OU pour SURVIVES (permissive)
+# - Logique ET pour REJECTED (stricte)
+#
+# =============================================================================
+
+# Seuil test individuel (config healthy si test_score < threshold)
+threshold_test: 0.70  # pathology_score < 0.70 = healthy
+
+# =============================================================================
+# SEUILS SURVIVES[R0] (Logique OU - 1 critère suffit)
+# =============================================================================
+
+survives:
+  # Score global maximum (pathology_score moyen)
+  score_max: 0.40  # global_score < 0.40 (= 8/20 en affichage)
+  # Interprétation : Pathologies concentrées, pas diffuses
+  
+  # Robustesse minimum (pourcentage)
+  robustness_min: 0.60  # 60% D viables
+  # Interprétation : Γ s'adapte à majorité des D
+  
+  # Majorité minimum (pourcentage)
+  majority_min: 0.50  # 50% configs saines
+  # Interprétation : Γ fonctionne sur majorité configs
+
+# =============================================================================
+# SEUILS REJECTED[R0] (Logique ET - tous critères doivent échouer)
+# =============================================================================
+
+rejected:
+  # Score global minimum
+  score_min: 0.60  # global_score > 0.60 (= 12/20 en affichage)
+  # Interprétation : Pathologies systématiques partout
+  
+  # Robustesse maximum
+  robustness_max: 0.40  # <40% D viables
+  # Interprétation : Γ trop spécialisé ou fragile
+  
+  # Majorité maximum
+  majority_max: 0.20  # <20% configs saines
+  # Interprétation : Échec systématique# tests/config/global/thresholds_default_v1.yaml
+# Seuils verdicts R0 - Configuration nominale
+# Architecture Charter 5.4 - Section 12.9
+
+version: "1.0"
+config_id: "thresholds_default_v1"
+description: "Seuils verdicts R0 - configuration nominale"
+created_date: "2025-01-02"
+charter_reference: "Section 12.9"
+
+# =============================================================================
+# PRINCIPE VERDICTS R0 (Section 12.9.1)
+# =============================================================================
+#
+# Trois verdicts possibles pour Phase R0 :
+#   1. SURVIVES[R0]   - Non éliminé comme absurde, potentiellement ajustable
+#   2. REJECTED[R0]   - Pathologie systématique détectée
+#   3. WIP[R0-open]   - Indécidable (variance élevée, données insuffisantes)
+#
+# IMPORTANT : 
+# - SURVIVES ≠ "intéressant" (seulement "non absurde")
+# - Logique OU pour SURVIVES (permissive)
+# - Logique ET pour REJECTED (stricte)
+#
+# =============================================================================
+
+# Seuil test individuel (config healthy si test_score < threshold)
+threshold_test: 0.70  # pathology_score < 0.70 = healthy
+
+# =============================================================================
+# SEUILS SURVIVES[R0] (Logique OU - 1 critère suffit)
+# =============================================================================
+
+survives:
+  # Score global maximum (pathology_score moyen)
+  score_max: 0.40  # global_score < 0.40 (= 8/20 en affichage)
+  # Interprétation : Pathologies concentrées, pas diffuses
+  
+  # Robustesse minimum (pourcentage)
+  robustness_min: 0.60  # 60% D viables
+  # Interprétation : Γ s'adapte à majorité des D
+  
+  # Majorité minimum (pourcentage)
+  majority_min: 0.50  # 50% configs saines
+  # Interprétation : Γ fonctionne sur majorité configs
+
+# =============================================================================
+# SEUILS REJECTED[R0] (Logique ET - tous critères doivent échouer)
+# =============================================================================
+
+rejected:
+  # Score global minimum
+  score_min: 0.60  # global_score > 0.60 (= 12/20 en affichage)
+  # Interprétation : Pathologies systématiques partout
+  
+  # Robustesse maximum
+  robustness_max: 0.40  # <40% D viables
+  # Interprétation : Γ trop spécialisé ou fragile
+  
+  # Majorité maximum
+  majority_max: 0.20  # <20% configs saines
+  # Interprétation : Échec systématique
