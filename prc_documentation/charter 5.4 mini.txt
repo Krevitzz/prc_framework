@@ -831,9 +831,10 @@ def func(state, parameter=1.0):
 
 ## SECTION 11 : Workflow Développement
 voir documentation externe pour la phase --test
-# CHARTER PRC 5.4 - SECTIONS 12.8-12.9 : SCORING ET VERDICTS R0
 
-## Version unifiée finale pour intégration
+# CHARTER PRC 5.4 - SECTIONS 12.8-12.9 RÉVISÉES
+
+## Révision complète : Scoring + Verdicts patterns-based
 
 ---
 
@@ -860,6 +861,13 @@ pathology_score ∈ [0, 1]
 - ❌ Attribuer un "sens" positif aux métriques
 - ❌ Compenser des pathologies critiques par moyenne
 
+### Rôle des scores
+
+**Les scores sont des observables tangibles**, pas des jugements. Ils permettent :
+1. **Quantifier** une déviation par rapport à un seuil
+2. **Comparer** configurations
+3. **Détecter patterns** cross-runs (rôle verdict)
+
 ---
 
 ## 12.8.2 Typologie des pathologies (S1-S4 + MAPPING)
@@ -879,7 +887,12 @@ pathology_score ∈ [0, 1]
 if mode == 'hard':
     score = 1.0 if value < threshold_low else 0.0
 else:  # soft (default)
-    score = max(0, min(1, (threshold_low - value) / threshold_low))
+    if value >= threshold_low:
+        score = 0.0
+    elif value <= critical_low:
+        score = 1.0
+    else:
+        score = (threshold_low - value) / (threshold_low - critical_low)
 
 flag = value < critical_low
 ```
@@ -888,10 +901,10 @@ flag = value < critical_low
 ```yaml
 entropy:
   pathology_type: "S1_COLLAPSE"
-  threshold_low: 0.1      # Début signal pathologique
-  critical_low: 0.01      # Pathologie critique (flag)
+  threshold_low: 0.1
+  critical_low: 0.01
   weight: 2.0
-  mode: "soft"            # soft|hard
+  mode: "soft"
 ```
 
 ---
@@ -911,7 +924,12 @@ entropy:
 if mode == 'hard':
     score = 1.0 if value > threshold_high else 0.0
 else:  # soft (default)
-    score = max(0, min(1, (value - threshold_high) / threshold_high))
+    if value <= threshold_high:
+        score = 0.0
+    elif value >= critical_high:
+        score = 1.0
+    else:
+        score = (value - threshold_high) / (critical_high - threshold_high)
 
 flag = value > critical_high
 ```
@@ -945,9 +963,9 @@ if interval[0] <= value <= interval[1]:
     score = 1.0
     flag = True
 else:
-    # Distance smooth à l'intervalle
     dist = min(abs(value - interval[0]), abs(value - interval[1]))
-    score = max(0, 1 - dist)
+    interval_width = interval[1] - interval[0]
+    score = max(0, 1 - dist / max(interval_width, 0.1))
     flag = False
 ```
 
@@ -955,7 +973,7 @@ else:
 ```yaml
 uniformity:
   pathology_type: "S3_PLATEAU"
-  interval_toxic: [0.9, 1.0]  # [min, max] toxique
+  interval_toxic: [0.9, 1.0]
   weight: 1.5
   mode: "soft"
 ```
@@ -973,7 +991,6 @@ uniformity:
 
 **Formule** :
 ```python
-# Nécessite historique ou contexte
 delta = abs(value_t - value_t_prev)
 score = max(0, min(1, delta / delta_critical))
 flag = delta > delta_critical
@@ -1002,7 +1019,7 @@ evolution_volatility:
 ```python
 mapping = scoring_rule['mapping']
 score = mapping.get(value, 0.5)  # Default 0.5 si non mappé
-flag = score >= 0.8  # Seuil critique arbitraire
+flag = score >= 0.8
 ```
 
 **Configuration YAML** :
@@ -1022,101 +1039,83 @@ evolution_transition:
 
 ---
 
-## 12.8.3 Architecture configuration scoring
+## 12.8.3 Nommage métriques et extraction
 
-### Structure globale
+### Règle fondamentale
 
+**Les noms métriques dans scoring YAML doivent correspondre EXACTEMENT aux noms dans COMPUTATION_SPECS du test.**
+
+**Exemple test** :
+```python
+# tests/test_univ_001.py
+COMPUTATION_SPECS = {
+    'frobenius_norm': {  # ← Nom métrique
+        'registry_key': 'algebra.matrix_norm',
+        'default_params': {'norm_type': 'frobenius'},
+    }
+}
+```
+
+**Scoring YAML correspondant** :
 ```yaml
 # config/global/scoring_default_v1.yaml
-version: "1.0"
-config_id: "scoring_default_v1"
-description: "Scoring pathologies R0 - configuration par défaut"
-created_date: "2025-01-02"
-charter_reference: "Section 12.8"
-
-# Mode agrégation test (R0 default)
-aggregation_mode: "max"  # max | weighted_mean | weighted_max
-
-# Poids tests (pour verdict global)
-test_weights:
-  UNIV-001: 2.0
-  UNIV-002: 2.0
-  SYM-001: 1.5
-  SPE-001: 1.5
-  PAT-001: 1.0
-  SPA-001: 1.0
-  TOP-001: 1.0
-  GRA-001: 1.0
-
-# Règles scoring par test
 tests:
   UNIV-001:
     scoring_rules:
-      # Scorer statistics
-      stat_final:
+      frobenius_norm:  # ← Même nom exact
+        source: "statistics.frobenius_norm.final"
         pathology_type: "S2_EXPLOSION"
         threshold_high: 1000.0
-        critical_high: 10000.0
-        weight: 2.0
-        mode: "soft"
-      
-      stat_std:
-        pathology_type: "S2_EXPLOSION"
-        threshold_high: 100.0
-        critical_high: 1000.0
-        weight: 1.0
-        mode: "soft"
-      
-      # Scorer evolution
-      evolution_transition:
-        pathology_type: "MAPPING"
-        mapping:
-          explosive: 1.0
-          divergent: 1.0
-          stable: 0.0
-          converged: 0.0
-          growing: 0.3
-          shrinking: 0.3
-          oscillating: 0.3
-        weight: 3.0
-      
-      evolution_trend:
-        pathology_type: "MAPPING"
-        mapping:
-          stable: 0.0
-          increasing: 0.3
-          decreasing: 0.3
-        weight: 1.0
 ```
 
-### Override spécifique test
+### Chemin extraction (source)
+
+Le champ `source` spécifie le chemin d'accès dans l'observation :
 
 ```yaml
-# config/tests/UNIV-001/scoring_strict_v1.yaml
-version: "1.0"
-config_id: "UNIV-001_scoring_strict_v1"
-description: "Scoring plus strict pour UNIV-001"
+source: "statistics.frobenius_norm.final"
+#        ^         ^                ^
+#        |         |                └─ Clé dans dict statistics
+#        |         └─ Nom métrique (depuis COMPUTATION_SPECS)
+#        └─ Section observation (statistics ou evolution)
+```
 
-# Override seuils
-stat_final:
-  threshold_high: 500.0    # Plus strict que 1000.0
-  critical_high: 5000.0
+**Observations disponibles** :
+- `statistics.{metric}.final` : Valeur finale
+- `statistics.{metric}.initial` : Valeur initiale
+- `statistics.{metric}.mean` : Moyenne temporelle
+- `statistics.{metric}.std` : Écart-type temporel
+- `statistics.{metric}.min` : Minimum temporel
+- `statistics.{metric}.max` : Maximum temporel
+- `evolution.{metric}.transition` : Transition qualitative
+- `evolution.{metric}.trend` : Tendance
+- `evolution.{metric}.slope` : Coefficient tendance
 
-evolution_transition:
-  mapping:
-    oscillating: 0.5       # Oscillation devient plus pathologique
+### Conventions par défaut
+
+Si `source` omis, extraction automatique selon préfixe :
+
+```yaml
+# Sans source explicite
+frobenius_norm:
+  pathology_type: "S2_EXPLOSION"
+
+# Équivalent à
+frobenius_norm:
+  source: "statistics.frobenius_norm.final"  # Default: .final
+  pathology_type: "S2_EXPLOSION"
 ```
 
 ---
 
 ## 12.8.4 Algorithme scoring
 
-### Étape 1 : Scorer une métrique
+### Fonction principale
 
 ```python
 def score_metric(
     metric_key: str,
-    metric_value: float | str,
+    metric_value: Union[float, str],
     scoring_rule: dict,
     context: dict = None
 ) -> dict:
@@ -1124,7 +1123,7 @@ def score_metric(
     Calcule pathology_score pour une métrique.
     
     Args:
-        metric_key: Nom métrique (ex: "stat_final")
+        metric_key: Nom métrique (ex: "frobenius_norm")
         metric_value: Valeur observée
         scoring_rule: Config YAML règle scoring
         context: Contexte optionnel (historique, delta)
@@ -1140,84 +1139,9 @@ def score_metric(
             'evidence': dict
         }
     """
-    pathology_type = scoring_rule['pathology_type']
-    weight = scoring_rule.get('weight', 1.0)
-    mode = scoring_rule.get('mode', 'soft')
-    
-    # TYPE S1 : COLLAPSE
-    if pathology_type == "S1_COLLAPSE":
-        threshold = scoring_rule['threshold_low']
-        critical = scoring_rule.get('critical_low', threshold * 0.1)
-        
-        if mode == 'hard':
-            score = 1.0 if metric_value < threshold else 0.0
-        else:
-            score = max(0, min(1, (threshold - metric_value) / threshold))
-        
-        flag = metric_value < critical
-    
-    # TYPE S2 : EXPLOSION
-    elif pathology_type == "S2_EXPLOSION":
-        threshold = scoring_rule['threshold_high']
-        critical = scoring_rule.get('critical_high', threshold * 10)
-        
-        if mode == 'hard':
-            score = 1.0 if metric_value > threshold else 0.0
-        else:
-            score = max(0, min(1, (metric_value - threshold) / threshold))
-        
-        flag = metric_value > critical
-    
-    # TYPE S3 : PLATEAU
-    elif pathology_type == "S3_PLATEAU":
-        interval = scoring_rule['interval_toxic']
-        
-        if interval[0] <= metric_value <= interval[1]:
-            score = 1.0
-            flag = True
-        else:
-            dist = min(abs(metric_value - interval[0]), 
-                      abs(metric_value - interval[1]))
-            score = max(0, 1 - dist)
-            flag = False
-    
-    # TYPE S4 : INSTABILITY
-    elif pathology_type == "S4_INSTABILITY":
-        delta_critical = scoring_rule['delta_critical']
-        
-        if context and 'delta' in context:
-            delta = context['delta']
-        else:
-            # Calcul delta depuis historique si disponible
-            delta = 0  # Fallback
-        
-        score = max(0, min(1, delta / delta_critical))
-        flag = delta > delta_critical
-    
-    # TYPE MAPPING
-    elif pathology_type == "MAPPING":
-        mapping = scoring_rule['mapping']
-        score = mapping.get(metric_value, 0.5)  # Default 0.5 si non mappé
-        flag = score >= 0.8
-    
-    else:
-        raise ValueError(f"Unknown pathology_type: {pathology_type}")
-    
-    return {
-        'metric_key': metric_key,
-        'value': metric_value,
-        'score': float(score),
-        'flag': bool(flag),
-        'pathology_type': pathology_type,
-        'weight': weight,
-        'evidence': {
-            'threshold_config': scoring_rule,
-            'context': context
-        }
-    }
 ```
 
-### Étape 2 : Agréger métriques → test_score
+### Agrégation test
 
 ```python
 def aggregate_test_score(
@@ -1240,152 +1164,36 @@ def aggregate_test_score(
             'metric_scores': dict
         }
     """
-    if not metric_scores:
-        return {
-            'test_score': 0.0,
-            'pathology_flags': [],
-            'critical_metrics': [],
-            'aggregation_mode': aggregation_mode,
-            'metric_scores': {}
-        }
-    
-    # Agrégation selon mode
-    if aggregation_mode == "max":
-        # R0 default: une pathologie suffit
-        test_score = max(m['score'] for m in metric_scores.values())
-    
-    elif aggregation_mode == "weighted_mean":
-        # Future R1: pondération nuancée
-        weighted_sum = sum(m['score'] * m['weight'] for m in metric_scores.values())
-        weight_sum = sum(m['weight'] for m in metric_scores.values())
-        test_score = weighted_sum / weight_sum if weight_sum > 0 else 0.0
-    
-    elif aggregation_mode == "weighted_max":
-        # Hybride: max des scores pondérés
-        weighted_scores = [m['score'] * m['weight'] for m in metric_scores.values()]
-        test_score = max(weighted_scores) if weighted_scores else 0.0
-    
-    else:
-        raise ValueError(f"Unknown aggregation_mode: {aggregation_mode}")
-    
-    # Flags et métriques critiques
-    pathology_flags = [
-        key for key, m in metric_scores.items() if m['flag']
-    ]
-    
-    critical_metrics = [
-        key for key, m in metric_scores.items() if m['score'] >= 0.8
-    ]
-    
-    return {
-        'test_score': float(test_score),
-        'pathology_flags': pathology_flags,
-        'critical_metrics': critical_metrics,
-        'aggregation_mode': aggregation_mode,
-        'metric_scores': metric_scores
-    }
 ```
+
+**Mode R0 default** : `aggregation_mode = "max"` (une pathologie suffit)
 
 ---
 
-## 12.8.5 Clarifications normatives R0
+## 12.8.5 Stockage db_results
 
-### 12.8.5.1 Pathologies et pondération critique
-
-**Principe général** :
-> En R0, une pathologie systématique suffit à invalider la viabilité.
-
-**Nuance contextuelle** :
-Certaines pathologies peuvent être **pondérées comme critiques** via les `weight`, modifiant leur impact sur le score global. Cela ne contredit pas le principe car :
-
-- La pathologie reste **détectée et tracée** (flag)
-- Le poids reflète une **criticité contextuelle** (ex: symétrie pour mécanisme supposé préserver symétrie)
-- En R0, nous tolérons des pathologies locales si le mécanisme reste **globalement ajustable**
-
-**Exemple concret** :
-```yaml
-# Pour Γ censé préserver symétrie
-asymmetry_norm:
-  weight: 3.0  # Critique pour ce mécanisme
-
-# Trace moins critique
-trace_normalized:
-  weight: 0.5
-```
-
-Un `test_score` élevé n'est pas un "rejet automatique" si d'autres tests compensent, **mais** :
-- Les pathologies flaggées sont toujours **documentées**
-- Le verdict explicite **pourquoi** cette pathologie n'a pas éliminé le candidat
-
----
-
-### 12.8.5.2 Rôle du global_score : filtre, pas compensation
-
-Le `global_score` n'est **pas une mesure de qualité globale**, mais un **indicateur de dispersion et concentration des pathologies**.
-
-**Rôle exact** :
-```python
-global_score = mean(all_test_scores)  # [0,1]
-
-# BUT : filtrer
-# - Candidat avec UNE note critique isolée (global faible)
-# - vs candidat avec pathologies systématiques partout (global élevé)
-```
-
-**Interprétation correcte** :
-- `global_score` faible + 1 test critique → SURVIVES possible (pathologie locale, mécanisme ajustable)
-- `global_score` élevé partout → REJECTED probable (pathologies systématiques)
-
-**Ce que ce N'EST PAS** :
-- ❌ Une compensation (mauvais partout ≠ bon globalement)
-- ❌ Une moyenne de "qualités"
-- ❌ Un score à optimiser
-
----
-
-### 12.8.5.3 Conventions numériques : arbitraires par design
-
-**Tous les seuils** (0.7, 0.8, 0.4, 0.6, 1000.0...) sont des **conventions initiales** pour exploration R0.
-
-**Propriétés** :
-- ❌ Aucune justification empirique
-- ❌ Aucun fondement théorique
-- ✅ Conventions de travail ajustables
-- ✅ Baselines pour comparaison inter-configs
-
-**Évolution attendue** :
-```
-R0 : Conventions larges (exploration, éviter faux négatifs)
-R1 : Affinement empirique (patterns observés)
-R2+: Calibration cross-domaines
-```
-
-Ces valeurs **doivent** être testées via configs alternatives (strict, lenient) pour évaluer sensibilité des verdicts.
-
----
-
-## 12.8.6 Stockage db_results
-
-### Table TestScores (modifiée)
+### Table TestScores (schema complet)
 
 ```sql
 CREATE TABLE TestScores (
   id INTEGER PRIMARY KEY,
-  exec_id INTEGER NOT NULL,
+  
+  -- Traçabilité run (OBLIGATOIRE)
+  exec_id INTEGER NOT NULL,         -- Référence Executions(id)
   test_name TEXT NOT NULL,
   
-  -- Configs utilisées (traçabilité)
+  -- Configs utilisées (traçabilité pipeline)
   params_config_id TEXT NOT NULL,
   scoring_config_id TEXT NOT NULL,
   
   -- Score test agrégé
-  test_score REAL NOT NULL,             -- [0,1] pathology score
-  aggregation_mode TEXT NOT NULL,       -- max | weighted_mean | weighted_max
+  test_score REAL NOT NULL,         -- [0,1] pathology score
+  aggregation_mode TEXT NOT NULL,   -- max | weighted_mean | weighted_max
   
   -- Détails métriques (JSON complet)
-  metric_scores TEXT NOT NULL,          -- {metric_key: {value, score, flag, type, weight, evidence}}
-  pathology_flags TEXT,                 -- JSON liste métriques flaggées
-  critical_metrics TEXT,                -- JSON liste métriques score >= 0.8
+  metric_scores TEXT NOT NULL,      -- {metric_key: {value, score, flag, ...}}
+  pathology_flags TEXT,             -- JSON liste métriques flaggées
+  critical_metrics TEXT,            -- JSON liste métriques score >= 0.8
   
   -- Metadata
   test_weight REAL NOT NULL,
@@ -1396,508 +1204,676 @@ CREATE TABLE TestScores (
   FOREIGN KEY(params_config_id) REFERENCES ConfigRegistry(config_id),
   FOREIGN KEY(scoring_config_id) REFERENCES ConfigRegistry(config_id)
 );
+```
 
--- Index
-CREATE INDEX idx_test_scores_lookup 
-ON TestScores(exec_id, params_config_id, scoring_config_id);
-
-CREATE INDEX idx_test_scores_test 
-ON TestScores(test_name);
-
-CREATE INDEX idx_test_scores_score 
-ON TestScores(test_score);
+**Traçabilité complète via exec_id** :
+```sql
+-- Retrouver contexte complet depuis TestScores
+SELECT 
+    ts.test_score,
+    e.gamma_id,
+    e.d_base_id,
+    e.modifier_id,
+    e.seed,
+    e.run_id
+FROM TestScores ts
+JOIN Executions e ON ts.exec_id = e.id
+WHERE ts.id = ?;
 ```
 
 ---
 
-# SECTION 12.9 : VERDICTS - AGRÉGATION GLOBALE R0
+## 12.8.6 Clarifications normatives
+
+### 12.8.6.1 Scores = observables, pas jugements
+
+**Les scores pathologies sont des mesures factuelles** :
+- ✅ `frobenius_norm=12500 → score=0.92` (dépasse seuil 1000)
+- ✅ Quantification objective d'une déviation
+- ✅ Comparable entre runs
+
+**Ils NE sont PAS** :
+- ❌ Un verdict sur la qualité de Γ
+- ❌ Une recommandation d'action
+- ❌ Un score à optimiser
+
+**Rôle** : Fournir données brutes pour analyse patterns (Section 12.9).
+
+---
+
+### 12.8.6.2 Pondération (weight) et criticité
+
+Les `weight` dans scoring reflètent une **criticité contextuelle** :
+
+```yaml
+# Pour Γ censé préserver symétrie
+asymmetry_norm:
+  weight: 3.0  # Critique pour ce mécanisme
+
+# Trace moins critique
+trace_normalized:
+  weight: 0.5
+```
+
+**Interprétation** :
+- Poids élevé → métrique discriminante attendue pour ce Γ
+- Poids faible → métrique secondaire ou exploratoire
+
+**Impact** : Influence agrégation test_score si `mode=weighted_mean`, mais **pas le verdict final** (déterminé par patterns, Section 12.9).
+
+---
+
+### 12.8.6.3 Conventions numériques
+
+**Tous les seuils** (threshold_low, threshold_high, critical_*, intervals) sont des **conventions initiales** pour exploration R0.
+
+**Propriétés** :
+- ❌ Aucune justification empirique a priori
+- ❌ Aucun fondement théorique
+- ✅ Baselines pour détecter déviations
+- ✅ Ajustables via configs alternatives
+
+**Calibrage** : Les patterns détectés en Section 12.9 permettent d'identifier métriques mal calibrées (toujours 0, toujours 1).
+
+---
+
+# SECTION 12.9 : VERDICTS - ANALYSE PATTERNS R0
 
 ## 12.9.1 Principe verdict R0
 
-**Définition** :
-> Verdict = statut de viabilité structurelle d'un mécanisme Γ sur l'espace testé.
+**Changement fondamental par rapport à versions précédentes** :
 
-**Règle cardinale R0** :
-> Une pathologie systématique suffit à invalider la viabilité.
+Le verdict R0 n'est **plus basé sur agrégation naïve de scores**, mais sur **analyse de patterns cross-runs**.
+
+### Définition
+
+> **Verdict R0** = Détection de pathologies systématiques ou de comportements contextuels via analyse de la distribution et corrélation des scores sur l'ensemble des runs.
 
 ### Verdicts autorisés
 
 | Verdict | Signification exacte |
 |---------|---------------------|
-| **SURVIVES[R0]** | Non éliminé comme absurde, mécanisme potentiellement ajustable |
-| **REJECTED[R0]** | Pathologie systématique détectée, mécanisme non viable en l'état |
-| **WIP[R0-open]** | Indécidable (variance trop élevée, données insuffisantes) |
+| **SURVIVES[R0]** | Aucune pathologie systématique détectée, mécanisme non absurde |
+| **REJECTED[R0]** | Pathologie systématique détectée (score élevé sur ≥80% runs valides) |
+| **WIP[R0-open]** | Comportement contextuel ou instable nécessitant investigation |
 
-⚠️ **SURVIVES[R0] ≠ "intéressant"**
-
-**Clarification terminologique** :
+### Clarification terminologique
 
 | Terme | Statut en R0 |
 |-------|-------------|
-| **SURVIVES[R0]** | Défini : non éliminé comme absurde |
-| **Intéressant** | ❌ NON DÉFINI (jugement réservé à phases avec contexte) |
+| **SURVIVES[R0]** | Défini : pas de pathologie systématique |
+| **Intéressant** | ❌ NON DÉFINI (jugement réservé à phases ultérieures) |
 | **Prometteur** | ❌ Jugement réservé à R1+ |
 | **Valide** | ❌ Jugement réservé à R2+ |
 
-**SURVIVES[R0] signifie UNIQUEMENT** :
-> Ce mécanisme aveugle Γ sur espace D testé ne déclenche pas de pathologie systématique suffisamment grave pour être éliminé sans examen approfondi.
+---
+
+## 12.9.2 Patterns détectés
+
+Le moteur d'analyse détecte **7 types de patterns** dans les scores :
+
+### 1. NON_DISCRIMINANT
+
+**Définition** : Métrique score toujours proche de 0 (< 0.1) sur tous runs.
+
+**Signification** :
+- Seuils trop permissifs
+- Métrique non pertinente pour ce Γ
+- Mécanisme systématiquement sain sur cette dimension
+
+**Action** : Recalibrer seuils ou supprimer métrique.
+
+**Exemple** :
+```
+stat_min (UNIV-001):
+  - 30/30 runs: score < 0.05
+  - Pattern: NON_DISCRIMINANT
+  - Action: Augmenter threshold_low de 0.01 à 0.1
+```
 
 ---
 
-## 12.9.2 Critères verdict (baseline)
+### 2. OVER_DISCRIMINANT
 
-### Critère 1 : Majorité configs saines
+**Définition** : Métrique score toujours proche de 1 (> 0.9) sur tous runs.
+
+**Signification** :
+- Seuils trop stricts
+- Pathologie généralisée (échec systématique)
+- Mécanisme systématiquement pathologique sur cette dimension
+
+**Action** : Recalibrer seuils ou confirmer pathologie systématique.
+
+**Exemple** :
+```
+stat_max (UNIV-001):
+  - 28/30 runs: score > 0.95
+  - Pattern: OVER_DISCRIMINANT
+  - Action: Augmenter threshold_high de 1000 à 5000
+```
+
+---
+
+### 3. D_CORRELATED
+
+**Définition** : Score varie systématiquement selon type D (variance inter-D > 0.3).
+
+**Signification** :
+- Γ spécialisé (fonctionne sur certains D, échoue sur autres)
+- Comportement contextuel, pas pathologie globale
+
+**Action** : Investiguer pourquoi certains D provoquent échec.
+
+**Exemple** :
+```
+asymmetry_norm (SYM-001):
+  - SYM-001: score moyen 0.85 (9/10 runs > 0.8)
+  - ASY-001: score moyen 0.12 (10/10 runs < 0.2)
+  - R3-001: score moyen 0.25 (10/10 runs < 0.3)
+  
+  Pattern: D_CORRELATED
+  Interprétation: Γ diverge uniquement sur matrices symétriques
+  Action: Investiguer amplification symétrie par mécanisme
+```
+
+---
+
+### 4. MODIFIER_CORRELATED
+
+**Définition** : Score corrélé avec modifier (proxy pour sensibilité bruit).
+
+**Signification** :
+- Γ sensible aux perturbations
+- Robustesse limitée au bruit
+
+**Action** : Tester régularisation ou pré-filtrage.
+
+**Exemple** :
+```
+stat_final (UNIV-001):
+  - M0 (no noise): score moyen 0.15
+  - M1 (noise 0.1): score moyen 0.35
+  - M3 (noise 0.3): score moyen 0.85
+  - M4 (noise 0.5): score moyen 0.95
+  
+  Pattern: MODIFIER_CORRELATED
+  Interprétation: Γ stable sans bruit, collapse avec noise ≥0.3
+  Action: Tester version avec régularisation
+```
+
+---
+
+### 5. SEED_UNSTABLE
+
+**Définition** : Variance inter-seeds élevée (> 0.3) à D et modifier fixés.
+
+**Signification** :
+- Sensibilité initiale forte
+- Instabilité stochastique
+
+**Action** : Augmenter nombre seeds pour confirmer, ou investiguer dépendance à conditions initiales.
+
+**Exemple** :
+```
+evolution_volatility (UNIV-001) sur SYM-001 + M0:
+  - seed 1: score 0.25
+  - seed 2: score 0.82
+  - seed 3: score 0.19
+  - seed 4: score 0.78
+  - Variance: 0.45
+  
+  Pattern: SEED_UNSTABLE
+  Action: Relancer avec 30 seeds au lieu de 10
+```
+
+---
+
+### 6. SYSTEMATIC_FAILURE
+
+**Définition** : Score élevé (> 0.7) sur ≥80% des runs sur métrique valide (ni NON_DISCRIMINANT ni OVER_DISCRIMINANT).
+
+**Signification** :
+- Pathologie systématique confirmée
+- Mécanisme non viable en l'état
+
+**Action** : Confirmer REJECTED[R0] ou investiguer cause racine.
+
+**Exemple** :
+```
+frobenius_norm (UNIV-001):
+  - 27/30 runs: score > 0.8
+  - Pattern: SYSTEMATIC_FAILURE
+  - Interprétation: Norme explose systématiquement
+  - Verdict: REJECTED[R0]
+```
+
+---
+
+### 7. CONTEXTUAL_BEHAVIOR
+
+**Définition** : Combinaison de patterns D_CORRELATED ou MODIFIER_CORRELATED sans SYSTEMATIC_FAILURE.
+
+**Signification** :
+- Mécanisme fonctionne dans certains contextes, échoue dans autres
+- Pas absurde globalement, nécessite investigation
+
+**Action** : WIP[R0-open], investiguer domaines de validité.
+
+---
+
+## 12.9.3 Algorithme verdict
+
+### Étape 1 : Chargement scores avec contexte
 
 ```python
-majority_pct = (n_configs_healthy / n_total_configs) * 100
-
-# Config healthy si :
-test_score < threshold_test
-```
-
-**Interprétation** :
-- Élevé : Γ fonctionne sur majorité configs testées
-- Faible : Γ échoue systématiquement
-
----
-
-### Critère 2 : Robustesse cross-D
-
-```python
-robustness_pct = (n_D_with_viable_config / n_total_D) * 100
-
-# D viable si : ≥1 config healthy pour ce D
-```
-
-**Interprétation** :
-- Élevé : Γ s'adapte à différents D
-- Faible : Γ spécialisé ou fragile
-
----
-
-### Critère 3 : Score global
-
-```python
-global_score = mean(all_test_scores)  # [0,1]
-```
-
-**Interprétation** :
-- Faible : Pathologies concentrées (locales, ajustables)
-- Élevé : Pathologies diffuses (systématiques)
-
----
-
-## 12.9.3 Configuration thresholds
-
-### Structure YAML
-
-```yaml
-# config/global/thresholds_default_v1.yaml
-version: "1.0"
-config_id: "thresholds_default_v1"
-description: "Seuils verdicts R0 - configuration nominale"
-created_date: "2025-01-02"
-charter_reference: "Section 12.9"
-
-# Seuil test individuel
-threshold_test: 0.70  # test_score < 0.70 = healthy
-
-# Seuils SURVIVES (logique OU - 1 critère suffit)
-survives:
-  score_max: 0.40       # global_score < 0.40
-  robustness_min: 0.60  # robustness >= 60%
-  majority_min: 0.50    # majority >= 50%
-
-# Seuils REJECTED (logique ET - tous critères doivent échouer)
-rejected:
-  score_min: 0.60       # global_score > 0.60
-  robustness_max: 0.40  # robustness < 40%
-  majority_max: 0.20    # majority < 20%
-```
-
-### Configs alternatives
-
-```yaml
-# config/global/thresholds_strict_v1.yaml
-survives:
-  score_max: 0.30       # Plus strict
-  robustness_min: 0.70
-  majority_min: 0.60
-
-rejected:
-  score_min: 0.70
-  robustness_max: 0.30
-  majority_max: 0.15
-```
-
-```yaml
-# config/global/thresholds_lenient_v1.yaml
-survives:
-  score_max: 0.50       # Plus permissif
-  robustness_min: 0.50
-  majority_min: 0.40
-
-rejected:
-  score_min: 0.50
-  robustness_max: 0.50
-  majority_max: 0.25
-```
-
----
-
-## 12.9.4 Logique verdict : permissivité intentionnelle
-
-### Règle SURVIVES (OU logique)
-
-```python
-if (global_score < survives.score_max OR
-    robustness_pct >= survives.robustness_min * 100 OR
-    majority_pct >= survives.majority_min * 100):
-    verdict = "SURVIVES[R0]"
-```
-
-**Justification** :
-La logique OU est **volontairement permissive** pour éviter l'élimination prématurée de mécanismes potentiellement ajustables. Le tri strict est reporté en R1.
-
-**Philosophie R0** :
-- R0 = filtre de **non-absurdité** (éliminer le clairement pathologique)
-- R1 = tri **sélectif** (garder le prometteur avec contexte interprétatif)
-- R2+ = validation **inter-domaines**
-
----
-
-### Règle REJECTED (ET logique)
-
-```python
-elif (global_score > rejected.score_min AND
-      robustness_pct < rejected.robustness_max * 100 AND
-      majority_pct < rejected.majority_max * 100):
-    verdict = "REJECTED[R0]"
-```
-
-**Condition** : Tous critères doivent échouer simultanément.
-
-**Signification** : Pathologies systématiques sur tous axes (score, robustesse, majorité).
-
----
-
-### Règle WIP (défaut)
-
-```python
-else:
-    verdict = "WIP[R0-open]"
-```
-
-**Signification** : Ni clairement viable, ni clairement pathologique. Nécessite :
-- Plus de données
-- Configs alternatives
-- Ou investigation manuelle
-
----
-
-## 12.9.5 Algorithme verdict complet
-
-```python
-def compute_gamma_verdict(
-    gamma_id: str,
-    params_config_id: str,
-    scoring_config_id: str,
-    thresholds_config_id: str
-) -> dict:
+def load_scores_with_context(gamma_id, configs, db_connection):
     """
-    Calcule verdict global pour une gamma.
-    
-    Agrège TOUS test_scores sur TOUS runs.
+    Charge TOUS les scores avec contexte depuis jointure.
     
     Returns:
-        {
-            'gamma_id': str,
-            'params_config_id': str,
-            'scoring_config_id': str,
-            'thresholds_config_id': str,
-            'majority_pct': float,
-            'robustness_pct': float,
-            'global_score': float,
-            'verdict': str,
-            'verdict_reason': str,
-            'details': dict  # Décomposition complète
-        }
+        List[dict]: [
+            {
+                'exec_id': 42,
+                'run_id': 'GAM-001_beta2.0_SYM-001_M0_s1',
+                'gamma_id': 'GAM-001',
+                'd_base_id': 'SYM-001',
+                'modifier_id': 'M0',
+                'seed': 1,
+                'test_name': 'UNIV-001',
+                'test_score': 0.85,
+                'metric_scores': {...}  # JSON parsed
+            },
+            ...
+        ]
     """
-    # 1. Charger config thresholds
-    thresholds = config_loader.load('thresholds', thresholds_config_id)
-    threshold_test = thresholds['threshold_test']
+    cursor = db_connection.cursor()
     
-    # 2. Récupérer tous test_scores pour cette gamma
-    all_scores = db.query("""
+    cursor.execute("""
         SELECT 
-            ts.exec_id, 
-            ts.test_name, 
-            ts.test_score, 
-            ts.test_weight,
-            ts.pathology_flags,
-            ts.critical_metrics,
-            e.d_base_id, 
-            e.modifier_id, 
-            e.seed
+            e.id as exec_id,
+            e.run_id,
+            e.gamma_id,
+            e.d_base_id,
+            e.modifier_id,
+            e.seed,
+            ts.test_name,
+            ts.test_score,
+            ts.metric_scores
         FROM TestScores ts
         JOIN Executions e ON ts.exec_id = e.id
         WHERE e.gamma_id = ?
           AND ts.params_config_id = ?
           AND ts.scoring_config_id = ?
-    """, gamma_id, params_config_id, scoring_config_id)
+    """, (gamma_id, configs...))
     
-    if not all_scores:
-        return {
-            'gamma_id': gamma_id,
-            'params_config_id': params_config_id,
-            'scoring_config_id': scoring_config_id,
-            'thresholds_config_id': thresholds_config_id,
-            'majority_pct': 0.0,
-            'robustness_pct': 0.0,
-            'global_score': 1.0,
-            'verdict': 'WIP[R0-open]',
-            'verdict_reason': 'Aucune donnée disponible',
-            'details': {}
-        }
-    
-    # 3. Calculer critère MAJORITÉ
-    configs_healthy = [s for s in all_scores if s['test_score'] < threshold_test]
-    majority_pct = (len(configs_healthy) / len(all_scores)) * 100
-    
-    # 4. Calculer critère ROBUSTESSE (grouper par D)
-    d_bases = {}
-    for score in all_scores:
-        d_id = score['d_base_id']
-        if d_id not in d_bases:
-            d_bases[d_id] = []
-        d_bases[d_id].append(score['test_score'])
-    
-    viable_d = sum(1 for scores in d_bases.values() 
-                   if any(s < threshold_test for s in scores))
-    robustness_pct = (viable_d / len(d_bases)) * 100 if d_bases else 0
-    
-    # 5. Calculer GLOBAL_SCORE
-    global_score = np.mean([s['test_score'] for s in all_scores])
-    
-    # 6. Appliquer règles verdict
-    survives = thresholds['survives']
-    rejected = thresholds['rejected']
-    
-    # Logique OU pour SURVIVES
-    survives_checks = {
-        'score': global_score < survives['score_max'],
-        'robustness': robustness_pct >= survives['robustness_min'] * 100,
-        'majority': majority_pct >= survives['majority_min'] * 100
-    }
-    
-    if any(survives_checks.values()):
-        verdict = "SURVIVES[R0]"
-        
-        # Construire raison détaillée
-        reasons = []
-        if survives_checks['score']:
-            reasons.append(f"global_score={global_score:.3f} < {survives['score_max']}")
-        if survives_checks['robustness']:
-            reasons.append(f"robustness={robustness_pct:.1f}% ≥ {survives['robustness_min']*100}%")
-        if survives_checks['majority']:
-            reasons.append(f"majority={majority_pct:.1f}% ≥ {survives['majority_min']*100}%")
-        
-        verdict_reason = "SURVIVES (logique OU): " + " OR ".join(reasons)
-    
-    # Logique ET pour REJECTED
-    elif (global_score > rejected['score_min'] and
-          robustness_pct < rejected['robustness_max'] * 100 and
-          majority_pct < rejected['majority_max'] * 100):
-        
-        verdict = "REJECTED[R0]"
-        verdict_reason = (
-            f"REJECTED (logique ET): "
-            f"global_score={global_score:.3f} > {rejected['score_min']} AND "
-            f"robustness={robustness_pct:.1f}% < {rejected['robustness_max']*100}% AND "
-            f"majority={majority_pct:.1f}% < {rejected['majority_max']*100}%"
-        )
-    
-    # Sinon WIP
-    else:
-        verdict = "WIP[R0-open]"
-        verdict_reason = (
-            f"WIP (ni SURVIVES ni REJECTED): "
-            f"global_score={global_score:.3f}, "
-            f"robustness={robustness_pct:.1f}%, "
-            f"majority={majority_pct:.1f}%"
-        )
-    
-    # 7. Construire détails (pour rapport)
-    # Identifier tests critiques
-    critical_tests = [
-        {
-            'exec_id': s['exec_id'],
-            'test_name': s['test_name'],
-            'test_score': s['test_score'],
-            'pathology_flags': json.loads(s['pathology_flags']) if s['pathology_flags'] else [],
-            'critical_metrics': json.loads(s['critical_metrics']) if s['critical_metrics'] else []
-        }
-        for s in all_scores if s['test_score'] >= 0.8
-    ]
-    
-    # Décomposition par D
-    d_breakdown = {}
-    for d_id, scores in d_bases.items():
-        d_breakdown[d_id] = {
-            'n_configs': len(scores),
-            'n_healthy': sum(1 for s in scores if s < threshold_test),
-            'mean_score': np.mean(scores),
-            'min_score': np.min(scores),
-            'max_score': np.max(scores)
-        }
-    
-    details = {
-        'n_total_configs': len(all_scores),
-        'n_healthy_configs': len(configs_healthy),
-        'n_total_d': len(d_bases),
-        'n_viable_d': viable_d,
-        'critical_tests': critical_tests,
-        'd_breakdown': d_breakdown,
-        'thresholds_used': {
-            'threshold_test': threshold_test,
-            'survives': survives,
-            'rejected': rejected
-        }
-    }
-    
-    return {
-        'gamma_id': gamma_id,
-        'params_config_id': params_config_id,
-        'scoring_config_id': scoring_config_id,
-        'thresholds_config_id': thresholds_config_id,
-        'majority_pct': majority_pct,
-        'robustness_pct': robustness_pct,
-        'global_score': global_score,
-        'verdict': verdict,
-        'verdict_reason': verdict_reason,
-        'details': details
-    }
+    rows = cursor.fetchall()
+    return convert_to_dicts(rows)
 ```
 
 ---
 
-## 12.9.6 Traçabilité verdict : rapport détaillé obligatoire
+### Étape 2 : Analyse patterns
 
-**Obligation normative** :
-Tout verdict doit générer un rapport lisible explicitant :
+```python
+def analyze_metric_patterns(scores_data):
+    """
+    Détecte patterns dans scores.
+    
+    Returns:
+        {
+            'non_discriminant': list[str],
+            'over_discriminant': list[str],
+            'd_correlated': dict[str, dict],
+            'modifier_correlated': dict[str, dict],
+            'seed_unstable': list[str],
+            'systematic_failures': list[str],
+            'contextual_behaviors': list[str]
+        }
+    """
+    patterns = {}
+    
+    # Grouper par métrique
+    by_metric = group_by(scores_data, lambda x: (x['test_name'], extract_metric_key(x)))
+    
+    for (test_name, metric_key), metric_data in by_metric.items():
+        scores = [d['score'] for d in metric_data]
+        
+        # 1. Non discriminant
+        if max(scores) < 0.1:
+            patterns.setdefault('non_discriminant', []).append(
+                f"{test_name}.{metric_key}"
+            )
+            continue  # Skip autres analyses si non discriminant
+        
+        # 2. Over discriminant
+        if min(scores) > 0.9:
+            patterns.setdefault('over_discriminant', []).append(
+                f"{test_name}.{metric_key}"
+            )
+            continue  # Skip autres analyses si over discriminant
+        
+        # Métriques valides pour analyses suivantes
+        
+        # 3. Corrélation D
+        if has_d_correlation(metric_data):
+            d_pattern = compute_d_pattern(metric_data)
+            patterns.setdefault('d_correlated', {})[f"{test_name}.{metric_key}"] = d_pattern
+        
+        # 4. Corrélation modifier
+        if has_modifier_correlation(metric_data):
+            mod_pattern = compute_modifier_pattern(metric_data)
+            patterns.setdefault('modifier_correlated', {})[f"{test_name}.{metric_key}"] = mod_pattern
+        
+        # 5. Instabilité seeds
+        seed_variance = compute_seed_variance(metric_data)
+        if seed_variance > 0.3:
+            patterns.setdefault('seed_unstable', []).append(
+                f"{test_name}.{metric_key}"
+            )
+        
+        # 6. Échec systématique
+        high_scores = sum(1 for s in scores if s > 0.7)
+        if high_scores / len(scores) >= 0.8:
+            patterns.setdefault('systematic_failures', []).append(
+                f"{test_name}.{metric_key}"
+            )
+    
+    return patterns
+```
 
-1. **Valeurs critères** (majority, robustness, global_score)
-2. **Seuils appliqués** (config thresholds)
-3. **Tests critiques** (pathology_flags par test)
-4. **Raison précise** (quel critère a déclenché verdict)
-5. **Décomposition par D** (pour investiguer patterns)
+---
 
-### Format rapport texte
+### Étape 3 : Décision verdict
 
+```python
+def decide_verdict_from_patterns(patterns, metric_quality):
+    """
+    Décide verdict depuis patterns détectés.
+    
+    Returns:
+        (verdict: str, reason: str)
+    """
+    # Identifier métriques valides (discriminantes, calibrées)
+    valid_metrics = [
+        m for m in metric_quality 
+        if metric_quality[m]['valid']
+    ]
+    
+    # REJECTED : Pathologies systématiques sur métriques valides
+    systematic = patterns.get('systematic_failures', [])
+    systematic_valid = [m for m in systematic if m in valid_metrics]
+    
+    if len(systematic_valid) >= 3:  # Seuil: ≥3 métriques valides échouent
+        return (
+            "REJECTED[R0]",
+            f"Pathologies systématiques sur {len(systematic_valid)} métriques valides : "
+            f"{', '.join(systematic_valid[:3])}"
+        )
+    
+    # WIP : Comportements contextuels
+    has_d_context = bool(patterns.get('d_correlated'))
+    has_mod_context = bool(patterns.get('modifier_correlated'))
+    
+    if has_d_context or has_mod_context:
+        affected_count = len(patterns.get('d_correlated', {})) + \
+                        len(patterns.get('modifier_correlated', {}))
+        return (
+            "WIP[R0-open]",
+            f"Comportement contextuel détecté sur {affected_count} métriques. "
+            f"Nécessite investigation ciblée."
+        )
+    
+    # WIP : Instabilité stochastique
+    if len(patterns.get('seed_unstable', [])) >= 2:
+        return (
+            "WIP[R0-open]",
+            f"Instabilité stochastique sur {len(patterns['seed_unstable'])} métriques. "
+            f"Augmenter nombre seeds pour confirmer."
+        )
+    
+    # SURVIVES : Pas de pathologie systématique détectée
+    return (
+        "SURVIVES[R0]",
+        "Aucune pathologie systématique détectée. "
+        "Mécanisme non absurde sur espace testé."
+    )
+```
+
+---
+
+### Étape 4 : Génération insights
+
+```python
+def generate_actionable_insights(patterns, metric_quality):
+    """
+    Génère insights actionnables depuis patterns.
+    
+    Returns:
+        list[str]: Insights formatés
+    """
+    insights = []
+    
+    # Métriques non discriminantes
+    if patterns.get('non_discriminant'):
+        metrics = patterns['non_discriminant']
+        insights.append(
+            f"⚠ Recalibrer métriques non discriminantes ({len(metrics)}) : "
+            f"{', '.join(metrics[:3])}. "
+            f"Action : Augmenter seuils ou supprimer métriques."
+        )
+    
+    # Métriques over-discriminantes
+    if patterns.get('over_discriminant'):
+        metrics = patterns['over_discriminant']
+        insights.append(
+            f"⚠ Recalibrer métriques over-discriminantes ({len(metrics)}) : "
+            f"{', '.join(metrics[:3])}. "
+            f"Action : Augmenter seuils critiques."
+        )
+    
+    # Corrélations D
+    if patterns.get('d_correlated'):
+        for metric, d_pattern in patterns['d_correlated'].items():
+            failing_d = [d for d, stats in d_pattern.items() if stats['mean'] > 0.7]
+            if failing_d:
+                insights.append(
+                    f"📊 {metric} échoue sur {', '.join(failing_d)}. "
+                    f"Action : Γ spécialisé, investiguer amplification sur ces D."
+                )
+    
+    # Corrélations modifier (bruit)
+    if patterns.get('modifier_correlated'):
+        metrics = list(patterns['modifier_correlated'].keys())
+        insights.append(
+            f"📊 Sensibilité au bruit détectée ({len(metrics)} métriques) : "
+            f"{', '.join(metrics[:3])}. "
+            f"Action : Tester régularisation ou pré-filtrage."
+        )
+    
+    # Instabilité seeds
+    if patterns.get('seed_unstable'):
+        metrics = patterns['seed_unstable']
+        insights.append(
+            f"⚠ Instabilité stochastique ({len(metrics)} métriques) : "
+            f"{', '.join(metrics[:3])}. "
+            f"Action : Augmenter seeds (×3) ou investiguer sensibilité initiale."
+        )
+    
+    return insights
+```
+
+---
+
+## 12.9.4 Formats rapports
+
+Le système génère **deux formats de rapports** :
+
+### Format A : Rapport humain (texte)
+
+**Usage** : Lecture rapide, décision, action.
+
+**Contenu** :
+- Verdict + raison
+- Patterns clés (résumé)
+- Insights actionnables (3-5 actions)
+- Métriques critiques (top 3)
+
+**Exemple** :
 ```text
 ================================================================================
 VERDICT REPORT: GAM-001
 ================================================================================
 
-Configuration:
-  Params:     params_default_v1
-  Scoring:    scoring_default_v1
-  Thresholds: thresholds_default_v1
-  Computed:   2025-01-02 14:32:15
+VERDICT: WIP[R0-open]
+REASON: Comportement contextuel détecté sur 3 métriques
 
-================================================================================
-VERDICT: SURVIVES[R0]
-================================================================================
+Patterns clés:
+  - Divergence sur SYM-001 uniquement (asymmetry_norm)
+  - Sensible au noise ≥0.3 (stat_final)
+  - 2 métriques over-discriminantes nécessitent recalibrage
 
-Raison:
-  global_score=0.35 < 0.40 (seuil survives.score_max)
+Insights actionnables:
+  1. ⚠ Recalibrer stat_max : threshold_high 1000 → 5000
+  2. 📊 asymmetry_norm échoue sur SYM-001 : investiguer amplification symétrie
+  3. 📊 Sensibilité bruit : tester régularisation pour M3/M4
 
-Critères (détail):
-  ✓ global_score:  0.35  [PASS: < 0.40]
-  ✗ robustness:    55%   [FAIL: < 60%]
-  ✗ majority:      45%   [FAIL: < 50%]
-
-Verdict: SURVIVES car AU MOINS UN critère passe (logique OU)
-
-================================================================================
-ANALYSE DÉTAILLÉE
-================================================================================
-
-Statistiques globales:
-  - Total configs testées:  100
-  - Configs saines:         45 (45%)
-  - D testés:               10
-  - D viables (≥1 config saine): 5 (50%)
-
-Tests critiques (score ≥ 0.80):
-  
-  [1] exec_id=42, test=UNIV-001
-      score: 0.85
-      flags: [stat_final, evolution_transition]
-      metrics critiques:
-        - stat_final: value=12500.0, score=0.92, type=S2_EXPLOSION
-        - evolution_transition: value=explosive, score=1.0, type=MAPPING
-  
-  [2] exec_id=58, test=SYM-001
-      score: 0.72
-      flags: [asymmetry_norm]
-      metrics critiques:
-        - asymmetry_norm: value=0.95, score=0.72, type=S1_COLLAPSE (inversé)
-
-Décomposition par D:
-  
-  SYM-001: 10 configs, 6 saines (60%), score moyen=0.42
-  SYM-002: 10 configs, 5 saines (50%), score moyen=0.51
-  ASY-001: 10 configs, 3 saines (30%), score moyen=0.68
-  ASY-002: 10 configs, 4 saines (40%), score moyen=0.63
-  R3-001:  10 configs, 5 saines (50%), score moyen=0.55
-  ...
-
-================================================================================
-CONCLUSION
-================================================================================
-
-Γ=GAM-001 non éliminé en R0 (SURVIVES).
-
-Pathologies identifiées:
-  - Explosions norm sur configs avec modifiers agressifs (exec 42, 67, 89)
-  - Perte symétrie sur bases ASY (attendu, pas pathologique)
-
-Recommandations exploration R1:
-  - Investiguer stabilité sous modifiers M3, M4
-  - Affiner seuils explosion norm (actuellement 1000.0)
-  - Tester compositions avec mécanismes régulateurs
+Métriques critiques:
+  - stat_final (UNIV-001) : 27/30 runs > 0.8
+  - asymmetry_norm (SYM-001) : 9/10 runs sur SYM-001 > 0.8
 
 ================================================================================
 ```
 
+**Fichier** : `reports/verdict_{gamma_id}_{timestamp}_human.txt`
+
 ---
 
-## 12.9.7 Stockage db_results
+### Format B : Rapport LLM (JSON)
 
-### Table GammaVerdicts
+**Usage** : Analyse patterns par LLM externe, détection corrélations non codées.
+
+**Contenu** :
+- Verdict + metadata configs
+- **TOUS les scores par run** (exec_id, contexte, métriques)
+- Patterns détectés (structure complète)
+- Qualité métriques
+- Insights actionnables
+
+**Structure** :
+```json
+{
+  "gamma_id": "GAM-001",
+  "verdict": "WIP[R0-open]",
+  "verdict_reason": "...",
+  
+  "config": {
+    "params": "params_default_v1",
+    "scoring": "scoring_default_v1",
+    "thresholds": "thresholds_default_v1"
+  },
+  
+  "scores_by_run": [
+    {
+      "exec_id": 42,
+      "run_id": "GAM-001_beta2.0_SYM-001_M0_s1",
+      "gamma_id": "GAM-001",
+      "d_base_id": "SYM-001",
+      "modifier_id": "M0",
+      "seed": 1,
+      "tests": {
+        "UNIV-001": {
+          "test_score": 0.85,
+          "metrics": {
+            "frobenius_norm": {
+              "value": 12500.0,
+              "score": 0.92,
+              "flag": true,
+              "pathology_type": "S2_EXPLOSION",
+              "weight": 2.0
+            },
+            "stat_std": {...},
+            "evolution_transition": {...}
+          }
+        },
+        "SYM-001": {...}
+      }
+    },
+    ... // TOUS les runs (30-100 typiquement)
+  ],
+  
+  "patterns_detected": {
+    "non_discriminant": ["UNIV-001.stat_min"],
+    "over_discriminant": ["UNIV-001.stat_max"],
+    "d_correlated": {
+      "SYM-001.asymmetry_norm": {
+        "SYM-001": {"mean": 0.85, "std": 0.08, "count": 10},
+        "ASY-001": {"mean": 0.12, "std": 0.05, "count": 10},
+        "R3-001": {"mean": 0.25, "std": 0.07, "count": 10}
+      }
+    },
+    "modifier_correlated": {
+      "UNIV-001.stat_final": {
+        "M0": {"mean": 0.15, "std": 0.03},
+        "M3": {"mean": 0.85, "std": 0.12},
+        "M4": {"mean": 0.95, "std": 0.05}
+      }
+    },
+    "seed_unstable": ["UNIV-001.evolution_volatility"],
+    "systematic_failures": []
+  },
+  
+  "metric_quality": {
+    "UNIV-001.frobenius_norm": {
+      "valid": true,
+      "discriminant": true,
+      "calibrated": true,
+      "variance": 0.32,
+      "mean_score": 0.42
+    },
+    "UNIV-001.stat_min": {
+      "valid": false,
+      "discriminant": false,
+      "reason": "always_zero",
+      "variance": 0.01
+    }
+  },
+  
+  "actionable_insights": [
+    "⚠ Recalibrer stat_max : threshold_high 1000 → 5000",
+    "📊 asymmetry_norm échoue sur SYM-001 : investiguer amplification"
+  ]
+}
+```
+
+**Fichier** : `reports/verdict_{gamma_id}_{timestamp}_llm.json`
+
+---
+
+## 12.9.5 Stockage db_results
+
+### Table GammaVerdicts (schema complet)
 
 ```sql
 CREATE TABLE GammaVerdicts (
   id INTEGER PRIMARY KEY,
   gamma_id TEXT NOT NULL,
   
-  -- Configs utilisées (traçabilité complète)
+  -- Configs utilisées (traçabilité pipeline)
   params_config_id TEXT NOT NULL,
   scoring_config_id TEXT NOT NULL,
   thresholds_config_id TEXT NOT NULL,
   
-  -- Critères
-  majority_pct REAL NOT NULL,
-  robustness_pct REAL NOT NULL,
-  global_score REAL NOT NULL,  -- [0,1] pathology score moyen
+  -- Critères (conservés pour compatibilité/reporting)
+  majority_pct REAL,                -- % configs saines (optionnel en patterns)
+  robustness_pct REAL,              -- % D viables (optionnel en patterns)
+  global_score REAL,                -- Score moyen (optionnel en patterns)
   
   -- Verdict
-  verdict TEXT NOT NULL,  -- SURVIVES[R0] | WIP[R0-open] | REJECTED[R0]
+  verdict TEXT NOT NULL,            -- SURVIVES[R0] | WIP[R0-open] | REJECTED[R0]
   verdict_reason TEXT NOT NULL,
   
-  -- Détails (JSON complet pour traçabilité)
-  details TEXT NOT NULL,  -- JSON {n_configs, critical_tests, d_breakdown, ...}
+  -- Patterns et insights (JSON complet)
+  details TEXT NOT NULL,            -- {patterns_detected, metric_quality, insights, ...}
   
   -- Metadata
   computed_at TEXT NOT NULL,
@@ -1907,108 +1883,74 @@ CREATE TABLE GammaVerdicts (
   FOREIGN KEY(scoring_config_id) REFERENCES ConfigRegistry(config_id),
   FOREIGN KEY(thresholds_config_id) REFERENCES ConfigRegistry(config_id)
 );
-
--- Index
-CREATE INDEX idx_gamma_verdicts_lookup 
-ON GammaVerdicts(gamma_id, params_config_id, scoring_config_id, thresholds_config_id);
-
-CREATE INDEX idx_gamma_verdicts_gamma 
-ON GammaVerdicts(gamma_id);
-
-CREATE INDEX idx_gamma_verdicts_verdict 
-ON GammaVerdicts(verdict);
 ```
 
----
-
-# MODIFICATIONS SECTIONS EXISTANTES
-
-## Section 12.5 : Scoring (OBSOLÈTE - REMPLACER PAR 12.8)
-
-**Action** : Supprimer section 12.5 et remplacer par section 12.8 ci-dessus.
-
-**Changements majeurs** :
-- ✅ Échelle normalisée [0,1] (vs /20 ambigu)
-- ✅ Sémantique pathologie explicite (0=sain, 1=pathologique)
-- ✅ Typologie S1-S4 + MAPPING
-- ✅ Clarifications normatives (12.8.5)
-
----
-
-## Section 12.6 : Configuration (PARTIEL - AJOUTER TEMPLATES)
-
-**Action** : Ajouter templates scoring et thresholds dans section 12.6.
-
-**Ajouts** :
-
-### Template scoring_default_v1.yaml
-```yaml
-# Voir section 12.8.3
-```
-
-### Template thresholds_default_v1.yaml
-```yaml
-# Voir section 12.9.3
-```
-
-**Note** : Templates params restent inchangés.
-
----
-
-## Section 12.7 : Verdicts (OBSOLÈTE - REMPLACER PAR 12.9)
-
-**Action** : Supprimer section 12.7 et remplacer par section 12.9 ci-dessus.
-
-**Changements majeurs** :
-- ✅ Clarification SURVIVES ≠ intéressant
-- ✅ Justification logique OU (permissivité R0)
-- ✅ Traçabilité verdict complète obligatoire
-- ✅ Rapport détaillé format normalisé
-
----
-
-## Schema db_results (MODIFIER)
-
-**Action** : Modifier schema selon 12.8.6 et 12.9.7.
-
-**Changements TestScores** :
-```sql
--- AJOUTER colonnes
-test_score REAL NOT NULL             -- Renommer weighted_average
-aggregation_mode TEXT NOT NULL       -- NOUVEAU
-pathology_flags TEXT                 -- NOUVEAU
-critical_metrics TEXT                -- NOUVEAU
-```
-
-**Changements GammaVerdicts** :
-```sql
--- AJOUTER colonnes
-details TEXT NOT NULL                -- NOUVEAU (JSON complet)
-```
-
----
-
-## Templates tests (AJOUTER OPTIONNEL)
-
-**Action** : Ajouter section optionnelle SCORING_METADATA dans template test.
-
-```python
-# tests/test_xxx_yyy.py
-
-# NOUVEAU (optionnel, pour override YAML)
-SCORING_METADATA = {
-    'aggregation_mode': 'max',       # R0 default
-    'critical_threshold': 0.8,       # Flag si score >= 0.8
-    'description': 'Pathologies détectées',
-    'expected_pathologies': ['S2_EXPLOSION', 'MAPPING']
+**Champ `details` (JSON)** :
+```json
+{
+  "patterns_detected": {...},
+  "metric_quality": {...},
+  "actionable_insights": [...],
+  "all_exec_ids": [42, 58, 67, ...],
+  "failing_d": ["SYM-001"],
+  "failing_modifiers": ["M3", "M4"],
+  "critical_metrics": ["UNIV-001.frobenius_norm", ...]
 }
 ```
 
-**Note** : Optionnel car YAML scoring suffit généralement.
+---
+
+## 12.9.6 Usage rapports
+
+### Workflow humain
+
+```bash
+# Générer verdict
+python batch_runner.py --verdict --gamma GAM-001
+
+# Lire rapport humain
+cat reports/verdict_GAM-001_*_human.txt
+
+# Décider action
+# → Si SURVIVES : continuer exploration
+# → Si WIP : investiguer patterns identifiés
+# → Si REJECTED : archiver ou modifier Γ
+```
 
 ---
 
-# FIN SECTIONS 12.8-12.9 + MODIFICATIONS
+### Workflow LLM externe
+
+```bash
+# Générer verdict
+python batch_runner.py --verdict --gamma GAM-001
+
+# Analyser avec LLM externe
+cat reports/verdict_GAM-001_*_llm.json | llm "
+Analyse ces scores et détecte patterns non évidents.
+
+Cherche particulièrement:
+1. Corrélations subtiles entre métriques
+2. Seuils de bifurcation (valeurs critiques D/modifier/seed)
+3. Clusters comportements similaires
+4. Métriques redondantes
+5. Hypothèses mécanismes sous-jacents
+
+Réponds en structurant:
+- Patterns détectés (nouveaux, non codés)
+- Hypothèses causales
+- Tests suggérés pour R1
+"
+```
+
+**Avantages** :
+- LLM peut détecter corrélations non linéaires
+- Hypothèses causales depuis patterns
+- Suggestions tests R1 ciblés
+
+---
+
+# FIN SECTIONS 12.8-12.9 RÉVISÉES
 
 ---
 
