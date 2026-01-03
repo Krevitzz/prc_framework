@@ -1,13 +1,5 @@
 #!/usr/bin/env python3
-"""
-prc_automation/init_databases.py
-
-Initialise les bases de données db_raw et db_results.
-
-Usage:
-    python init_databases.py
-    python init_databases.py --reset  # Supprime et recrée
-"""
+# prc_automation/init_databases.py
 
 import argparse
 import sqlite3
@@ -21,7 +13,7 @@ SCHEMA_RESULTS_PATH = Path("prc_database/schema_results.sql")
 
 
 def init_db_raw(reset: bool = False):
-    """Initialise db_raw."""
+    """Initialise db_raw (inchangé)."""
     print(f"\n{'='*70}")
     print("INITIALISATION db_raw")
     print(f"{'='*70}\n")
@@ -34,10 +26,8 @@ def init_db_raw(reset: bool = False):
             print(f"✓ {DB_RAW_PATH} existe déjà")
             return
     
-    # Créer répertoire si nécessaire
     DB_RAW_PATH.parent.mkdir(parents=True, exist_ok=True)
     
-    # Lire schema
     if not SCHEMA_RAW_PATH.exists():
         print(f"❌ Schema non trouvé: {SCHEMA_RAW_PATH}")
         return
@@ -45,7 +35,6 @@ def init_db_raw(reset: bool = False):
     with open(SCHEMA_RAW_PATH, 'r') as f:
         schema = f.read()
     
-    # Créer DB
     conn = sqlite3.connect(DB_RAW_PATH)
     conn.executescript(schema)
     conn.commit()
@@ -56,9 +45,9 @@ def init_db_raw(reset: bool = False):
 
 
 def init_db_results(reset: bool = False):
-    """Initialise db_results."""
+    """Initialise db_results (nouveau schema 5.4)."""
     print(f"\n{'='*70}")
-    print("INITIALISATION db_results")
+    print("INITIALISATION db_results (Charter 5.4)")
     print(f"{'='*70}\n")
     
     if DB_RESULTS_PATH.exists():
@@ -69,10 +58,8 @@ def init_db_results(reset: bool = False):
             print(f"✓ {DB_RESULTS_PATH} existe déjà")
             return
     
-    # Créer répertoire si nécessaire
     DB_RESULTS_PATH.parent.mkdir(parents=True, exist_ok=True)
     
-    # Lire schema
     if not SCHEMA_RESULTS_PATH.exists():
         print(f"❌ Schema non trouvé: {SCHEMA_RESULTS_PATH}")
         return
@@ -80,14 +67,14 @@ def init_db_results(reset: bool = False):
     with open(SCHEMA_RESULTS_PATH, 'r') as f:
         schema = f.read()
     
-    # Créer DB
     conn = sqlite3.connect(DB_RESULTS_PATH)
     conn.executescript(schema)
     conn.commit()
     conn.close()
     
     print(f"✓ {DB_RESULTS_PATH} créée")
-    print(f"  Tables: TestObservations, TestScores, GammaVerdicts")
+    print(f"  Tables: ConfigRegistry, TestObservations, TestScores, GammaVerdicts")
+    print(f"  Vues: v_scores_with_context, v_verdict_summary")
 
 
 def check_schemas():
@@ -108,20 +95,17 @@ def check_schemas():
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Initialise bases de données")
+    parser = argparse.ArgumentParser(description="Initialise bases de données Charter 5.4")
     parser.add_argument('--reset', action='store_true',
-                       help='Supprime et recrée les bases')
+                       help='Supprime et recrée les bases (⚠ PERTE DONNÉES)')
     
     args = parser.parse_args()
     
     print("\n" + "#"*70)
-    print("# INITIALISATION BASES DE DONNÉES")
+    print("# INITIALISATION BASES DE DONNÉES - CHARTER 5.4")
     print("#"*70)
     
-    # Vérifier schemas
     check_schemas()
-    
-    # Initialiser bases
     init_db_raw(reset=args.reset)
     init_db_results(reset=args.reset)
     
@@ -130,8 +114,12 @@ def main():
     print("#"*70 + "\n")
     
     print("Prochaines étapes:")
-    print("  1. Lancer collecte données:")
+    print("  1. Collecte données brutes:")
     print("     python batch_runner.py --brut --gamma GAM-001")
+    print("  2. Application tests + scoring:")
+    print("     python batch_runner.py --test --gamma GAM-001")
+    print("  3. Génération verdict:")
+    print("     python batch_runner.py --verdict --gamma GAM-001")
     print()
 
 if __name__ == "__main__":

@@ -1,330 +1,351 @@
 # prc_automation/batch_runner.py
+"""
+Batch Runner Charter 5.4 - Pipeline exécution complet.
+
+Modes:
+- --brut: Collecte données (db_raw)
+- --test: Application tests + scoring (db_results)
+- --verdict: Génération verdict patterns (db_results + rapports)
+- --all: Pipeline complet
+"""
 
 import argparse
 import sys
+import sqlite3
+import json
+from datetime import datetime
+from pathlib import Path
+
 from tests.utilities.discovery import discover_active_tests
-from tests.utilities.applicability import filter_applicable_tests
-from tests.utilities.test_engine import run_observation
+from tests.utilities.applicability import check as check_applicability
+from tests.utilities.test_engine import TestEngine
 from tests.utilities.scoring import score_observation
-from tests.utilities.verdict_engine import compute_gamma_verdict
-from tests.utilities.config_loader import get_loader
+from tests.utilities.verdict_engine import (
+    compute_gamma_verdict,
+    generate_human_report,
+    generate_llm_report
+)
+
 
 class CriticalTestError(Exception):
-    """Exception pour erreurs critiques nécessitant arrêt"""
+    """Exception pour erreurs critiques nécessitant arrêt."""
     pass
 
 
-def main():
-    args = parse_args()
-    
-    if args.mode == 'brut':
-        run_batch_brut(args)
-    elif args.mode == 'test':
-        run_batch_test(args)
-    elif args.mode == 'verdict':
-        run_batch_verdict(args)
-    elif args.mode == 'all':
-        run_batch_all(args)
-
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    
-    parser.add_argument('--mode', required=True,
-                       choices=['brut', 'test', 'verdict', 'all'])
-    
-    parser.add_argument('--gamma', required=True,
-                       help="Gamma ID (ex: GAM-001)")
-    
-    parser.add_argument('--params', default='params_default_v1',
-                       help="Global params config ID")
-    
-    parser.add_argument('--scoring', default='scoring_default_v1',
-                       help="Scoring config ID")
-    
-    parser.add_argument('--thresholds', default='thresholds_strict_v1',
-                       help="Thresholds config ID")
-    
-    return parser.parse_args()
+# =============================================================================
+# MODE BRUT (collecte données)
+# =============================================================================
 
 def run_batch_brut(args):
     """
     Exécute kernel pour toutes configs.
     Stocke dans db_raw uniquement.
     """
+    print(f"\n{'='*70}")
+    print("MODE BRUT - Collecte données")
+    print(f"{'='*70}\n")
+    
     gamma_id = args.gamma
     
-    # Charger toutes configs pour cette gamma
-    configs = generate_all_configs(gamma_id)
+    # TODO: Implémenter génération configs + exécution kernel
+    # Pour l'instant, assume que db_raw existe déjà
     
-    log.info(f"Running {len(configs)} configs for {gamma_id}")
+    print(f"⚠ Mode --brut assume db_raw existante")
+    print(f"  Vérifier executions pour {gamma_id}...")
     
-    for i, config in enumerate(configs):
-        try:
-            log.info(f"Config {i+1}/{len(configs)}: {config}")
-            
-            # Exécuter kernel
-            result = run_kernel_for_config(config)
-            
-            # Stocker dans db_raw
-            exec_id = store_execution_raw(result)
-            
-            log.info(f"  ✓ Stored as exec_id={exec_id}")
-            
-        except CriticalTestError as e:
-            log.error("=" * 80)
-            log.error("CRITICAL ERROR DETECTED")
-            log.error(f"Error: {e}")
-            log.error(f"Config: {config}")
-            log.error(f"Progress: {i}/{len(configs)} configs completed")
-            log.error("=" * 80)
-            log.error("Batch execution stopped.")
-            log.error("Action required:")
-            log.error("  1. Fix the code causing the error")
-            log.error("  2. Delete prc_r0_raw.db and prc_r0_results.db")
-            log.error("  3. Rerun: batch_runner --brut --gamma {gamma_id}")
-            log.error("=" * 80)
-            
-            # Arrêt total
-            sys.exit(1)
-    
-    log.info(f"✓ Batch brut completed: {len(configs)} configs")
-
-
-def generate_all_configs(gamma_id: str) -> List[dict]:
-    """
-    Génère toutes les configs pour une gamma.
-    
-    Returns:
-        list de dicts {gamma_id, d_base_id, modifier_id, seed, ...}
-    """
-    # Récupérer params gamma
-    gamma_params = load_gamma_definition(gamma_id)
-    
-    # Générer toutes combinaisons
-    configs = []
-    for d_base_id in gamma_params['d_bases']:
-        for modifier_id in gamma_params['modifiers']:
-            for seed in gamma_params['seeds']:
-                configs.append({
-                    'gamma_id': gamma_id,
-                    'd_base_id': d_base_id,
-                    'modifier_id': modifier_id,
-                    'seed': seed,
-                    'gamma_params': gamma_params['operator_params'],
-                })
-    
-    return configs
-
-
-def run_kernel_for_config(config: dict) -> dict:
-    """
-    Exécute kernel pour une config.
-    
-    Returns:
-        {
-            'config': dict,
-            'history': list[np.ndarray],
-            'metrics': list[dict],
-            'converged': bool,
-            'final_iteration': int,
-        }
-    """
-    # Préparer D
-    d_state = prepare_state(
-        base=create_d_base(config['d_base_id']),
-        modifiers=load_modifiers(config['modifier_id'])
-    )
-    
-    # Créer gamma
-    gamma = create_gamma_operator(config['gamma_id'], config['gamma_params'])
-    
-    # Exécuter kernel
-    history = []
-    metrics = []
-    
-    for iteration, state in run_kernel(
-        d_state, gamma, 
-        max_iterations=10000,
-        record_history=True
-    ):
-        history.append(state.copy())
-        metrics.append({
-            'iteration': iteration,
-            'norm': np.linalg.norm(state),
-            # autres métriques kernel
-        })
-    
-    return {
-        'config': config,
-        'history': history,
-        'metrics': metrics,
-        'converged': len(history) < 10000,
-        'final_iteration': len(history),
-    }
-
-
-def store_execution_raw(result: dict) -> int:
-    """
-    Stocke résultat dans db_raw.
-    
-    Returns:
-        exec_id: ID de l'exécution
-    """
     conn = sqlite3.connect('prc_database/prc_r0_raw.db')
     cursor = conn.cursor()
-    
-    # Insérer Execution
-    cursor.execute("""
-        INSERT INTO Executions (
-            gamma_id, d_base_id, modifier_id, seed,
-            gamma_params, converged, final_iteration,
-            executed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        result['config']['gamma_id'],
-        result['config']['d_base_id'],
-        result['config']['modifier_id'],
-        result['config']['seed'],
-        json.dumps(result['config']['gamma_params']),
-        result['converged'],
-        result['final_iteration'],
-        datetime.now().isoformat(),
-    ))
-    
-    exec_id = cursor.lastrowid
-    
-    # Insérer Snapshots (échantillonnage)
-    snapshot_indices = np.linspace(0, len(result['history'])-1, 100, dtype=int)
-    for idx in snapshot_indices:
-        state = result['history'][idx]
-        cursor.execute("""
-            INSERT INTO Snapshots (exec_id, iteration, state_blob)
-            VALUES (?, ?, ?)
-        """, (
-            exec_id,
-            int(idx),
-            compress_state(state),
-        ))
-    
-    # Insérer Metrics
-    for metric in result['metrics']:
-        cursor.execute("""
-            INSERT INTO Metrics (
-                exec_id, iteration, norm, ...
-            ) VALUES (?, ?, ?, ...)
-        """, (exec_id, metric['iteration'], metric['norm'], ...))
-    
-    conn.commit()
+    cursor.execute("SELECT COUNT(*) FROM Executions WHERE gamma_id = ?", (gamma_id,))
+    count = cursor.fetchone()[0]
     conn.close()
     
-    return exec_id
-	
+    if count == 0:
+        print(f"\n❌ Aucune exécution trouvée pour {gamma_id} dans db_raw")
+        print(f"   Action: Exécuter kernel manuellement ou implémenter génération configs")
+        sys.exit(1)
+    
+    print(f"✓ {count} exécutions trouvées pour {gamma_id}")
+
+
+# =============================================================================
+# MODE TEST (observations + scoring)
+# =============================================================================
+
 def run_batch_test(args):
     """
     Applique tests sur runs existants.
     Calcule observations et scores.
     Stocke dans db_results.
     """
-	
+    print(f"\n{'='*70}")
+    print("MODE TEST - Application tests + scoring")
+    print(f"{'='*70}\n")
+    
     gamma_id = args.gamma
     params_config_id = args.params
     scoring_config_id = args.scoring
-	
-	    # Vérifier configs existent
-    loader = get_loader()
     
-    try:
-        # Test chargement config
-        _ = loader.load('params', args.params)
-    except FileNotFoundError as e:
-        log.error(f"Config params invalide: {e}")
-        sys.exit(1)
-    
-    # Vérifier que runs existent
+    # Vérifier db_raw
     exec_ids = get_exec_ids_for_gamma(gamma_id)
     if not exec_ids:
-        log.warning(f"No runs found for {gamma_id} in db_raw")
-        log.info("Running --brut first...")
-        run_batch_brut(args)
-        exec_ids = get_exec_ids_for_gamma(gamma_id)
+        print(f"❌ Aucune exécution trouvée pour {gamma_id} dans db_raw")
+        print(f"   Action: Exécuter --brut d'abord")
+        sys.exit(1)
+    
+    print(f"✓ {len(exec_ids)} exécutions trouvées")
     
     # Découvrir tests actifs
+    print("\nDécouverte tests...")
     all_tests = discover_active_tests()
-    log.info(f"Discovered {len(all_tests)} active tests")
+    print(f"✓ {len(all_tests)} tests actifs découverts")
+    
+    # Initialiser engine
+    engine = TestEngine()
+    
+    # Compteurs
+    total_observations = 0
+    total_scores = 0
+    errors = []
     
     # Pour chaque run
-    for exec_id in exec_ids:
-        log.info(f"Processing exec_id={exec_id}")
+    for i, exec_id in enumerate(exec_ids, 1):
+        print(f"\n[{i}/{len(exec_ids)}] Processing exec_id={exec_id}")
         
-        # Charger contexte et history
-        context = load_execution_context(exec_id)
-        history = load_execution_history(exec_id)
+        try:
+            # Charger contexte
+            context = load_execution_context(exec_id)
+            
+            # Charger premier snapshot pour state_shape
+            first_snapshot = load_first_snapshot(exec_id)
+            context['state_shape'] = first_snapshot.shape
+            context['exec_id'] = exec_id  # ⚠️ TRAÇABILITÉ
+            
+            # Filtrer tests applicables
+            applicable_tests = {}
+            for test_id, test_module in all_tests.items():
+                applicable, reason = check_applicability(test_module, context)
+                if applicable:
+                    applicable_tests[test_id] = test_module
+            
+            print(f"  {len(applicable_tests)}/{len(all_tests)} tests applicables")
+            
+            if not applicable_tests:
+                continue
+            
+            # Charger history complète
+            history = load_execution_history(exec_id)
+            
+            # Appliquer chaque test
+            for test_id, test_module in applicable_tests.items():
+                try:
+                    # Phase 1: Observation
+                    observation = engine.execute_test(
+                        test_module, context, history, params_config_id
+                    )
+                    
+                    # Stocker observation
+                    store_test_observation(exec_id, observation)
+                    total_observations += 1
+                    
+                    # Si NOT_APPLICABLE ou ERROR, skip scoring
+                    if observation['status'] not in ['SUCCESS']:
+                        print(f"    {test_id}: {observation['status']}")
+                        continue
+                    
+                    # Phase 2: Scoring
+                    scores = score_observation(
+                        observation, test_module, scoring_config_id
+                    )
+                    
+                    # Stocker scores
+                    store_test_scores(exec_id, scores)
+                    total_scores += 1
+                    
+                    print(f"    ✓ {test_id}: score={scores['test_score']:.3f}")
+                
+                except Exception as e:
+                    error_msg = f"exec_id={exec_id}, test={test_id}: {str(e)}"
+                    errors.append(error_msg)
+                    print(f"    ✗ {test_id}: {str(e)}")
         
-        # Filtrer tests applicables
-        applicable_tests = filter_applicable_tests(all_tests, context)
-        log.info(f"  {len(applicable_tests)} applicable tests")
-        
-        # Appliquer chaque test
-        for test_id, test_module in applicable_tests.items():
-            try:
-                # Phase 1: Observation
-                observation = run_observation(
-                    test_module, history, context, params_config_id
-                )
-                
-                # Stocker observation
-                store_test_observation(exec_id, observation)
-                
-                # Si NOT_APPLICABLE ou ERROR, skip scoring
-                if observation['status'] not in ['SUCCESS', 'SKIPPED']:
-                    continue
-                
-                # Phase 2: Scoring
-                scores = score_observation(
-                    observation, test_module, context, scoring_config_id
-                )
-                
-                # Stocker scores
-                store_test_scores(exec_id, scores)
-                
-                log.info(f"    ✓ {test_id}: {observation['status']}")
-                
-            except Exception as e:
-                log.error(f"    ✗ {test_id}: {e}")
-                # Ne pas lever - continuer avec autres tests
+        except Exception as e:
+            error_msg = f"exec_id={exec_id}: {str(e)}"
+            errors.append(error_msg)
+            print(f"  ✗ Erreur run: {str(e)}")
     
-    log.info(f"✓ Batch test completed for {gamma_id}")
+    # Résumé
+    print(f"\n{'='*70}")
+    print("RÉSUMÉ MODE TEST")
+    print(f"{'='*70}")
+    print(f"Observations générées: {total_observations}")
+    print(f"Scores calculés:       {total_scores}")
+    print(f"Erreurs:               {len(errors)}")
+    
+    if errors:
+        print("\nErreurs détaillées:")
+        for err in errors[:10]:  # Limiter affichage
+            print(f"  - {err}")
+
+
+# =============================================================================
+# MODE VERDICT (patterns + rapports)
+# =============================================================================
+
+def run_batch_verdict(args):
+    """
+    Calcule verdict global pour gamma.
+    Agrège tous tests sur tous runs.
+    Génère 2 rapports (humain + LLM).
+    """
+    print(f"\n{'='*70}")
+    print("MODE VERDICT - Analyse patterns + rapports")
+    print(f"{'='*70}\n")
+    
+    gamma_id = args.gamma
+    params_config_id = args.params
+    scoring_config_id = args.scoring
+    
+    # Vérifier que scores existent
+    if not check_scores_exist(gamma_id, params_config_id, scoring_config_id):
+        print(f"❌ Aucun score trouvé pour {gamma_id}")
+        print(f"   Action: Exécuter --test d'abord")
+        sys.exit(1)
+    
+    # Calculer verdict
+    try:
+        verdict = compute_gamma_verdict(
+            gamma_id,
+            params_config_id,
+            scoring_config_id
+        )
+    except Exception as e:
+        print(f"\n❌ Erreur calcul verdict: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    
+    # Stocker verdict
+    print("\n5. Stockage verdict...")
+    store_gamma_verdict(verdict)
+    print("   ✓ Verdict stocké dans db_results")
+    
+    # Générer rapports
+    print("\n6. Génération rapports...")
+    Path("reports").mkdir(exist_ok=True)
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    # Rapport humain (txt)
+    human_path = f"reports/verdict_{gamma_id}_{timestamp}_human.txt"
+    generate_human_report(verdict, human_path)
+    print(f"   ✓ Rapport humain: {human_path}")
+    
+    # Rapport LLM (JSON)
+    llm_path = f"reports/verdict_{gamma_id}_{timestamp}_llm.json"
+    generate_llm_report(verdict, llm_path)
+    print(f"   ✓ Rapport LLM: {llm_path}")
+    
+    # Afficher verdict
+    print(f"\n{'='*70}")
+    print("VERDICT FINAL")
+    print(f"{'='*70}")
+    print(f"Gamma:    {verdict['gamma_id']}")
+    print(f"Verdict:  {verdict['verdict']}")
+    print(f"Raison:   {verdict['verdict_reason']}")
+    print(f"Runs:     {verdict['num_runs_analyzed']}")
+    print(f"Tests:    {verdict['num_tests_analyzed']}")
+    print(f"{'='*70}\n")
+
+
+# =============================================================================
+# MODE ALL (pipeline complet)
+# =============================================================================
+
+def run_batch_all(args):
+    """Exécute pipeline complet en une commande."""
+    print(f"\n{'#'*70}")
+    print("# PIPELINE COMPLET: brut → test → verdict")
+    print(f"{'#'*70}\n")
+    
+    run_batch_brut(args)
+    run_batch_test(args)
+    run_batch_verdict(args)
+    
+    print(f"\n{'#'*70}")
+    print("# PIPELINE TERMINÉ")
+    print(f"{'#'*70}\n")
+
+
+# =============================================================================
+# UTILITAIRES DATABASE
+# =============================================================================
+
+def get_exec_ids_for_gamma(gamma_id: str) -> list:
+    """Récupère tous exec_ids pour une gamma."""
+    conn = sqlite3.connect('prc_database/prc_r0_raw.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM Executions WHERE gamma_id = ?", (gamma_id,))
+    rows = cursor.fetchall()
+    conn.close()
+    return [row[0] for row in rows]
 
 
 def load_execution_context(exec_id: int) -> dict:
-    """Charge contexte depuis db_raw"""
+    """Charge contexte depuis db_raw."""
     conn = sqlite3.connect('prc_database/prc_r0_raw.db')
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT gamma_id, d_base_id, modifier_id, seed
+        SELECT gamma_id, d_base_id, modifier_id, seed, run_id
         FROM Executions WHERE id = ?
     """, (exec_id,))
     
     row = cursor.fetchone()
     conn.close()
     
-    # Récupérer shape depuis premier snapshot
-    history = load_execution_history(exec_id)
-    state_shape = history[0].shape
+    if not row:
+        raise ValueError(f"exec_id={exec_id} non trouvé dans db_raw")
     
     return {
         'gamma_id': row[0],
         'd_base_id': row[1],
         'modifier_id': row[2],
         'seed': row[3],
-        'state_shape': state_shape,
+        'run_id': row[4]
     }
 
 
-def load_execution_history(exec_id: int) -> List[np.ndarray]:
-    """Charge history depuis db_raw"""
+def load_first_snapshot(exec_id: int):
+    """Charge premier snapshot pour déduire state_shape."""
+    conn = sqlite3.connect('prc_database/prc_r0_raw.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT state_blob
+        FROM Snapshots
+        WHERE exec_id = ?
+        ORDER BY iteration
+        LIMIT 1
+    """, (exec_id,))
+    
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        raise ValueError(f"Aucun snapshot pour exec_id={exec_id}")
+    
+    # Décompresser
+    import gzip
+    import pickle
+    state = pickle.loads(gzip.decompress(row[0]))
+    return state
+
+
+def load_execution_history(exec_id: int) -> list:
+    """Charge history complète depuis db_raw."""
+    import gzip
+    import pickle
+    
     conn = sqlite3.connect('prc_database/prc_r0_raw.db')
     cursor = conn.cursor()
     
@@ -337,7 +358,7 @@ def load_execution_history(exec_id: int) -> List[np.ndarray]:
     
     history = []
     for row in cursor.fetchall():
-        state = decompress_state(row[1])
+        state = pickle.loads(gzip.decompress(row[1]))
         history.append(state)
     
     conn.close()
@@ -345,9 +366,38 @@ def load_execution_history(exec_id: int) -> List[np.ndarray]:
 
 
 def store_test_observation(exec_id: int, observation: dict):
-    """Stocke observation dans db_results"""
+    """Stocke observation dans db_results."""
     conn = sqlite3.connect('prc_database/prc_r0_results.db')
     cursor = conn.cursor()
+    
+    # Extraire stats pour colonnes rapides
+    stats = observation.get('statistics', {})
+    first_metric = list(stats.keys())[0] if stats else None
+    
+    if first_metric:
+        stat_data = stats[first_metric]
+        stat_initial = stat_data.get('initial')
+        stat_final = stat_data.get('final')
+        stat_min = stat_data.get('min')
+        stat_max = stat_data.get('max')
+        stat_mean = stat_data.get('mean')
+        stat_std = stat_data.get('std')
+    else:
+        stat_initial = stat_final = stat_min = None
+        stat_max = stat_mean = stat_std = None
+    
+    # Extraire evolution
+    evol = observation.get('evolution', {})
+    first_evol = list(evol.keys())[0] if evol else None
+    
+    if first_evol:
+        evol_data = evol[first_evol]
+        evolution_transition = evol_data.get('transition')
+        evolution_trend = evol_data.get('trend')
+        evolution_trend_coefficient = evol_data.get('slope')
+    else:
+        evolution_transition = evolution_trend = None
+        evolution_trend_coefficient = None
     
     cursor.execute("""
         INSERT OR REPLACE INTO TestObservations (
@@ -362,22 +412,15 @@ def store_test_observation(exec_id: int, observation: dict):
     """, (
         exec_id,
         observation['test_name'],
-        observation['test_name'].split('-')[0],
+        observation['test_category'],
         observation['config_params_id'],
         observation['status'] not in ['NOT_APPLICABLE', 'SKIPPED'],
         observation['status'],
         observation['message'],
-        observation['statistics'].get('initial', 0.0),
-        observation['statistics'].get('final', 0.0),
-        observation['statistics'].get('min', 0.0),
-        observation['statistics'].get('max', 0.0),
-        observation['statistics'].get('mean', 0.0),
-        observation['statistics'].get('std', 0.0),
-        observation['evolution'].get('transition', 'unknown'),
-        observation['evolution'].get('trend', 'unknown'),
-        observation['evolution'].get('trend_coefficient', 0.0),
+        stat_initial, stat_final, stat_min, stat_max, stat_mean, stat_std,
+        evolution_transition, evolution_trend, evolution_trend_coefficient,
         json.dumps(observation),
-        datetime.now().isoformat(),
+        datetime.now().isoformat()
     ))
     
     conn.commit()
@@ -385,7 +428,7 @@ def store_test_observation(exec_id: int, observation: dict):
 
 
 def store_test_scores(exec_id: int, scores: dict):
-    """Stocke scores dans db_results"""
+    """Stocke scores dans db_results."""
     conn = sqlite3.connect('prc_database/prc_r0_results.db')
     cursor = conn.cursor()
     
@@ -393,66 +436,30 @@ def store_test_scores(exec_id: int, scores: dict):
         INSERT OR REPLACE INTO TestScores (
             exec_id, test_name,
             params_config_id, scoring_config_id,
-            test_weight, metric_scores, weighted_average,
-            computed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            test_score, aggregation_mode,
+            metric_scores, pathology_flags, critical_metrics,
+            test_weight, computed_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         exec_id,
         scores['test_name'],
         scores['config_params_id'],
         scores['config_scoring_id'],
-        scores['test_weight'],
+        scores['test_score'],
+        scores['aggregation_mode'],
         json.dumps(scores['metric_scores']),
-        scores['weighted_average'],
-        datetime.now().isoformat(),
+        json.dumps(scores['pathology_flags']),
+        json.dumps(scores['critical_metrics']),
+        scores['test_weight'],
+        datetime.now().isoformat()
     ))
     
     conn.commit()
     conn.close()
-	
-def run_batch_verdict(args):
-    """
-    Calcule verdict global pour gamma.
-    Agrège tous tests sur tous runs.
-    Stocke dans db_results.
-    """
-    gamma_id = args.gamma
-    params_config_id = args.params
-    scoring_config_id = args.scoring
-    thresholds_config_id = args.thresholds
-    
-    # Vérifier que scores existent
-    scores_exist = check_scores_exist(
-        gamma_id, params_config_id, scoring_config_id
-    )
-    
-    if not scores_exist:
-        log.warning("Scores not found, running --test first...")
-        run_batch_test(args)
-    
-    # Calculer verdict
-    log.info(f"Computing verdict for {gamma_id}")
-    verdict = compute_gamma_verdict(
-        gamma_id,
-        params_config_id,
-        scoring_config_id,
-        thresholds_config_id
-    )
-    
-    # Stocker verdict
-    store_gamma_verdict(verdict)
-    
-    # Générer rapport
-    generate_verdict_report(verdict)
-    
-    log.info(f"✓ Verdict: {verdict['verdict']}")
-    log.info(f"  Score: {verdict['global_score']:.3f}")
-    log.info(f"  Robustness: {verdict['robustness_pct']:.1f}%")
-    log.info(f"  Majority: {verdict['majority_pct']:.1f}%")
 
 
-def check_scores_exist(gamma_id, params_config_id, scoring_config_id) -> bool:
-    """Vérifie si scores existent pour cette config"""
+def check_scores_exist(gamma_id: str, params_config_id: str, scoring_config_id: str) -> bool:
+    """Vérifie si scores existent pour cette config."""
     conn = sqlite3.connect('prc_database/prc_r0_results.db')
     cursor = conn.cursor()
     
@@ -471,296 +478,80 @@ def check_scores_exist(gamma_id, params_config_id, scoring_config_id) -> bool:
 
 
 def store_gamma_verdict(verdict: dict):
-    """Stocke verdict dans db_results"""
+    """Stocke verdict dans db_results."""
     conn = sqlite3.connect('prc_database/prc_r0_results.db')
     cursor = conn.cursor()
     
     cursor.execute("""
         INSERT OR REPLACE INTO GammaVerdicts (
             gamma_id,
-            params_config_id, scoring_config_id, thresholds_config_id,
-            majority_pct, robustness_pct, global_score,
+            params_config_id, scoring_config_id,
             verdict, verdict_reason,
+            patterns_summary,
+            num_runs_analyzed, num_tests_analyzed,
             computed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         verdict['gamma_id'],
         verdict['params_config_id'],
         verdict['scoring_config_id'],
-        verdict['thresholds_config_id'],
-        verdict['majority_pct'],
-        verdict['robustness_pct'],
-        verdict['global_score'],
         verdict['verdict'],
         verdict['verdict_reason'],
-        datetime.now().isoformat(),
+        json.dumps(verdict['patterns_summary']),
+        verdict['num_runs_analyzed'],
+        verdict['num_tests_analyzed'],
+        verdict['computed_at']
     ))
     
     conn.commit()
     conn.close()
 
 
-def generate_verdict_report(verdict: dict):
-    """Génère rapport texte lisible"""
-    report_path = f"reports/verdict_{verdict['gamma_id']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-    
-    with open(report_path, 'w') as f:
-        f.write("=" * 80 + "\n")
-        f.write(f"VERDICT REPORT: {verdict['gamma_id']}\n")
-        f.write("=" * 80 + "\n\n")
-        
-        f.write("CONFIGURATION:\n")
-        f.write(f"  Params:     {verdict['params_config_id']}\n")
-        f.write(f"  Scoring:    {verdict['scoring_config_id']}\n")
-        f.write(f"  Thresholds: {verdict['thresholds_config_id']}\n\n")
-        
-        f.write("CRITERIA:\n")
-        f.write(f"  Global Score:  {verdict['global_score']:.3f} / 1.0\n")
-        f.write(f"  Robustness:    {verdict['robustness_pct']:.1f}%\n")
-        f.write(f"  Majority:      {verdict['majority_pct']:.1f}%\n\n")
-        
-        f.write("VERDICT:\n")
-        f.write(f"  {verdict['verdict']}\n\n")
-        
-        f.write("REASON:\n")
-        f.write(f"  {verdict['verdict_reason']}\n\n")
-        
-        f.write("=" * 80 + "\n")
-    
-    log.info(f"Report saved: {report_path}")
-	
-def run_batch_all(args):
-    """Exécute pipeline complet en une commande"""
-    log.info("Running full pipeline: brut → test → verdict")
-    
-    run_batch_brut(args)
-    run_batch_test(args)
-    run_batch_verdict(args)
-    
-    log.info("✓ Full pipeline completed")
-    
-def run_batch_test(args):
-    """
-    Applique tests sur runs existants.
-    Calcule observations et scores.
-    Stocke dans db_results.
-    """
-    gamma_id = args.gamma
-    params_config_id = args.params
-    scoring_config_id = args.scoring
-    
-    # ... (code existant jusqu'à la boucle scoring)
-    
-    # Après avoir calculé observation, ajouter scoring:
-    for test_id, test_module in applicable_tests.items():
-        try:
-            # Phase 1: Observation (EXISTANT)
-            observation = run_observation(
-                test_module, history, context, params_config_id
-            )
-            
-            # Stocker observation (EXISTANT)
-            store_test_observation(exec_id, observation)
-            
-            # Si NOT_APPLICABLE ou ERROR, skip scoring
-            if observation['status'] not in ['SUCCESS']:
-                continue
-            
-            # Phase 2: Scoring (NOUVEAU)
-            scores = score_observation(
-                observation=observation,
-                test_module=test_module,
-                context=context,
-                params_config_id=params_config_id,
-                scoring_config_id=scoring_config_id
-            )
-            
-            # Stocker scores (MODIFIÉ)
-            store_test_scores_v2(exec_id, scores)
-            
-            log.info(f"    ✓ {test_id}: score={scores['test_score']:.3f}")
-        
-        except Exception as e:
-            log.error(f"    ✗ {test_id}: {e}")
-            continue
-    
-    log.info(f"✓ Batch test completed for {gamma_id}")
+# =============================================================================
+# MAIN
+# =============================================================================
 
-
-def store_test_scores_v2(exec_id: int, scores: dict):
-    """
-    Stocke scores dans db_results (nouveau schema).
-    
-    Args:
-        exec_id: ID run
-        scores: Résultat de score_observation()
-    """
-    conn = sqlite3.connect('prc_database/prc_r0_results.db')
-    cursor = conn.cursor()
-    
-    # Convertir metric_scores en JSON
-    metric_scores_json = json.dumps(scores['metric_scores'])
-    pathology_flags_json = json.dumps(scores['pathology_flags'])
-    critical_metrics_json = json.dumps(scores['critical_metrics'])
-    
-    cursor.execute("""
-        INSERT OR REPLACE INTO TestScores (
-            exec_id,
-            test_name,
-            params_config_id,
-            scoring_config_id,
-            test_score,
-            aggregation_mode,
-            metric_scores,
-            pathology_flags,
-            critical_metrics,
-            test_weight,
-            computed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    """, (
-        exec_id,
-        scores['test_name'],
-        scores['params_config_id'],
-        scores['scoring_config_id'],
-        scores['test_score'],
-        scores['aggregation_mode'],
-        metric_scores_json,
-        pathology_flags_json,
-        critical_metrics_json,
-        scores['test_weight']
-    ))
-    
-    conn.commit()
-    conn.close()
-
-
-def run_batch_verdict(args):
-    """
-    Calcule verdict global pour gamma.
-    Agrège tous tests/configs.
-    Stocke dans db_results.
-    Génère rapport.
-    """
-    gamma_id = args.gamma
-    params_config_id = args.params
-    scoring_config_id = args.scoring
-    thresholds_config_id = args.thresholds
-    
-    # Vérifier que scores existent
-    scores_exist = check_scores_exist(
-        gamma_id, params_config_id, scoring_config_id
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Batch Runner Charter 5.4",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Exemples:
+  python batch_runner.py --brut --gamma GAM-001
+  python batch_runner.py --test --gamma GAM-001 --params default_v1 --scoring pathologies_v1
+  python batch_runner.py --verdict --gamma GAM-001
+  python batch_runner.py --all --gamma GAM-001
+        """
     )
     
-    if not scores_exist:
-        log.warning("Scores not found, running --test first...")
+    parser.add_argument('--mode', required=True,
+                       choices=['brut', 'test', 'verdict', 'all'],
+                       help="Mode exécution")
+    
+    parser.add_argument('--gamma', required=True,
+                       help="Gamma ID (ex: GAM-001)")
+    
+    parser.add_argument('--params', default='params_default_v1',
+                       help="Global params config ID")
+    
+    parser.add_argument('--scoring', default='scoring_pathologies_v1',
+                       help="Scoring config ID")
+    
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    
+    if args.mode == 'brut':
+        run_batch_brut(args)
+    elif args.mode == 'test':
         run_batch_test(args)
-    
-    # Calculer verdict
-    log.info(f"Computing verdict for {gamma_id}")
-    
-    conn = sqlite3.connect('prc_database/prc_r0_results.db')
-    
-    verdict = compute_gamma_verdict(
-        gamma_id=gamma_id,
-        params_config_id=params_config_id,
-        scoring_config_id=scoring_config_id,
-        thresholds_config_id=thresholds_config_id,
-        db_connection=conn
-    )
-    
-    # Stocker verdict
-    store_gamma_verdict_v2(verdict, conn)
-    
-    # Générer rapport
-    report_text = generate_verdict_report(verdict)
-    
-    # Sauvegarder rapport
-    report_dir = Path("reports")
-    report_dir.mkdir(exist_ok=True)
-    
-    report_filename = (
-        f"verdict_{gamma_id}_"
-        f"{params_config_id}_"
-        f"{scoring_config_id}_"
-        f"{thresholds_config_id}_"
-        f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-    )
-    
-    report_path = report_dir / report_filename
-    
-    with open(report_path, 'w') as f:
-        f.write(report_text)
-    
-    conn.close()
-    
-    # Afficher résumé
-    log.info("=" * 80)
-    log.info(f"VERDICT: {verdict['verdict']}")
-    log.info("=" * 80)
-    log.info(f"  Global score:  {verdict['global_score']:.3f}")
-    log.info(f"  Robustness:    {verdict['robustness_pct']:.1f}%")
-    log.info(f"  Majority:      {verdict['majority_pct']:.1f}%")
-    log.info("")
-    log.info(f"Rapport complet: {report_path}")
+    elif args.mode == 'verdict':
+        run_batch_verdict(args)
+    elif args.mode == 'all':
+        run_batch_all(args)
 
 
-def store_gamma_verdict_v2(verdict: dict, conn):
-    """
-    Stocke verdict dans db_results (nouveau schema).
-    
-    Args:
-        verdict: Résultat de compute_gamma_verdict()
-        conn: Connection db_results
-    """
-    cursor = conn.cursor()
-    
-    # Convertir details en JSON
-    details_json = json.dumps(verdict['details'])
-    
-    cursor.execute("""
-        INSERT OR REPLACE INTO GammaVerdicts (
-            gamma_id,
-            params_config_id,
-            scoring_config_id,
-            thresholds_config_id,
-            majority_pct,
-            robustness_pct,
-            global_score,
-            verdict,
-            verdict_reason,
-            details,
-            computed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-    """, (
-        verdict['gamma_id'],
-        verdict['params_config_id'],
-        verdict['scoring_config_id'],
-        verdict['thresholds_config_id'],
-        verdict['majority_pct'],
-        verdict['robustness_pct'],
-        verdict['global_score'],
-        verdict['verdict'],
-        verdict['verdict_reason'],
-        details_json
-    ))
-    
-    conn.commit()
-
-
-def check_scores_exist(gamma_id, params_config_id, scoring_config_id) -> bool:
-    """Vérifie si scores existent pour cette config."""
-    conn = sqlite3.connect('prc_database/prc_r0_results.db')
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        SELECT COUNT(*) FROM TestScores ts
-        JOIN Executions e ON ts.exec_id = e.id
-        WHERE e.gamma_id = ?
-          AND ts.params_config_id = ?
-          AND ts.scoring_config_id = ?
-    """, (gamma_id, params_config_id, scoring_config_id))
-    
-    count = cursor.fetchone()[0]
-    conn.close()
-    
-    return count > 0
+if __name__ == "__main__":
+    main()

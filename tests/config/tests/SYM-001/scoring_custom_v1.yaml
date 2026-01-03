@@ -1,0 +1,17 @@
+# tests/config/tests/SYM-001/scoring_custom_v1.yaml
+# Override scoring spécifique SYM-001
+
+version: "1.0"
+config_id: "SYM-001_scoring_custom_v1"
+description: "Scoring personnalisé SYM-001 - focus asymétrie"
+test_id: "SYM-001"
+
+# Override asymétrie (plus strict pour Γ censé préserver symétrie)
+asymmetry_norm:
+  threshold_high: 0.05       # vs 0.1 global
+  critical_high: 0.5         # vs 1.0 global
+  weight: 4.0                # Très critique
+
+asymmetry_norm_normalized:
+  interval_toxic: [0.7, 1.0] # vs [0.8, 1.0] global
+  weight: 3.0
