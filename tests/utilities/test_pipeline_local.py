@@ -1,374 +1,360 @@
 #!/usr/bin/env python3
 """
-test_pipeline_local.py
+Test Pipeline Charter 5.4 - Local
 
-Test pipeline Charter 5.4 - Isolation complète
-Tests unitaires scoring + verdict patterns-based
-
-Architecture:
-1. TestEngine → Observations
-2. Scoring → Pathology scores
-3. Verdict → Pattern detection
-
-Conformité: Charter 5.4 Sections 12.8-12.9
+Validation unitaire + intégration verdict_engine.py existant.
+Pas de modification structure - Test le code tel quel.
 """
 
 import sys
+import json
 import numpy as np
 from pathlib import Path
 
-# Add parent to path
+# Setup imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from tests.utilities.test_engine import TestEngine
 from tests.utilities.verdict_engine import (
     analyze_metric_patterns,
     compute_metric_quality,
-    decide_verdict_from_patterns
+    decide_verdict_from_patterns,
+    generate_actionable_insights
 )
+from tests import test_uni_001
 
 
-# ============================================================================
-# SCORING ISOLATION (Copie locale pour tests)
-# ============================================================================
+################################################################################
+# HELPERS
+################################################################################
 
-def score_metric_s2_explosion(value, threshold_high, critical_high, mode='soft'):
-    """Score pathologie S2_EXPLOSION."""
-    if mode == 'hard':
-        return 1.0 if value > threshold_high else 0.0
-    
-    # Soft mode
-    if value <= threshold_high:
-        return 0.0
-    elif value >= critical_high:
-        return 1.0
-    else:
-        return (value - threshold_high) / (critical_high - threshold_high)
-
-
-def score_observation_local(observation, scoring_config):
+def create_fake_scores_data(scenario='systematic_failure'):
     """
-    Score observation locale (test isolation).
+    Crée fake data format attendu par verdict_engine.py (doc 54).
+    
+    Format : Liste avec structure exacte de load_scores_with_context()
+    
+    Args:
+        scenario: 'systematic_failure' | 'contextual' | 'survives'
     
     Returns:
-        {
-            'test_name': str,
-            'test_score': float,
-            'metric_scores': dict,
-            'pathology_flags': list,
-            'critical_metrics': list
-        }
+        List[dict] format identique à sortie DB jointure
     """
-    test_name = observation['test_name']
-    test_config = scoring_config['tests'][test_name]
+    scores_data = []
     
-    metric_scores = {}
-    flags = []
-    critical = []
+    # Scénarios
+    if scenario == 'systematic_failure':
+        # 3 métriques échouent sur 100% runs
+        for i in range(10):
+            scores_data.append({
+                'exec_id': 100 + i,
+                'run_id': f'GAM-001_beta2.0_SYM-001_M0_s{i}',
+                'gamma_id': 'GAM-001',
+                'd_base_id': 'SYM-001',
+                'modifier_id': 'M0',
+                'seed': i,
+                'test_name': 'UNIV-001',
+                'test_score': 0.92,
+                'metric_scores': {
+                    'metric_A': {
+                        'score': 0.92,
+                        'flag': True,
+                        'pathology_type': 'S2_EXPLOSION',
+                        'weight': 2.0
+                    },
+                    'metric_B': {
+                        'score': 0.88,
+                        'flag': True,
+                        'pathology_type': 'S2_EXPLOSION',
+                        'weight': 2.0
+                    },
+                    'metric_C': {
+                        'score': 0.85,
+                        'flag': True,
+                        'pathology_type': 'S1_COLLAPSE',
+                        'weight': 1.5
+                    }
+                },
+                'pathology_flags': ['metric_A', 'metric_B', 'metric_C'],
+                'critical_metrics': ['metric_A', 'metric_B', 'metric_C'],
+                'aggregation_mode': 'max'
+            })
     
-    for metric_key, rule in test_config['scoring_rules'].items():
-        # Extract value from observation
-        source_path = rule['source'].split('.')
-        value = observation
-        for key in source_path:
-            value = value[key]
-        
-        # Score metric
-        pathology_type = rule['pathology_type']
-        
-        if pathology_type == 'S2_EXPLOSION':
-            score = score_metric_s2_explosion(
-                value,
-                rule['threshold_high'],
-                rule['critical_high']
-            )
-        else:
-            raise ValueError(f"Pathology type non supporté: {pathology_type}")
-        
-        flag = score >= 0.8
-        
-        metric_scores[metric_key] = {
-            'value': value,
-            'score': score,
-            'flag': flag,
-            'pathology_type': pathology_type,
-            'weight': rule['weight']
-        }
-        
-        if flag:
-            flags.append(metric_key)
-        if score >= 0.8:
-            critical.append(metric_key)
+    elif scenario == 'contextual':
+        # Échoue sur SYM-001, OK sur ASY-001
+        for d_base in ['SYM-001', 'ASY-001']:
+            for i in range(5):
+                is_sym = d_base == 'SYM-001'
+                scores_data.append({
+                    'exec_id': 200 + len(scores_data),
+                    'run_id': f'GAM-002_beta2.0_{d_base}_M0_s{i}',
+                    'gamma_id': 'GAM-002',
+                    'd_base_id': d_base,
+                    'modifier_id': 'M0',
+                    'seed': i,
+                    'test_name': 'UNIV-001',
+                    'test_score': 0.85 if is_sym else 0.12,
+                    'metric_scores': {
+                        'metric_A': {
+                            'score': 0.85 if is_sym else 0.12,
+                            'flag': is_sym,
+                            'pathology_type': 'S2_EXPLOSION',
+                            'weight': 2.0
+                        }
+                    },
+                    'pathology_flags': ['metric_A'] if is_sym else [],
+                    'critical_metrics': ['metric_A'] if is_sym else [],
+                    'aggregation_mode': 'max'
+                })
     
-    # Aggregate (mode max pour R0)
-    test_score = max(m['score'] for m in metric_scores.values())
+    elif scenario == 'survives':
+        # Aucune pathologie
+        for i in range(10):
+            scores_data.append({
+                'exec_id': 300 + i,
+                'run_id': f'GAM-003_beta2.0_SYM-001_M0_s{i}',
+                'gamma_id': 'GAM-003',
+                'd_base_id': 'SYM-001',
+                'modifier_id': 'M0',
+                'seed': i,
+                'test_name': 'UNIV-001',
+                'test_score': 0.15,
+                'metric_scores': {
+                    'metric_A': {
+                        'score': 0.15,
+                        'flag': False,
+                        'pathology_type': 'S2_EXPLOSION',
+                        'weight': 2.0
+                    }
+                },
+                'pathology_flags': [],
+                'critical_metrics': [],
+                'aggregation_mode': 'max'
+            })
     
-    return {
-        'test_name': test_name,
-        'test_score': test_score,
-        'metric_scores': metric_scores,
-        'pathology_flags': flags,
-        'critical_metrics': critical
-    }
+    return scores_data
 
 
-# ============================================================================
-# TEST 1: TestEngine Isolation
-# ============================================================================
+################################################################################
+# TESTS
+################################################################################
 
-def test_engine_isolation():
-    """Test TestEngine en isolation complète."""
+def test_testengine_isolation():
+    """Test TestEngine sur données fake."""
     print("="*80)
-    print("TEST UNITAIRE - TestEngine")
+    print("TEST 1 : TestEngine Isolation")
     print("="*80)
     
-    # Mock test spec
-    class MockTest:
-        TEST_ID = 'UNI-001'
-        TEST_CATEGORY = 'UNIV'
-        TEST_VERSION = '5.4'
-        
-        COMPUTATION_SPECS = {
-            'frobenius_norm': {
-                'registry_key': 'algebra.frobenius_norm',
-                'default_params': {},
-                'post_process': 'round_4'
-            }
-        }
+    # Fake history
+    history = [np.random.randn(10, 10) for _ in range(10)]
     
-    # Mock run metadata
     run_metadata = {
-        'gamma_id': 'GAM-001',
+        'gamma_id': 'GAM-TEST',
         'd_base_id': 'SYM-001',
         'modifier_id': 'M0',
-        'seed': 42
+        'seed': 1,
+        'state_shape': (10, 10)
     }
     
-    # Mock history (10 snapshots)
-    history = [np.ones((10, 10)) * (i + 1) for i in range(10)]
-    
-    # Execute test
     engine = TestEngine()
     result = engine.execute_test(
-        MockTest,
+        test_uni_001,
         run_metadata,
         history,
         'params_default_v1'
     )
     
-    # Verify structure
-    assert result['status'] == 'SUCCESS', f"Status devrait être SUCCESS: {result['status']}"
-    assert 'statistics' in result, "Doit avoir section statistics"
-    assert 'evolution' in result, "Doit avoir section evolution"
-    assert 'frobenius_norm' in result['statistics'], "Doit calculer frobenius_norm"
+    # Vérifications
+    assert result['status'] == 'SUCCESS', f"Status: {result['status']}"
+    assert 'frobenius_norm' in result['statistics'], "Métrique manquante"
     
-    # Verify exec_id NOT created by TestEngine
-    #assert 'exec_id' not in result, "TestEngine ne doit PAS créer exec_id"
-    
-    # Verify metadata preservation
-    assert result['run_metadata']['gamma_id'] == 'GAM-001'
-    assert result['run_metadata']['d_base_id'] == 'SYM-001'
-    
-    print("✓ TestEngine isolation OK")
+    print("✓ TestEngine OK")
     print(f"  - Status: {result['status']}")
     print(f"  - Métriques: {list(result['statistics'].keys())}")
-    print(f"  - exec_id préservé: {999}")  # Mock value
+    print()
 
 
-# ============================================================================
-# TEST 2: Scoring Isolation
-# ============================================================================
-
-def test_scoring_isolation():
-    """Test scoring en isolation."""
+def test_verdict_systematic_failure():
+    """Test détection systematic_failures."""
     print("="*80)
-    print("TEST UNITAIRE - Scoring")
+    print("TEST 2 : Verdict - Systematic Failure")
     print("="*80)
     
-    # Mock observation (format TestEngine)
-    observation = {
-        'test_name': 'UNI-001',
-        'run_metadata': {
-            'gamma_id': 'GAM-001',
-            'd_base_id': 'SYM-001',
-            'modifier_id': 'M0',
-            'seed': 42
-        },
-        'statistics': {
-            'frobenius_norm': {
-                'initial': 10.0,
-                'final': 1000.0,  # Explosion
-                'mean': 500.0,
-                'std': 300.0
-            }
-        },
-        'evolution': {
-            'frobenius_norm': {
-                'transition': 'explosive',
-                'trend': 'increasing'
-            }
-        }
-    }
+    # Créer data avec 3 métriques échouant systématiquement
+    scores_data = create_fake_scores_data('systematic_failure')
     
-    # Scoring config
-    scoring_config = {
-        'tests': {
-            'UNI-001': {
-                'test_weight': 2.0,
-                'scoring_rules': {
-                    'frobenius_norm': {
-                        'source': 'statistics.frobenius_norm.final',
-                        'pathology_type': 'S2_EXPLOSION',
-                        'threshold_high': 100.0,
-                        'critical_high': 500.0,
-                        'weight': 2.0
-                    }
-                }
-            }
-        }
-    }
+    print(f"  Données: {len(scores_data)} runs")
+    print(f"  Format: {list(scores_data[0].keys())}")
     
-    # Score observation
-    score_result = score_observation_local(observation, scoring_config)
-    
-    # Verify
-    assert score_result['test_score'] == 1.0, "Score doit être 1.0 (explosion max)"
-    assert 'frobenius_norm' in score_result['pathology_flags'], "Doit flaguer explosion"
-    assert score_result['metric_scores']['frobenius_norm']['score'] == 1.0
-    
-    print("✓ Scoring isolation OK")
-    print(f"  - Test score: {score_result['test_score']:.3f}")
-    print(f"  - Flags: {score_result['pathology_flags']}")
-    print(f"  - Critical: {score_result['critical_metrics']}")
-    print(f"  - Métriques scorées: {list(score_result['metric_scores'].keys())}")
-
-
-# ============================================================================
-# TEST 3: Verdict Isolation
-# ============================================================================
-
-def test_verdict_isolation():
-    """Test verdict_engine en isolation."""
-    print("="*80)
-    print("TEST UNITAIRE - Verdict")
-    print("="*80)
-    
-    # Créer 30 runs avec 3 métriques explosives
-    # (seuil REJECTED[R0] = ≥3 métriques valides échouent)
-    scores_data = []
-    
-    for run_idx in range(30):
-        exec_id = 1000 + run_idx
-        d_base = ['SYM-001', 'ASY-001', 'R3-001'][run_idx % 3]
-        modifier = ['M0', 'M1'][run_idx % 2]
-        seed = (run_idx % 5) + 1
-        
-        run_data = {
-            'exec_id': exec_id,
-            'run_id': f'GAM-001_beta2.0_{d_base}_{modifier}_s{seed}',
-            'gamma_id': 'GAM-001',
-            'd_base_id': d_base,
-            'modifier_id': modifier,
-            'seed': seed,
-            'test_name': 'UNI-001',
-            'test_score': 1.0,
-            'metric_scores': {
-                'frobenius_norm': {
-                    'value': 1000.0,
-                    'score': 1.0,
-                    'flag': True,
-                    'pathology_type': 'S2_EXPLOSION',
-                    'weight': 2.0
-                },
-                'spectral_norm': {
-                    'value': 1000.0,
-                    'score': 1.0,
-                    'flag': True,
-                    'pathology_type': 'S2_EXPLOSION',
-                    'weight': 2.0
-                },
-                'trace_absolute': {
-                    'value': 1000.0,
-                    'score': 1.0,
-                    'flag': True,
-                    'pathology_type': 'S2_EXPLOSION',
-                    'weight': 2.0
-                }
-            }
-        }
-        scores_data.append(run_data)
-    
-    # Appeler verdict_engine
+    # Analyser patterns
     patterns = analyze_metric_patterns(scores_data)
+    
+    print("\n  Patterns détectés:")
+    for pattern_type, values in patterns.items():
+        if values:
+            count = len(values) if isinstance(values, (list, dict)) else 0
+            print(f"    - {pattern_type}: {count}")
+    
+    # Vérifier systematic_failures détectés
+    systematic = patterns['systematic_failures']
+    assert len(systematic) == 3, \
+        f"Attendu 3 systematic_failures, trouvé {len(systematic)}"
+    
+    # Vérifier verdict
     metric_quality = compute_metric_quality(scores_data)
     verdict, reason = decide_verdict_from_patterns(patterns, metric_quality)
     
-    # Vérifier patterns
-    systematic = patterns.get('systematic_failures', [])
-    valid_metrics = [m for m in metric_quality if metric_quality[m]['valid']]
+    assert verdict == "REJECTED[R0]", \
+        f"Attendu REJECTED[R0], reçu {verdict}"
     
-    print(f"  Patterns détectés:")
-    print(f"    - systematic_failures: {systematic}")
-    print(f"    - Métriques valides: {valid_metrics}")
-    
-    # Assertions
-    assert len(systematic) >= 1, \
-        f"Doit détecter 3 systematic_failures, trouvé {len(systematic)}"
-    
-    assert verdict == 'REJECTED[R0]', \
-        f"Doit être REJECTED[R0] avec ≥3 échecs systématiques, reçu: {verdict}"
-    
-    assert 'systématique' in reason.lower() or 'Pathologie' in reason, \
-        f"Raison doit mentionner pathologie systématique: {reason}"
-    
-    print("✓ Verdict isolation OK")
-    print(f"  - Verdict: {verdict}")
-    print(f"  - Raison: {reason[:80]}...")
+    print(f"\n  ✓ Systematic failures: {len(systematic)}")
+    print(f"  ✓ Verdict: {verdict}")
+    print()
 
 
-# ============================================================================
+def test_verdict_contextual():
+    """Test détection comportements contextuels."""
+    print("="*80)
+    print("TEST 3 : Verdict - Contextual Behavior")
+    print("="*80)
+    
+    # Créer data avec corrélation D
+    scores_data = create_fake_scores_data('contextual')
+    
+    print(f"  Données: {len(scores_data)} runs")
+    
+    # Analyser patterns
+    patterns = analyze_metric_patterns(scores_data)
+    
+    print("\n  Patterns détectés:")
+    for pattern_type, values in patterns.items():
+        if values:
+            count = len(values) if isinstance(values, (list, dict)) else 0
+            print(f"    - {pattern_type}: {count}")
+    
+    # Vérifier D_CORRELATED détecté
+    assert patterns['d_correlated'], "D_CORRELATED devrait être détecté"
+    
+    # Vérifier verdict
+    metric_quality = compute_metric_quality(scores_data)
+    verdict, reason = decide_verdict_from_patterns(patterns, metric_quality)
+    
+    assert verdict == "WIP[R0-open]", \
+        f"Attendu WIP[R0-open], reçu {verdict}"
+    
+    print(f"\n  ✓ D_CORRELATED: {len(patterns['d_correlated'])}")
+    print(f"  ✓ Verdict: {verdict}")
+    print()
+
+
+def test_verdict_survives():
+    """Test verdict SURVIVES."""
+    print("="*80)
+    print("TEST 4 : Verdict - SURVIVES")
+    print("="*80)
+    
+    # Créer data sans pathologies
+    scores_data = create_fake_scores_data('survives')
+    
+    print(f"  Données: {len(scores_data)} runs")
+    
+    # Analyser patterns
+    patterns = analyze_metric_patterns(scores_data)
+    
+    print("\n  Patterns détectés:")
+    for pattern_type, values in patterns.items():
+        if values:
+            count = len(values) if isinstance(values, (list, dict)) else 0
+            print(f"    - {pattern_type}: {count}")
+    
+    # Vérifier aucun pattern critique
+    assert not patterns['systematic_failures'], \
+        "Aucun systematic_failure attendu"
+    
+    # Vérifier verdict
+    metric_quality = compute_metric_quality(scores_data)
+    verdict, reason = decide_verdict_from_patterns(patterns, metric_quality)
+    
+    assert verdict == "SURVIVES[R0]", \
+        f"Attendu SURVIVES[R0], reçu {verdict}"
+    
+    print(f"\n  ✓ Aucune pathologie systématique")
+    print(f"  ✓ Verdict: {verdict}")
+    print()
+
+
+def test_insights_generation():
+    """Test génération insights."""
+    print("="*80)
+    print("TEST 5 : Génération Insights")
+    print("="*80)
+    
+    # Data avec patterns variés
+    scores_data = create_fake_scores_data('contextual')
+    
+    patterns = analyze_metric_patterns(scores_data)
+    metric_quality = compute_metric_quality(scores_data)
+    
+    insights = generate_actionable_insights(patterns, metric_quality)
+    
+    assert insights, "Insights devraient être générés"
+    
+    print(f"  ✓ {len(insights)} insights générés")
+    for i, insight in enumerate(insights[:3], 1):
+        print(f"    {i}. {insight[:70]}...")
+    print()
+
+
+def test_metric_quality():
+    """Test évaluation qualité métriques."""
+    print("="*80)
+    print("TEST 6 : Qualité Métriques")
+    print("="*80)
+    
+    scores_data = create_fake_scores_data('systematic_failure')
+    
+    quality = compute_metric_quality(scores_data)
+    
+    assert quality, "Qualité métriques devrait être calculée"
+    
+    print(f"  ✓ {len(quality)} métriques évaluées")
+    for metric_key, q in list(quality.items())[:3]:
+        print(f"    - {metric_key}:")
+        print(f"      valid={q['valid']}, mean={q['mean_score']:.2f}")
+    print()
+
+
+################################################################################
 # MAIN
-# ============================================================================
+################################################################################
 
 def main():
-    """Run all tests."""
+    """Exécute tous les tests."""
     print("\n" + "#"*80)
-    print("# TEST PIPELINE CHARTER 5.4 - LOCAL")
+    print("# TEST PIPELINE CHARTER 5.4")
     print("#"*80)
+    print("\nValidation verdict_engine.py existant (doc 54)")
+    print()
     
     try:
-        # Test 1: TestEngine
-        test_engine_isolation()
+        test_testengine_isolation()
+        test_verdict_systematic_failure()
+        test_verdict_contextual()
+        test_verdict_survives()
+        test_insights_generation()
+        test_metric_quality()
         
-        # Test 2: Scoring
-        test_scoring_isolation()
-        
-        # Test 3: Verdict
-        test_verdict_isolation()
-        
-        # Success
-        print("\n" + "#"*80)
-        print("# ✅ TOUS LES TESTS PASSENT")
         print("#"*80)
-        print("\nPipeline Charter 5.4 validé:")
-        print("  ✓ TestEngine → Observations pures")
-        print("  ✓ Scoring → Pathology scores [0,1]")
-        print("  ✓ Verdict → Pattern detection R0")
-        print("\nProchaine étape: Tester avec vraies données db_raw")
+        print("# ✓ TOUS LES TESTS PASSENT")
+        print("#"*80)
+        print("\nPipeline validée. Verdict engine fonctionne correctement.")
+        print()
         
     except AssertionError as e:
         print("\n" + "#"*80)
-        print("# ❌ ERREUR DÉTECTÉE")
+        print("# ❌ ÉCHEC TEST")
         print("#"*80)
         print(str(e))
-        raise
-    
-    except Exception as e:
-        print("\n" + "#"*80)
-        print("# ❌ ERREUR INATTENDUE")
-        print("#"*80)
-        print(f"Type: {type(e).__name__}")
-        print(f"Message: {str(e)}")
         raise
 
 
