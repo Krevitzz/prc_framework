@@ -150,17 +150,7 @@ def run_batch_test(args):
                     if observation['status'] not in ['SUCCESS']:
                         print(f"    {test_id}: {observation['status']}")
                         continue
-                    
-                    # Phase 2: Scoring
-                    scores = score_observation(
-                        observation, test_module, scoring_config_id
-                    )
-                    
-                    # Stocker scores
-                    store_test_scores(exec_id, scores)
-                    total_scores += 1
-                    
-                    print(f"    ✓ {test_id}: score={scores['test_score']:.3f}")
+                                       
                 
                 except Exception as e:
                     error_msg = f"exec_id={exec_id}, test={test_id}: {str(e)}"
@@ -202,20 +192,14 @@ def run_batch_verdict(args):
     
     gamma_id = args.gamma
     params_config_id = args.params
-    scoring_config_id = args.scoring
+    verdict_config_id = args.verdict
     
-    # Vérifier que scores existent
-    if not check_scores_exist(gamma_id, params_config_id, scoring_config_id):
-        print(f"❌ Aucun score trouvé pour {gamma_id}")
-        print(f"   Action: Exécuter --test d'abord")
-        sys.exit(1)
     
     # Calculer verdict
     try:
         verdict = compute_gamma_verdict(
             gamma_id,
-            params_config_id,
-            scoring_config_id
+            params_config_id
         )
     except Exception as e:
         print(f"\n❌ Erreur calcul verdict: {e}")
@@ -455,8 +439,7 @@ Exemples:
     parser.add_argument('--params', default='params_default_v1',
                        help="Global params config ID")
     
-    parser.add_argument('--scoring', default='scoring_pathologies_v1',
-                       help="Scoring config ID")
+    parser.add_argument('--verdict', default='verdict_default_v1')
     
     return parser.parse_args()
 
