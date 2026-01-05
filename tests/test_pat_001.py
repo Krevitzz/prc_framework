@@ -25,7 +25,8 @@ import numpy as np
 
 TEST_ID = "PAT-001"
 TEST_CATEGORY = "PAT"
-TEST_VERSION = "5.4"
+TEST_VERSION = "5.5" 
+TEST_WEIGHT = 1.0   
 
 APPLICABILITY_SPEC = {
     "requires_rank": None,  # Tout rang

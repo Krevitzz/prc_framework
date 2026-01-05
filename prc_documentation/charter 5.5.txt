@@ -1,0 +1,979 @@
+# CHARTER PRC 5.5 - VERSION COMPLÈTE
+
+> Document normatif pour implémentation LLM. Version 5.5 prévaut sur toutes versions antérieures.
+
+---
+
+## SECTION 1-3 : FONDATIONS
+
+### Axiomes (A1-A3)
+- A1: Dissymétrie informationnelle D irréductible
+- A2: Mécanisme Γ agissant sur D
+- A3: Aucun Γ stable ne peut annuler D complètement
+
+### Hiérarchie niveaux
+```
+L0=ontological → L1=epistemic → L2=theoretical → L3=operative → L4=documentary
+Règle : L(n) ne référence que L(≤n-1)
+```
+
+### Core = 2 fonctions aveugles
+```python
+prepare_state(base, modifiers) → np.ndarray
+run_kernel(state, gamma, ...) → Generator[iteration, state]
+```
+
+**Règles K1-K5** : Core aveugle (pas de validation, pas de sémantique, pas de classes)
+
+---
+
+## SECTION 4 : ARCHITECTURE MODULES
+
+```
+prc_framework/
+├── core/
+│   ├── state_preparation.py     # prepare_state()
+│   └── kernel.py                # run_kernel()
+│
+├── operators/
+│   └── gamma_hyp_XXX.py         # Définitions Γ
+│
+├── D_encodings/
+│   ├── rank2_symmetric.py       # Créateurs D^(base) symétriques
+│   ├── rank2_asymmetric.py      # Créateurs D^(base) asymétriques
+│   └── rank3_correlations.py    # Créateurs D^(base) rang 3
+│
+├── modifiers/
+│   ├── noise.py                 # D^(bruit)
+│   ├── constraints/             # D^(topo_x)
+│   ├── plugins/                 # D^(plugin)
+│   └── domains/                 # D^(domain)
+│
+├── prc_automation/
+│   ├── batch_runner.py                    
+│   ├── init_databases.py
+│   └── prc_database/
+│       ├── prc_r0_raw.db               # IMMUABLE
+│       ├── prc_r0_results.db           # REJOUABLE
+│       ├── schema_raw.sql
+│       └── schema_results.sql             
+│
+├── tests/
+│   ├── test_univ_001.py                   
+│   ├── test_sym_001.py
+│   ├── ... (autres tests)
+│   │   
+│   ├── config/
+│   │   ├── global/
+│   │   │   ├── params_default_v1.yaml
+│   │   │   ├── params_strict_v1.yaml
+│   │   │   ├── verdict_default_v1.yaml
+│   │   │   └── verdict_strict_v1.yaml
+│   │   │
+│   │   └── tests/
+│   │       ├── UNIV-001/
+│   │       │   └── params_custom_v1.yaml
+│   │       └── ... (overrides spécifiques)
+│   │
+│   └── utilities/
+│       ├── __init__.py
+│       ├── discovery.py                   
+│       ├── applicability.py               
+│       ├── test_engine.py                 
+│       ├── verdict_engine.py              
+│       ├── config_loader.py               
+│       ├── validation_tests.py            # HORS PIPELINE
+│       │ 
+│       └── registries/
+│           ├── __init__.py
+│           ├── base_registry.py
+│           ├── registry_manager.py
+│           ├── post_processors.py
+│           ├── algebra_registry.py
+│           ├── spectral_registry.py
+│           ├── statistical_registry.py
+│           ├── spatial_registry.py
+│           ├── pattern_registry.py
+│           ├── topological_registry.py
+│           └── graph_registry.py
+│
+├── prc_documentation/
+│   ├── charter_5.5.md                
+│   └── templates/
+│       ├── template_test_xxx_yyy.py      
+│       ├── config_params_global.yaml     
+│       └── config_verdict_global.yaml  
+│
+└── reports/                                
+    └── verdicts/
+        └── {timestamp}_analysis_{scope}/
+```
+
+**Séparation stricte** :
+- `core/` : Exécution aveugle, zéro validation
+- `encodings/` : Création D avec validation
+- `modifiers/` : Transformations D, passthrough
+- `operators/` : Définitions Γ, passthrough
+- `tests/` : Observation pure, pas de verdict
+- `utilities/` : Moteurs analyse, pas d'exécution
+
+---
+
+## SECTION 5 : NOMENCLATURE
+
+### Types D
+- **D^(base)** : Champ possibles (SYM, ASY, R3, etc.)
+- **D^(bruit)** : Variations aléatoires
+- **D^(topo)** : Contraintes expérimentales
+- **D^(plugin)** : Patterns pré-identifiés
+- **D^(domaine)** : Compilation plugins
+
+### IDs
+```
+HYP-GAM-001  # Hypothesis
+TM-GAM-001   # Toy Model
+TEST-XXX-001 # Test Protocol
+CON-GAM-001  # Constraint (dérivée)
+```
+
+### Statuts
+```
+WIP[R0-open]         # Exploration en cours
+WIP[R0-closed]       # R0 terminé, ambigu → mise en attente
+SURVIVES[R0]         # Non éliminé
+REJECTED[R0]         # Éliminé comme autonome
+REJECTED[GLOBAL]     # Éliminé définitif tous rangs
+```
+
+**Rangs** :
+- R0 : Mécanisme isolé
+- R1+ : Compositions/enrichissements
+
+---
+
+## SECTION 6 : PIPELINE OPÉRATIONNEL
+
+### Workflow
+```
+1. Formulation HYP → 2. Spécification D/Γ → 3. Création TM
+→ 4. Exécution kernel (db_raw) → 5. Tests observations (db_results)
+→ 6. Verdicts patterns (rapports) → 7. Discussion → 8. Mise à jour STATUS
+→ 9. CON si pertinent → 10. Nouvelle HYP[R1] si pertinent
+```
+
+### Architecture batch_runner
+
+**Principe** : 1 point d'entrée, 3 modes, chaînage auto
+
+```bash
+# Mode 1 : Collecte données
+batch_runner --brut --gamma GAM-001
+# → Exécute kernel, stocke db_raw (append-only, immuable)
+
+# Mode 2 : Application tests
+batch_runner --test --gamma GAM-001 --params default_v1
+# → Vérifie db_raw, auto-lance --brut si manquant
+# → Applique tests, stocke observations db_results
+
+# Mode 3 : Génération verdicts
+batch_runner --verdict --params default_v1 --verdict default_v1
+# → Vérifie db_results, auto-lance --test si manquant
+# → Analyse patterns, génère rapports fichiers
+
+# Raccourci
+batch_runner --all --gamma GAM-001 --params default_v1 --verdict default_v1
+```
+
+**Règle non-reruns** : Toute modification verdict SANS réexécuter kernel/tests
+
+### Bases de données
+
+**db_raw** (immuable, append-only) :
+```sql
+Executions   -- Métadonnées runs
+Snapshots    -- États sauvegardés (compressed)
+Metrics      -- Métriques brutes par iteration
+```
+
+**db_results** (rejouable, versionné) :
+```sql
+TestObservations  -- Résultats tests (dict v2)
+```
+
+**Aucune table** : ConfigRegistry, TestScores, GammaVerdicts (supprimés)
+
+---
+
+## SECTION 7 : TESTS - FORMAT DICT OBLIGATOIRE
+
+### Principe
+
+**R7-A** : Tests OBSERVENT (pas de jugement). VerdictEngine INTERPRÈTE patterns.
+
+### Structure module test
+
+```python
+# tests/test_category_nnn.py
+"""
+[Titre descriptif]
+
+Objectif :
+- [Description phénomène mesuré]
+
+Métriques :
+- [nom_métrique_1] : [Pertinence]
+- [nom_métrique_2] : [Pertinence]
+
+Algorithmes utilisés :
+- [registry_key_1] : [Justification]
+
+Exclusions :
+- [Alternatives non retenues] : [Pourquoi]
+"""
+
+TEST_ID = "CAT-NNN"
+TEST_CATEGORY = "CAT"
+TEST_VERSION = "5.5"
+TEST_WEIGHT = 1.0  # OBLIGATOIRE
+
+APPLICABILITY_SPEC = {
+    "requires_rank": int | None,
+    "requires_square": bool,
+    "allowed_d_types": List[str],
+    "minimum_dimension": int | None,
+    "requires_even_dimension": bool,
+}
+
+COMPUTATION_SPECS = {
+    'nom_metrique_1': {
+        'registry_key': 'registre.fonction',
+        'default_params': {
+            'param1': valeur1,
+            'param2': valeur2,
+        },
+        'post_process': 'round_4',  # Optionnel
+    },
+    # 1 à 5 métriques maximum
+}
+```
+
+### Status observations
+
+**R7-B** : Status autorisés :
+- `SUCCESS` : Test exécuté normalement
+- `ERROR` : Erreur technique → ARRÊT BATCH (bug code)
+- `NOT_APPLICABLE` : Test invalide pour contexte (pas pénalisé)
+
+**R7-C** : Status `SKIPPED` **supprimé**. Si test applicable et métrique échoue → ERROR fatal.
+
+### Format retour observation
+
+```python
+{
+    # Traçabilité
+    'run_metadata': {
+        'gamma_id': str,
+        'd_encoding_id': str,  # PAS d_base_id
+        'modifier_id': str,
+        'seed': int,
+    },
+    
+    # Identification
+    'test_name': str,
+    'test_category': str,
+    'test_version': str,
+    'params_config_id': str,
+    
+    # Status
+    'status': 'SUCCESS' | 'ERROR' | 'NOT_APPLICABLE',
+    'message': str,
+    
+    # Résultats (dict de dicts)
+    'statistics': {
+        'metric_name_1': {
+            'initial': float,
+            'final': float,
+            'min': float,
+            'max': float,
+            'mean': float,
+            'std': float,
+            'median': float,
+            'q1': float,
+            'q3': float,
+            'n_valid': int,
+        },
+    },
+    
+    # Evolution (dict de dicts)
+    'evolution': {
+        'metric_name_1': {
+            'transition': str,  # Factuel : "stable", "increasing", "explosive"...
+            'trend': str,
+            'slope': float,
+            'volatility': float,
+            'relative_change': float,
+        },
+    },
+    
+    # Metadata
+    'metadata': {
+        'engine_version': '5.5',
+        'execution_time_sec': float,
+        'num_iterations_processed': int,
+        'total_metrics': int,
+        'successful_metrics': int,
+        'computations': {
+            'metric_name_1': {
+                'registry_key': str,
+                'params_used': dict,
+                'has_post_process': bool,
+            },
+        }
+    }
+}
+```
+
+### Interdictions formelles
+
+```python
+# ❌ JAMAIS dans retour test
+'passed': bool
+'failed': bool
+'verdict': str
+'score': float
+'weight': float
+
+# ❌ JAMAIS en code (YAML obligatoire)
+if norm > 1000.0:  # Hardcodé
+    ...
+
+# ✅ TOUJOURS
+params = load_test_parameters(test_id, params_config_id)
+if norm > params['explosion_threshold']:
+    ...
+```
+
+---
+
+## SECTION 8 : ARCHITECTURE REGISTRES
+
+### Principe
+
+**R8-A** : Registres = modules contenant fonctions mathématiques réutilisables.
+
+**R8-B** : Toute fonction registre produit UNE OBSERVATION (float), pas un score.
+
+### BaseRegistry
+
+```python
+class BaseRegistry(ABC):
+    REGISTRY_KEY: str = None  # Unique
+    
+    def __init__(self):
+        self._functions: Dict[str, Callable] = {}
+        self._register_all_functions()
+    
+    def get_function(self, registry_key: str) -> Callable:
+        _, function_name = registry_key.split('.', 1)
+        return self._functions[function_name]
+```
+
+### Décorateur
+
+```python
+@register_function("matrix_norm")
+def compute_norm(self, state: np.ndarray, norm_type='fro') -> float:
+    """
+    Calcule norme tenseur.
+    
+    Args:
+        state: Tenseur rang N
+        norm_type: Type norme
+    
+    Returns:
+        float: Valeur norme
+    
+    Notes:
+        - Frobenius : O(n²)
+        - Spectral : matrice 2D uniquement
+    """
+    return float(np.linalg.norm(state, norm_type))
+```
+
+### Règles création registre
+
+**R8-C** : Règles strictes :
+1. Hériter de BaseRegistry
+2. REGISTRY_KEY unique, lowercase
+3. Décorateur @register_function obligatoire
+4. Signature: `func(self, state, **params) -> float`
+5. `state` toujours premier paramètre
+6. Tous paramètres après `state` ont valeurs par défaut
+7. Retourner float
+8. Docstring complète (Args, Returns, Raises, Notes)
+9. Gestion erreurs explicite
+10. Fonction pure (pas d'effets de bord)
+
+### Registres disponibles
+
+| Registre | Fonctions | Description |
+|----------|-----------|-------------|
+| algebra | 8 | Normes, traces, déterminants |
+| spectral | 6 | FFT, valeurs propres |
+| statistical | 7 | Entropie, moments |
+| spatial | 6 | Gradients, laplacien |
+| pattern | 6 | Périodicité, clustering |
+| topological | 6 | Composantes, Euler |
+| graph | 6 | Densité, centralité |
+
+---
+
+## SECTION 9 : CONFIGS
+
+### Types configs
+
+**R9-A** : Deux types uniquement :
+- `params` : Paramètres observation tests
+- `verdict` : Patterns detection + normalisation
+
+**R9-B** : Types supprimés : `scoring`, `thresholds` (obsolètes)
+
+### Structure
+
+```
+tests/config/
+├── global/
+│   ├── params_default_v1.yaml
+│   ├── params_strict_v1.yaml
+│   ├── verdict_default_v1.yaml
+│   └── verdict_strict_v1.yaml
+│
+└── tests/
+    ├── UNIV-001/
+    │   └── params_custom_v1.yaml
+    └── SYM-001/
+        └── params_custom_v1.yaml
+```
+
+### ConfigLoader
+
+**R9-C** : Fusion automatique global + specific :
+
+```python
+loader = ConfigLoader()
+params = loader.load(
+    config_type='params',
+    config_id='params_default_v1',
+    test_id='UNIV-001'  # Optionnel, pour override
+)
+```
+
+### Validation
+
+**R9-D** : ConfigLoader valide existence fichier au chargement. Échec → FileNotFoundError.
+
+**R9-E** : Pas de stockage configs en DB (suppression ConfigRegistry).
+
+---
+
+## SECTION 10 : TEST_WEIGHT
+
+### Définition
+
+**R10-A** : Chaque test déclare `TEST_WEIGHT` au niveau module :
+
+```python
+TEST_WEIGHT = 2.0  # OBLIGATOIRE
+```
+
+**R10-B** : Exprime importance épistémique du test dans analyse patterns.
+
+**R10-C** : Valeur par défaut : `1.0`
+
+### Usage
+
+**R10-D** : Utilisé uniquement dans VerdictEngine pour pondérer impact test dans patterns cross-tests.
+
+### Interdictions
+
+**R10-E** : `TEST_WEIGHT` ne doit PAS être :
+- Redéfinissable par config externe
+- Utilisé pour filtrer tests
+- Utilisé pour moduler exécution
+- Interprété comme "qualité" test
+
+---
+
+## SECTION 11 : SCHÉMA DB_RESULTS
+
+### Table unique
+
+```sql
+CREATE TABLE TestObservations (
+  observation_id INTEGER PRIMARY KEY,  -- PAS "id"
+  exec_id INTEGER NOT NULL,
+  test_name TEXT NOT NULL,
+  params_config_id TEXT NOT NULL,
+  
+  applicable BOOLEAN NOT NULL,
+  status TEXT NOT NULL,  -- SUCCESS | ERROR | NOT_APPLICABLE
+  message TEXT,
+  
+  -- Colonnes dénormalisées (principales métriques)
+  stat_initial REAL,
+  stat_final REAL,
+  stat_min REAL,
+  stat_max REAL,
+  stat_mean REAL,
+  stat_std REAL,
+  
+  evolution_transition TEXT,
+  evolution_trend TEXT,
+  evolution_trend_coefficient REAL,
+  
+  -- JSON complet
+  observation_data TEXT NOT NULL,
+  
+  computed_at TEXT NOT NULL,
+  
+  UNIQUE(exec_id, test_name, params_config_id),
+  FOREIGN KEY(exec_id) REFERENCES Executions(id)
+);
+
+CREATE INDEX idx_obs_exec ON TestObservations(exec_id);
+CREATE INDEX idx_obs_test ON TestObservations(test_name);
+CREATE INDEX idx_obs_params ON TestObservations(params_config_id);
+```
+
+### Tables supprimées
+
+**R11-A** : Tables suivantes **n'existent plus** :
+- ConfigRegistry
+- TestScores
+- GammaVerdicts
+
+### Nomenclature
+
+**R11-B** : Partout utiliser `d_encoding_id` (pas `d_base_id`).
+
+**R11-C** : PK explicites : `observation_id` (pas `id`).
+
+---
+
+## SECTION 12 : SUPPRESSION COUCHE SCORING
+
+### Principe architectural
+
+**R12-A** : Couche scoring intermédiaire **supprimée**. Pipeline :
+
+```
+db_raw → TestEngine → TestObservations → VerdictEngine → Rapports
+```
+
+**R12-B** : Aucune normalisation globale préalable. Normalisation **locale au pattern**, **éphémère** (non stockée).
+
+### Concepts abolis
+
+**R12-C** : Supprimés définitivement :
+- pathology_score
+- test_score
+- metric_scores JSON
+- Règles scoring (S1-S4, MAPPING)
+- Table TestScores
+
+### Justification
+
+**R12-D** : Normaliser à 0-1 présuppose équivalence sémantique entre métriques hétérogènes. Cette équivalence n'existe pas en R0.
+
+**R12-E** : Patterns détectables **directement sur observations brutes** via normalisation statistique locale.
+
+---
+
+## SECTION 13 : OBSERVATIONS - EXHAUSTIVITÉ
+
+### Règle métrique obligatoire
+
+**R13-A** : Toute métrique `COMPUTATION_SPECS` **DOIT** être exploitable par VerdictEngine.
+
+**R13-B** : Si métrique ne peut être calculée sur run applicable → **ERROR fatal** (bug code).
+
+**R13-C** : Aucun mécanisme skip silencieux pour métriques.
+
+### Validation hors pipeline
+
+**R13-D** : Outil validation externe (pas batch_runner) vérifie :
+1. Structure tests 5.5
+2. Présence TEST_WEIGHT, TEST_VERSION
+3. Unicité TEST_ID × TEST_VERSION
+4. Pas de métriques orphelines
+
+**R13-E** : Exécution avant commit ou CI/CD.
+
+---
+
+## SECTION 14 : NORMALISATION PATTERNS
+
+### Principe
+
+**R14-A** : VerdictEngine normalise observations **à la volée**. Normalisation **non stockée**.
+
+**R14-B** : Normalisation sur **distributions locales** (ensemble runs pour métrique donnée).
+
+**R14-C** : Objectif : détecter **corrélations et ruptures**, pas comparer amplitudes.
+
+### Méthode par défaut
+
+**R14-D** : Méthode default : **Robust scaling**
+
+```
+normalized = (x - median) / IQR
+```
+
+- `median` = médiane échantillon
+- `IQR` = Q3 - Q1 (écart interquartile)
+
+**R14-E** : Justification : insensible valeurs extrêmes (explosions/collapses recherchés).
+
+**R14-F** : Méthodes alternatives :
+- `z_score` : (x - mean) / std
+- `percentile` : percentileofscore(values, x) / 100
+
+### Configuration
+
+**R14-G** : Méthode configurable par pattern :
+
+```yaml
+normalization:
+  default_method: "robust"
+  scope: "per_test"
+  outlier_threshold: 3.0
+  
+  per_pattern:
+    non_discriminant: "percentile"
+    seed_unstable: "robust"
+```
+
+**R14-H** : Méthode = **partie intégrante définition pattern**. Pattern = (projection + normalisation + critère).
+
+### Seuils normalisés
+
+**R14-I** : Seuils opèrent dans **espace normalisé**, pas métrique brut.
+
+**R14-J** : Terminologie neutre : `normalized_threshold` (pas `z_threshold`).
+
+```yaml
+patterns:
+  non_discriminant:
+    method: "robust"
+    normalized_threshold: -2.0
+    min_observations: 10
+```
+
+---
+
+## SECTION 15 : PATTERNS - DÉTECTION
+
+### Architecture
+
+**R15-A** : VerdictEngine charge **toutes observations** :
+
+```python
+observations = load_all_observations(params_config_id)
+```
+
+**R15-B** : Patterns détectés sur observations **brutes + normalisées**.
+
+**R15-C** : Aucun stockage intermédiaire. Rapports générés directement.
+
+### Types patterns
+
+**R15-D** : 7 types détectés :
+
+1. **NON_DISCRIMINANT** : Toutes observations normalisées < threshold
+2. **OVER_DISCRIMINANT** : Toutes observations normalisées > threshold
+3. **D_CORRELATED** : Variance inter-d_encoding_id > threshold
+4. **MODIFIER_CORRELATED** : Variance inter-modifier_id > threshold
+5. **SEED_UNSTABLE** : Variance inter-seeds > threshold (à D/modifier fixés)
+6. **SYSTEMATIC_ANOMALY** : Fraction observations |normalized| > threshold dépasse ratio
+7. **CONTEXTUAL_BEHAVIOR** : Combinaison D_CORRELATED ou MODIFIER_CORRELATED
+
+### Algorithmes
+
+**NON_DISCRIMINANT** :
+```python
+normalized = normalize(values, method="robust")
+if all(n < normalized_threshold for n in normalized):
+    pattern = "NON_DISCRIMINANT"
+```
+
+**D_CORRELATED** :
+```python
+by_d = group_by(observations, 'd_encoding_id')
+d_means_normalized = [normalize(group).mean() for group in by_d.values()]
+variance = np.var(d_means_normalized)
+if variance > variance_threshold:
+    pattern = "D_CORRELATED"
+```
+
+**SYSTEMATIC_ANOMALY** :
+```python
+normalized = normalize(values, method="robust")
+extreme_count = sum(1 for n in normalized if abs(n) > normalized_threshold)
+if extreme_count / len(normalized) > ratio_threshold:
+    pattern = "SYSTEMATIC_ANOMALY"
+```
+
+---
+
+## SECTION 16 : VERDICT_CONFIG
+
+### Contenu obligatoire
+
+```yaml
+version: "1.0"
+config_id: "verdict_default_v1"
+description: "Patterns detection R0"
+
+# Normalisation
+normalization:
+  default_method: "robust"
+  scope: "per_test"
+  outlier_threshold: 3.0
+  per_pattern: {}
+
+# Patterns
+patterns:
+  non_discriminant:
+    method: "robust"
+    normalized_threshold: -2.0
+    min_observations: 10
+  
+  over_discriminant:
+    method: "robust"
+    normalized_threshold: 2.0
+    min_observations: 10
+  
+  d_correlated:
+    variance_threshold: 0.3
+    min_d_groups: 2
+  
+  modifier_correlated:
+    variance_threshold: 0.3
+    min_modifier_groups: 2
+  
+  seed_unstable:
+    variance_threshold: 0.3
+    min_seeds: 3
+  
+  systematic_anomaly:
+    normalized_threshold: 2.0
+    ratio_threshold: 0.8
+    min_observations: 10
+
+# Verdicts
+verdict_rules:
+  REJECTED:
+    required_patterns: ["systematic_anomaly"]
+    min_tests_affected: 2
+  
+  WIP:
+    required_patterns: 
+      - "d_correlated"
+      - "modifier_correlated"
+      - "seed_unstable"
+    min_patterns: 1
+  
+  SURVIVES:
+    max_patterns_detected: 1
+```
+
+### Traçabilité
+
+**R16-A** : Chaque pattern déclare explicitement sa `method` de normalisation.
+
+**R16-B** : Rôle : audit-proof, pas d'inférence implicite.
+
+---
+
+## SECTION 17 : RAPPORTS VERDICTS
+
+### Organisation
+
+**R17-A** : Rapports dans `reports/verdicts/`.
+
+**R17-B** : Nommage : `{timestamp}_analysis_{scope}/`
+
+**R17-C** : Contenu :
+- `summary.txt` (humain)
+- `analysis_complete.json` (LLM/scripts)
+- `metadata.json` (configs utilisées)
+
+### Format analysis_complete.json
+
+```json
+{
+  "params_config_id": "params_default_v1",
+  "verdict_config_id": "verdict_default_v1",
+  
+  "observations_analyzed": [
+    {
+      "observation_id": 42,
+      "exec_id": 15,
+      "run_id": "GAM-001_beta2.0_SYM-001_M0_s1",
+      "gamma_id": "GAM-001",
+      "d_encoding_id": "SYM-001",
+      "modifier_id": "M0",
+      "seed": 1,
+      "test_name": "UNIV-001",
+      "metrics": {
+        "frobenius_norm": {
+          "value": 12500.0,
+          "normalized": 2.3,
+          "method": "robust"
+        },
+        ...
+      }
+    },
+    ...
+  ],
+  
+  "patterns_detected": {
+    "non_discriminant": [...],
+    "d_correlated": {...},
+    "systematic_anomaly": [...]
+  },
+  
+  "verdicts": [
+    {
+      "scope": {"gamma_id": "GAM-001"},
+      "verdict": "WIP[R0-open]",
+      "reason": "...",
+      "patterns": [...]
+    }
+  ]
+}
+```
+
+### Versioning
+
+**R17-D** : Nouveau run **écrase** rapports précédents.
+
+**R17-E** : Symlink `latest_full` pointe vers dernier global.
+
+---
+
+## SECTION 18 : MOTEURS UTILITAIRES
+
+### Discovery
+
+```python
+discover_active_tests() → Dict[test_id, module]
+# Scanne tests/*.py, skip _deprecated, valide structure
+```
+
+### Applicability
+
+```python
+filter_applicable_tests(all_tests, context) → Dict[test_id, module]
+# Appelle test_module.is_applicable(context)
+# context = {d_encoding_id, gamma_id, state_shape, ...}
+```
+
+### TestEngine
+
+```python
+run_observation(test_module, history, context, params_config_id) → dict
+# Charge params, exécute registres, retourne dict v2
+```
+
+### VerdictEngine
+
+```python
+analyze_patterns(observations, verdict_config_id) → reports
+# Normalise, détecte patterns, génère rapports
+```
+
+---
+
+## SECTION 19 : INTERDICTIONS CRITIQUES
+
+### Scoring
+
+**R19-A** : Formellement interdit :
+- Réintroduire table TestScores
+- Créer couche normalisation globale préalable
+- Stocker scores intermédiaires
+- Utiliser vocabulaire "pathology_score", "test_score"
+
+### Téléologie
+
+**R19-B** : TEST_WEIGHT ne doit jamais être :
+- Modifiable par config externe
+- Utilisé pour filtrer/prioriser exécution
+- Interprété comme "qualité" test
+
+### Métriques
+
+**R19-C** : Toute métrique `COMPUTATION_SPECS` **doit** être analysable par patterns.
+
+**R19-D** : Aucun skip silencieux autorisé.
+
+### Core
+
+**R19-E** : Core reste aveugle :
+- Aucune validation contenu (symétrie, bornes)
+- Aucune classe State, Operator
+- Aucun branchement dépendant de D ou Γ
+
+### Tests
+
+**R19-F** : Tests ne retournent jamais :
+- "PASS"/"FAIL"
+- Classes/objets
+- Paramètres hardcodés
+- Jugements ("bon", "mauvais")
+
+### Pipeline
+
+**R19-G** : Pipeline strictement séquentiel :
+- Aucun reruns pour changer verdict
+- Aucun mélange db_raw et db_results
+- Aucune modification rétroactive db_raw
+
+### Vocabulaire
+
+**R19-H** : Nomenclature stricte :
+- ❌ "matrice de corrélation" → ✅ "tenseur rang 2"
+- ❌ "graphe" → ✅ "patterns dans tenseur"
+- ❌ "position (i,j)" → ✅ "indice (i,j)"
+- ❌ "d_base_id" → ✅ "d_encoding_id"
+
+---
+
+## SECTION 20 : GLOSSAIRE
+
+| Terme | Définition | Exemple |
+|-------|------------|---------|
+| **Registre** | Module fonctions réutilisables | `algebra_registry.py` |
+| **registry_key** | Identifiant unique fonction | `"algebra.matrix_norm"` |
+| **run_metadata** | Métadonnées exécution | `{gamma_id, d_encoding_id, ...}` |
+| **history** | Liste snapshots (~200) | `[state_0, ..., state_199]` |
+| **snapshot** | UN état à une itération | `np.ndarray (10, 10)` |
+| **post_processor** | Transformation post-calcul | `"round_4"` |
+| **COMPUTATION_SPECS** | Spécifications métriques | `{'metric': {'registry_key': ...}}` |
+| **APPLICABILITY_SPEC** | Contraintes techniques | `{'requires_rank': 2}` |
+| **observation** | Dict retour test | `{'statistics': {...}, 'evolution': {...}}` |
+| **pattern** | Régularité détectée cross-runs | `"D_CORRELATED"` |
+| **normalized** | Valeur dans espace normalisé | `(x - median) / IQR` |
+
+---
+
+**FIN CHARTER PRC 5.5**
+
+**Version** : 5.5.0  
+**Date** : 2025-01-06  
+**Statut** : PRODUCTION  
+
+Ce charter est la **référence opérationnelle unique** pour l'architecture 5.5.  
+Toute implémentation DOIT se conformer strictement à ces spécifications.  
+En cas de conflit avec versions antérieures (5.4, 5.3), **5.5 prévaut**.

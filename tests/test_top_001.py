@@ -25,7 +25,9 @@ import numpy as np
 
 TEST_ID = "TOP-001"
 TEST_CATEGORY = "TOPOLOGICAL"
-TEST_VERSION = "5.4"
+TEST_VERSION = "5.5" 
+TEST_WEIGHT = 1.0   
+
 
 APPLICABILITY_SPEC = {
     "requires_rank": 2,

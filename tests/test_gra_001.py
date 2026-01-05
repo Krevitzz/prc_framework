@@ -25,8 +25,9 @@ import numpy as np
 
 TEST_ID = "GRA-001"
 TEST_CATEGORY = "GRAPH"
-TEST_VERSION = "5.4"
-
+TEST_VERSION = "5.5" 
+TEST_WEIGHT = 1.0   
+  
 APPLICABILITY_SPEC = {
     "requires_rank": 2,
     "requires_square": True,

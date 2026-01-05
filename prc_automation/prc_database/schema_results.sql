@@ -2,24 +2,6 @@
 -- Schema résultats Charter 5.4 (pathologies + patterns)
 
 -- =============================================================================
--- TABLE 1 : REGISTRY CONFIGS
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS ConfigRegistry (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  config_type TEXT NOT NULL,     -- 'params' | 'scoring'
-  config_scope TEXT NOT NULL,    -- 'global' | test_id
-  config_id TEXT NOT NULL,       -- 'params_default_v1' | 'UNIV-001_params_custom_v1'
-  config_data TEXT NOT NULL,     -- JSON du YAML complet
-  created_at TEXT NOT NULL,
-  
-  UNIQUE(config_type, config_scope, config_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_config_registry_lookup 
-ON ConfigRegistry(config_type, config_scope, config_id);
-
--- =============================================================================
 -- TABLE 2 : OBSERVATIONS TESTS (inchangé)
 -- =============================================================================
 
@@ -68,48 +50,6 @@ ON TestObservations(exec_id, test_name, params_config_id);
 CREATE INDEX IF NOT EXISTS idx_test_obs_applicable 
 ON TestObservations(applicable, status);
 
--- =============================================================================
--- TABLE 3 : SCORES TESTS (pathologies)
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS TestScores (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  
-  -- Traçabilité run
-  exec_id INTEGER NOT NULL,
-  test_name TEXT NOT NULL,
-  
-  -- Configs utilisées
-  params_config_id TEXT NOT NULL,
-  scoring_config_id TEXT NOT NULL,
-  
-  -- Score pathologie [0,1]
-  test_score REAL NOT NULL,
-  aggregation_mode TEXT NOT NULL,    -- max | weighted_mean | weighted_max
-  
-  -- Détails métriques (JSON complet)
-  metric_scores TEXT NOT NULL,
-  -- Structure: {metric_key: {value, score, flag, pathology_type, weight, source}}
-  
-  -- Flags
-  pathology_flags TEXT NOT NULL,     -- JSON liste métriques flaggées
-  critical_metrics TEXT NOT NULL,    -- JSON liste métriques score >= 0.8
-  
-  -- Metadata
-  test_weight REAL NOT NULL,
-  computed_at TEXT NOT NULL,
-  
-  UNIQUE(exec_id, test_name, params_config_id, scoring_config_id),
-  FOREIGN KEY(exec_id) REFERENCES Executions(id),
-  FOREIGN KEY(params_config_id) REFERENCES ConfigRegistry(config_id),
-  FOREIGN KEY(scoring_config_id) REFERENCES ConfigRegistry(config_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_test_scores_lookup 
-ON TestScores(exec_id, test_name, params_config_id, scoring_config_id);
-
-CREATE INDEX IF NOT EXISTS idx_test_scores_gamma
-ON TestScores(exec_id);
 
 -- =============================================================================
 -- TABLE 4 : VERDICTS GAMMA (patterns)

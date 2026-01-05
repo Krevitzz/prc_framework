@@ -19,7 +19,6 @@ from pathlib import Path
 from tests.utilities.discovery import discover_active_tests
 from tests.utilities.applicability import check as check_applicability
 from tests.utilities.test_engine import TestEngine
-from tests.utilities.scoring import score_observation
 from tests.utilities.verdict_engine import (
     compute_gamma_verdict,
     generate_human_report,
@@ -267,7 +266,7 @@ def run_batch_all(args):
     print("# PIPELINE COMPLET: brut → test → verdict")
     print(f"{'#'*70}\n")
     
-    run_batch_brut(args)
+    #run_batch_brut(args)
     run_batch_test(args)
     run_batch_verdict(args)
     
@@ -427,84 +426,6 @@ def store_test_observation(exec_id: int, observation: dict):
     conn.close()
 
 
-def store_test_scores(exec_id: int, scores: dict):
-    """Stocke scores dans db_results."""
-    conn = sqlite3.connect('prc_database/prc_r0_results.db')
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        INSERT OR REPLACE INTO TestScores (
-            exec_id, test_name,
-            params_config_id, scoring_config_id,
-            test_score, aggregation_mode,
-            metric_scores, pathology_flags, critical_metrics,
-            test_weight, computed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        exec_id,
-        scores['test_name'],
-        scores['config_params_id'],
-        scores['config_scoring_id'],
-        scores['test_score'],
-        scores['aggregation_mode'],
-        json.dumps(scores['metric_scores']),
-        json.dumps(scores['pathology_flags']),
-        json.dumps(scores['critical_metrics']),
-        scores['test_weight'],
-        datetime.now().isoformat()
-    ))
-    
-    conn.commit()
-    conn.close()
-
-
-def check_scores_exist(gamma_id: str, params_config_id: str, scoring_config_id: str) -> bool:
-    """Vérifie si scores existent pour cette config."""
-    conn = sqlite3.connect('prc_database/prc_r0_results.db')
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        SELECT COUNT(*) FROM TestScores ts
-        JOIN Executions e ON ts.exec_id = e.id
-        WHERE e.gamma_id = ?
-          AND ts.params_config_id = ?
-          AND ts.scoring_config_id = ?
-    """, (gamma_id, params_config_id, scoring_config_id))
-    
-    count = cursor.fetchone()[0]
-    conn.close()
-    
-    return count > 0
-
-
-def store_gamma_verdict(verdict: dict):
-    """Stocke verdict dans db_results."""
-    conn = sqlite3.connect('prc_database/prc_r0_results.db')
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        INSERT OR REPLACE INTO GammaVerdicts (
-            gamma_id,
-            params_config_id, scoring_config_id,
-            verdict, verdict_reason,
-            patterns_summary,
-            num_runs_analyzed, num_tests_analyzed,
-            computed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        verdict['gamma_id'],
-        verdict['params_config_id'],
-        verdict['scoring_config_id'],
-        verdict['verdict'],
-        verdict['verdict_reason'],
-        json.dumps(verdict['patterns_summary']),
-        verdict['num_runs_analyzed'],
-        verdict['num_tests_analyzed'],
-        verdict['computed_at']
-    ))
-    
-    conn.commit()
-    conn.close()
 
 
 # =============================================================================

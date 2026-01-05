@@ -73,8 +73,7 @@ def init_db_results(reset: bool = False):
     conn.close()
     
     print(f"✓ {DB_RESULTS_PATH} créée")
-    print(f"  Tables: ConfigRegistry, TestObservations, TestScores, GammaVerdicts")
-    print(f"  Vues: v_scores_with_context, v_verdict_summary")
+    print(f"  Tables: TestObservations")
 
 
 def check_schemas():
@@ -102,7 +101,7 @@ def main():
     args = parser.parse_args()
     
     print("\n" + "#"*70)
-    print("# INITIALISATION BASES DE DONNÉES - CHARTER 5.4")
+    print("# INITIALISATION BASES DE DONNÉES")
     print("#"*70)
     
     check_schemas()
@@ -112,15 +111,6 @@ def main():
     print("\n" + "#"*70)
     print("# INITIALISATION TERMINÉE")
     print("#"*70 + "\n")
-    
-    print("Prochaines étapes:")
-    print("  1. Collecte données brutes:")
-    print("     python batch_runner.py --brut --gamma GAM-001")
-    print("  2. Application tests + scoring:")
-    print("     python batch_runner.py --test --gamma GAM-001")
-    print("  3. Génération verdict:")
-    print("     python batch_runner.py --verdict --gamma GAM-001")
-    print()
 
 if __name__ == "__main__":
     main()

@@ -37,7 +37,7 @@ class ConfigLoader:
         Charge config avec fusion auto global + specific.
         
         Args:
-            config_type: 'params' | 'scoring' | 'thresholds'
+            config_type: 'params' | 'verdict' 
             config_id: Ex 'params_default_v1', 'scoring_conservative_v1'
             test_id: Ex 'UNIV-001' (optionnel, pour override)
             force_reload: Ignorer cache
@@ -55,7 +55,7 @@ class ConfigLoader:
             ValueError: Si type config invalide
         """
         # Validation
-        valid_types = ['params', 'scoring', 'thresholds']
+        valid_types = ['params', 'verdict']
         if config_type not in valid_types:
             raise ValueError(
                 f"Type config invalide '{config_type}'. "
