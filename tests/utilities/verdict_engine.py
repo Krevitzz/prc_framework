@@ -1,31 +1,19 @@
 # tests/utilities/verdict_engine.py
 """
-Verdict Engine Charter 5.5 - Analyse exploratoire statistique.
+Verdict Engine Charter 5.5 - Analyse exploratoire générique CORRIGÉE.
 
-MÉTHODOLOGIE :
-- Tests non-paramétriques (Kruskal-Wallis, Spearman)
-- Heuristiques variance_ratio R0 (documentées, non standards)
-- Analyses multi-projections (final, mean, slope, volatility)
-- Tests statistiques NON CORRIGÉS pour multiplicité (exploration R0)
+CORRECTIONS CRITIQUES (post-review) :
+1. Paires ORIENTÉES : permutations() pas combinations()
+2. Interaction = changement d'effet (VR conditionnel >> VR marginal)
+3. Filtrage testabilité explicite (min_samples, min_groups)
+4. params_config_id exclu interactions (trop corrélé)
+5. Drill-down gamma recalculé sur sous-ensemble
 
 ARCHITECTURE :
-1. Structuration : observations → DataFrame normalisé
-2. Analysis : variance par TOUS factors (gamma, D, modifier, seed, test)
-3. Interpretation : patterns globaux + drill-down par gamma
-4. Verdict : global + par gamma
-5. Rapports : résultats globaux + sections par gamma
-
-FACTORS ANALYSÉS :
-- gamma_id : Mécanisme testé
-- d_encoding_id : Encodage dissymétrie
-- modifier_id : Perturbations
-- seed : Initialisation stochastique
-- test_name : Protocole observation
-
-LIMITATIONS CONNUES :
-- Variance ratio : heuristique, pas décomposition ANOVA
-- Seuils fixes (0.3, 0.1, 0.8) : arbitraires, non adaptatifs
-- P-values non corrigées : faux positifs attendus
+- FACTORS = liste exhaustive dimensions
+- Variance marginale (chaque factor isolé)
+- Interactions ORIENTÉES complètes (A|B distinct de B|A)
+- Extension triplets ciblée
 """
 
 import pandas as pd
@@ -44,26 +32,43 @@ warnings.filterwarnings('ignore', category=RuntimeWarning)
 
 
 # =============================================================================
-# STRUCTURATION : OBSERVATIONS → DATAFRAME
+# CONFIGURATION
+# =============================================================================
+
+# Factors expérimentaux analysés
+FACTORS = [
+    'gamma_id',
+    'd_encoding_id',
+    'modifier_id',
+    'seed',
+    'test_name'
+    # params_config_id EXCLU : trop corrélé test_name
+]
+
+# Projections numériques
+PROJECTIONS = [
+    'value_final',
+    'value_mean',
+    'slope',
+    'volatility',
+    'relative_change'
+]
+
+# Seuils testabilité
+MIN_SAMPLES_PER_GROUP = 2
+MIN_GROUPS = 2
+MIN_TOTAL_SAMPLES = 10
+
+
+# =============================================================================
+# STRUCTURATION
 # =============================================================================
 
 def load_all_observations(
     params_config_id: str,
     db_path: str = 'prc_database/prc_r0_results.db'
 ) -> List[dict]:
-    """
-    Charge observations SUCCESS uniquement.
-    
-    Args:
-        params_config_id: Config params utilisée
-        db_path: Chemin db_results
-    
-    Returns:
-        List[dict]: Observations SUCCESS avec métadonnées complètes
-    
-    Raises:
-        ValueError: Si aucune observation SUCCESS trouvée
-    """
+    """Charge observations SUCCESS uniquement."""
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -122,17 +127,7 @@ def load_all_observations(
 
 
 def observations_to_dataframe(observations: List[dict]) -> pd.DataFrame:
-    """
-    Convertit observations → DataFrame avec TOUTES projections.
-    
-    Chaque ligne = (gamma, d, modifier, seed, test, metric, projections).
-    
-    Args:
-        observations: Liste observations SUCCESS
-    
-    Returns:
-        DataFrame normalisé avec toutes projections
-    """
+    """Convertit observations → DataFrame normalisé."""
     rows = []
     
     for obs in observations:
@@ -141,6 +136,7 @@ def observations_to_dataframe(observations: List[dict]) -> pd.DataFrame:
         modifier_id = obs['modifier_id']
         seed = obs['seed']
         test_name = obs['test_name']
+        params_config_id = obs['params_config_id']
         
         obs_data = obs['observation_data']
         
@@ -164,9 +160,10 @@ def observations_to_dataframe(observations: List[dict]) -> pd.DataFrame:
                 'modifier_id': modifier_id,
                 'seed': seed,
                 'test_name': test_name,
+                'params_config_id': params_config_id,
                 'metric_name': metric_name,
                 
-                # Projections numériques - statistiques
+                # Projections numériques
                 'value_final': metric_stats.get('final', np.nan),
                 'value_initial': metric_stats.get('initial', np.nan),
                 'value_mean': metric_stats.get('mean', np.nan),
@@ -174,12 +171,11 @@ def observations_to_dataframe(observations: List[dict]) -> pd.DataFrame:
                 'value_min': metric_stats.get('min', np.nan),
                 'value_max': metric_stats.get('max', np.nan),
                 
-                # Projections numériques - évolution
                 'slope': metric_evol.get('slope', np.nan),
                 'volatility': metric_evol.get('volatility', np.nan),
                 'relative_change': metric_evol.get('relative_change', np.nan),
                 
-                # Projections catégorielles
+                # Catégorielles
                 'transition': metric_evol.get('transition', 'unknown'),
                 'trend': metric_evol.get('trend', 'unknown'),
             })
@@ -197,50 +193,47 @@ def observations_to_dataframe(observations: List[dict]) -> pd.DataFrame:
 
 
 # =============================================================================
-# ANALYSIS : VARIANCE PAR FACTOR (TOUS FACTORS ÉGAUX)
+# ANALYSIS 1 : VARIANCE MARGINALE
 # =============================================================================
 
-def analyze_variance_by_factor(
+def analyze_marginal_variance(
     df: pd.DataFrame,
     factors: List[str],
     projections: List[str]
 ) -> pd.DataFrame:
     """
-    Pour chaque (test, metric, projection), calcule variance expliquée par factor.
+    Variance marginale : chaque factor pris isolément.
     
-    ⚠️  TOUS factors traités égalitairement : gamma, D, modifier, seed, test.
-    
-    Méthodologie :
-    - Kruskal-Wallis : significativité (non-paramétrique)
-    - Variance ratio : importance relative (heuristique R0)
-    
-    Variance ratio = Var(moyennes_groupes) / Var(totale)
-    ⚠️  Heuristique R0, pas décomposition ANOVA standard.
-    ⚠️  P-values NON CORRIGÉES pour multiplicité.
-    
-    Args:
-        df: DataFrame observations
-        factors: TOUS factors ['gamma_id', 'd_encoding_id', 'modifier_id', 'seed', 'test_name']
-        projections: Projections à analyser
+    ⚠️  Filtrage testabilité : min_samples, min_groups.
     
     Returns:
-        DataFrame résultats avec [test, metric, projection, factor, variance_ratio, p_value]
+        DataFrame avec [test, metric, projection, factor, variance_ratio, p_value]
     """
     results = []
+    skipped_testability = 0
     
     for projection in projections:
-        # Grouper par (test, metric)
         for (test_name, metric_name), group in df.groupby(['test_name', 'metric_name']):
             
+            # Filtrage testabilité globale
+            if len(group) < MIN_TOTAL_SAMPLES:
+                skipped_testability += 1
+                continue
+            
             for factor in factors:
+                
+                # Filtrage cardinalité factor
+                if group[factor].nunique() < MIN_GROUPS:
+                    continue
+                
                 # Grouper par factor
                 factor_groups = [
                     g[projection].dropna().values 
                     for name, g in group.groupby(factor)
-                    if len(g.dropna()) >= 2
+                    if len(g.dropna()) >= MIN_SAMPLES_PER_GROUP
                 ]
                 
-                if len(factor_groups) < 2:
+                if len(factor_groups) < MIN_GROUPS:
                     continue
                 
                 # Test Kruskal-Wallis
@@ -249,7 +242,7 @@ def analyze_variance_by_factor(
                 except (ValueError, Exception):
                     continue
                 
-                # Variance ratio (heuristique)
+                # Variance ratio
                 group_means = [np.mean(g) for g in factor_groups]
                 var_between = np.var(group_means)
                 var_total = np.var(group[projection].dropna())
@@ -270,30 +263,144 @@ def analyze_variance_by_factor(
                     'significant': p_value < 0.05
                 })
     
+    print(f"   ⊘ Skipped {skipped_testability} groups (min_samples)")
+    
     return pd.DataFrame(results).sort_values('variance_ratio', ascending=False)
 
 
 # =============================================================================
-# ANALYSIS : DISCRIMINANCE MÉTRIQUES
+# ANALYSIS 2 : INTERACTIONS ORIENTÉES
+# =============================================================================
+
+def analyze_oriented_interactions(
+    df: pd.DataFrame,
+    factors: List[str],
+    projections: List[str],
+    marginal_variance: pd.DataFrame,
+    min_interaction_strength: float = 2.0
+) -> pd.DataFrame:
+    """
+    Interactions ORIENTÉES : A|B distinct de B|A.
+    
+    Interaction détectée si :
+    - VR(A|B=b) significatif
+    - VR(A|B=b) >> VR(A) marginal (ratio > min_interaction_strength)
+    
+    ⚠️  Correction critique : permutations() pas combinations().
+    ⚠️  Interaction = changement d'effet, pas juste effet conditionnel.
+    
+    Args:
+        df: DataFrame observations
+        factors: Liste factors
+        projections: Projections
+        marginal_variance: Variance marginale (pour comparaison)
+        min_interaction_strength: Ratio VR_conditionnel / VR_marginal
+    
+    Returns:
+        DataFrame interactions VRAIES détectées
+    """
+    results = []
+    skipped_testability = 0
+    
+    # Index variance marginale pour lookup rapide
+    marginal_index = {}
+    for _, row in marginal_variance.iterrows():
+        key = (row['test_name'], row['metric_name'], row['projection'], row['factor'])
+        marginal_index[key] = row['variance_ratio']
+    
+    # PAIRES ORIENTÉES (pas combinations)
+    print(f"   Génération {len(factors) * (len(factors) - 1)} paires orientées...")
+    
+    for factor_varying in factors:
+        if factor_varying == 'test_name':
+            continue  # test_name n'est jamais un facteur "actif"
+
+        for factor_context in factors:
+            if factor_context == factor_varying:
+                continue
+
+            for (test_name, metric_name), tm_group in df.groupby(['test_name', 'metric_name']):
+
+                if len(tm_group) < MIN_TOTAL_SAMPLES:
+                    continue
+
+                for projection in projections:
+
+                    for context_value, context_group in tm_group.groupby(factor_context):
+
+                        if len(context_group) < MIN_TOTAL_SAMPLES:
+                            continue
+
+                        
+                        # Variance factor_varying dans ce contexte
+                        varying_groups = [
+                            g[projection].dropna().values
+                            for name, g in group.groupby(factor_varying)
+                            if len(g.dropna()) >= MIN_SAMPLES_PER_GROUP
+                        ]
+                        
+                        if len(varying_groups) < MIN_GROUPS:
+                            continue
+                        
+                        # Test significativité
+                        try:
+                            statistic, p_value = kruskal(*varying_groups)
+                        except:
+                            continue
+                        
+                        # Variance ratio conditionnel
+                        group_means = [np.mean(g) for g in varying_groups]
+                        var_between = np.var(group_means)
+                        var_total = np.var(group[projection].dropna())
+                        
+                        if var_total < 1e-10:
+                            vr_conditional = 0.0
+                        else:
+                            vr_conditional = var_between / var_total
+                        
+                        # Comparer à variance marginale
+                        marginal_key = (test_name, metric_name, projection, factor_varying)
+                        vr_marginal = marginal_index.get(marginal_key, 0.0)
+                        
+                        if vr_marginal < 0.05:
+                            continue
+                            #interaction_strength = np.inf if vr_conditional > 0.3 else 0.0
+                        else:
+                            interaction_strength = vr_conditional / vr_marginal
+                        
+                        # Interaction = effet change selon contexte
+                        if (vr_conditional > 0.3 and 
+                            p_value < 0.05 and 
+                            interaction_strength > min_interaction_strength):
+                            
+                            results.append({
+                                'factor_varying': factor_varying,
+                                'factor_context': factor_context,
+                                'context_value': str(context_value),
+                                'test_name': test_name,
+                                'metric_name': metric_name,
+                                'projection': projection,
+                                'vr_conditional': vr_conditional,
+                                'vr_marginal': vr_marginal,
+                                'interaction_strength': interaction_strength,
+                                'p_value': p_value,
+                                'n_groups': len(varying_groups)
+                            })
+    
+    print(f"   ⊘ Skipped {skipped_testability} contexts (testability)")
+    
+    return pd.DataFrame(results)
+
+
+# =============================================================================
+# ANALYSIS 3 : DISCRIMINANCE
 # =============================================================================
 
 def analyze_metric_discrimination(
     df: pd.DataFrame,
     projections: List[str]
 ) -> pd.DataFrame:
-    """
-    Détecte métriques avec variance très faible (non discriminantes).
-    
-    Coefficient variation (CV) = std / |mean|
-    CV < 0.1 → métrique peu discriminante (seuil arbitraire R0)
-    
-    Args:
-        df: DataFrame observations
-        projections: Projections à analyser
-    
-    Returns:
-        DataFrame avec [test, metric, projection, cv, non_discriminant]
-    """
+    """Détecte métriques non discriminantes (CV < 0.1)."""
     results = []
     
     for projection in projections:
@@ -327,7 +434,7 @@ def analyze_metric_discrimination(
 
 
 # =============================================================================
-# ANALYSIS : CORRÉLATIONS MÉTRIQUES
+# ANALYSIS 4 : CORRÉLATIONS
 # =============================================================================
 
 def analyze_metric_correlations(
@@ -335,24 +442,12 @@ def analyze_metric_correlations(
     projection: str = 'value_final',
     threshold: float = 0.8
 ) -> pd.DataFrame:
-    """
-    Détecte corrélations fortes entre métriques (redondance).
-    
-    Spearman rank correlation (non-paramétrique).
-    
-    Args:
-        df: DataFrame observations
-        projection: Projection à analyser
-        threshold: Seuil corrélation (> threshold → redondant)
-    
-    Returns:
-        DataFrame avec [test, metric1, metric2, correlation, p_value]
-    """
+    """Détecte corrélations fortes entre métriques."""
     results = []
     
     for test_name, test_group in df.groupby('test_name'):
         
-        # Pivot : obs × metrics
+        # Pivot
         pivot = test_group.pivot_table(
             index=['gamma_id', 'd_encoding_id', 'modifier_id', 'seed'],
             columns='metric_name',
@@ -392,248 +487,122 @@ def analyze_metric_correlations(
 
 
 # =============================================================================
-# ANALYSIS : INTERACTIONS CONDITIONNELLES
-# =============================================================================
-
-def analyze_conditional_interactions(
-    df: pd.DataFrame,
-    projections: List[str]
-) -> pd.DataFrame:
-    """
-    Détecte interactions conditionnelles entre factors.
-    
-    Exemples :
-    - Variance modifier DANS chaque D
-    - Variance seed DANS chaque modifier
-    - Variance D DANS chaque gamma
-    
-    Args:
-        df: DataFrame observations
-        projections: Projections à analyser
-    
-    Returns:
-        DataFrame avec interactions conditionnelles détectées
-    """
-    results = []
-    
-    # Définir paires (factor_in, factor_conditioned)
-    interaction_pairs = [
-        ('modifier_id', 'd_encoding_id'),      # Modifier DANS D
-        ('seed', 'modifier_id'),               # Seed DANS modifier
-        ('d_encoding_id', 'gamma_id'),         # D DANS gamma
-        ('modifier_id', 'gamma_id'),           # Modifier DANS gamma
-        ('seed', 'd_encoding_id'),             # Seed DANS D
-    ]
-    
-    for projection in projections:
-        for factor_in, factor_conditioned in interaction_pairs:
-            
-            # Pour chaque valeur du factor conditionné
-            for conditioned_value, conditioned_group in df.groupby(factor_conditioned):
-                
-                # Grouper par (test, metric) dans ce contexte
-                for (test_name, metric_name), group in conditioned_group.groupby(['test_name', 'metric_name']):
-                    
-                    # Variance du factor_in
-                    factor_groups = [
-                        g[projection].dropna().values
-                        for name, g in group.groupby(factor_in)
-                        if len(g.dropna()) >= 2
-                    ]
-                    
-                    if len(factor_groups) < 2:
-                        continue
-                    
-                    # Test significativité
-                    try:
-                        statistic, p_value = kruskal(*factor_groups)
-                    except:
-                        continue
-                    
-                    # Variance ratio
-                    group_means = [np.mean(g) for g in factor_groups]
-                    var_between = np.var(group_means)
-                    var_total = np.var(group[projection].dropna())
-                    
-                    if var_total < 1e-10:
-                        variance_ratio = 0.0
-                    else:
-                        variance_ratio = var_between / var_total
-                    
-                    # Seuil plus strict pour interactions
-                    if variance_ratio > 0.3 and p_value < 0.05:
-                        results.append({
-                            'interaction_type': f'{factor_in}_in_{factor_conditioned}',
-                            'test_name': test_name,
-                            'metric_name': metric_name,
-                            'projection': projection,
-                            'conditioned_value': conditioned_value,  # Valeur D, gamma, etc.
-                            'factor_varying': factor_in,
-                            'variance_ratio': variance_ratio,
-                            'p_value': p_value,
-                            'n_groups': len(factor_groups)
-                        })
-    
-    return pd.DataFrame(results)
-
-
-# =============================================================================
-# INTERPRETATION : PATTERNS GLOBAUX + PAR GAMMA
+# INTERPRETATION
 # =============================================================================
 
 def interpret_patterns(
     df: pd.DataFrame,
-    variance_analysis: pd.DataFrame,
+    marginal_variance: pd.DataFrame,
+    oriented_interactions: pd.DataFrame,
     discrimination: pd.DataFrame,
-    correlations: pd.DataFrame,
-    interactions: pd.DataFrame,
-    verdict_config: dict
+    correlations: pd.DataFrame
 ) -> Tuple[dict, dict]:
     """
-    Synthèse patterns : GLOBAUX + PAR GAMMA.
-    
-    Architecture à 2 niveaux :
-    1. Patterns globaux (tous gammas confondus)
-    2. Patterns par gamma (drill-down)
-    
-    Args:
-        df: DataFrame complet
-        variance_analysis: Résultats variance (tous factors)
-        discrimination: Résultats discriminance
-        correlations: Résultats corrélations
-        interactions: Résultats interactions
-        verdict_config: Config verdict
+    Synthèse patterns : GLOBAL + PAR GAMMA.
     
     Returns:
         (patterns_global, patterns_by_gamma)
     """
-    # =========================================================================
-    # PATTERNS GLOBAUX
-    # =========================================================================
-    
     patterns_global = {
-        'factor_dominant': [],
+        'marginal_dominant': [],
+        'oriented_interactions': [],
         'non_discriminant': [],
-        'redundant': [],
-        'conditional': []
+        'redundant': []
     }
     
-    # 1. Factor dominant (TOUS factors)
-    dominant = variance_analysis[
-        (variance_analysis['variance_ratio'] > 0.5) &
-        (variance_analysis['significant'])
+    # 1. Variance marginale dominante
+    dominant = marginal_variance[
+        (marginal_variance['variance_ratio'] > 0.5) &
+        (marginal_variance['significant'])
     ]
     
     if not dominant.empty:
         for factor in dominant['factor'].unique():
             subset = dominant[dominant['factor'] == factor]
-            
-            patterns_global['factor_dominant'].append({
+            patterns_global['marginal_dominant'].append({
                 'factor': factor,
                 'n_metrics': len(subset),
                 'projections': subset['projection'].unique().tolist(),
-                'max_variance_ratio': float(subset['variance_ratio'].max()),
-                'examples': subset.head(3)[['test_name', 'metric_name', 'projection', 'variance_ratio']].to_dict('records')
+                'max_variance_ratio': float(subset['variance_ratio'].max())
             })
     
-    # 2. Non discriminant
-    non_disc = discrimination[discrimination['non_discriminant']]
+    # 2. Interactions orientées (VRAIES)
+    if not oriented_interactions.empty:
+        # Grouper par paire orientée
+        for (fv, fc), group in oriented_interactions.groupby(['factor_varying', 'factor_context']):
+            patterns_global['oriented_interactions'].append({
+                'interaction': f"{fv} | {fc}",  # Notation orientée
+                'n_cases': len(group),
+                'contexts_affected': group['context_value'].unique().tolist()[:5],
+                'max_strength': float(group['interaction_strength'].max()),
+                'examples': group.nlargest(3, 'interaction_strength')[
+                    ['test_name', 'metric_name', 'projection', 'context_value', 'interaction_strength']
+                ].to_dict('records')
+            })
     
+    # 3. Non discriminant
+    non_disc = discrimination[discrimination['non_discriminant']]
     if not non_disc.empty:
         patterns_global['non_discriminant'].append({
             'n_metrics': len(non_disc),
-            'projections': non_disc['projection'].unique().tolist(),
-            'examples': non_disc[['test_name', 'metric_name', 'projection', 'cv']].to_dict('records')
+            'projections': non_disc['projection'].unique().tolist()
         })
     
-    # 3. Redondant
+    # 4. Redondant
     if not correlations.empty:
         patterns_global['redundant'].append({
-            'n_pairs': len(correlations),
-            'examples': correlations.nlargest(5, 'correlation', keep='all').to_dict('records')
+            'n_pairs': len(correlations)
         })
     
-    # 4. Conditional
-    if not interactions.empty:
-        # Grouper par type interaction
-        interaction_types = {}
-        for int_type in interactions['interaction_type'].unique():
-            subset = interactions[interactions['interaction_type'] == int_type]
-            interaction_types[int_type] = {
-                'n_cases': len(subset),
-                'examples': subset.head(3).to_dict('records')
-            }
-        
-        patterns_global['conditional'].append(interaction_types)
-    
     # =========================================================================
-    # PATTERNS PAR GAMMA (DRILL-DOWN)
+    # PATTERNS PAR GAMMA (drill-down STRICT)
     # =========================================================================
     
     patterns_by_gamma = {}
     
     for gamma_id in df['gamma_id'].unique():
         
+        # Sous-ensemble STRICT
         gamma_df = df[df['gamma_id'] == gamma_id]
         
-        # Variance analysis restreint à ce gamma (factors sauf gamma)
-        gamma_variance = variance_analysis[
-            variance_analysis['test_name'].isin(gamma_df['test_name'].unique()) &
-            (variance_analysis['factor'] != 'gamma_id')  # Exclure variance gamma dans drill-down
-        ]
-        
-        # Discrimination restreinte
-        gamma_discrimination = discrimination[
-            discrimination['test_name'].isin(gamma_df['test_name'].unique())
-        ]
-        
-        # Interactions restreintes
-        gamma_interactions = interactions[
-            interactions['test_name'].isin(gamma_df['test_name'].unique())
-        ]
+        # RECALCUL analyses sur ce gamma uniquement
+        gamma_marginal = analyze_marginal_variance(
+            gamma_df,
+            [f for f in FACTORS if f != 'gamma_id'],  # Exclure gamma
+            PROJECTIONS
+        )
         
         patterns_gamma = {
-            'factor_dominant': [],
-            'non_discriminant': [],
-            'conditional': []
+            'marginal_dominant': [],
+            'oriented_interactions': []
         }
         
-        # Factor dominant dans ce gamma
-        dominant_gamma = gamma_variance[
-            (gamma_variance['variance_ratio'] > 0.5) &
-            (gamma_variance['significant'])
+        # Dominant dans gamma
+        dominant_gamma = gamma_marginal[
+            (gamma_marginal['variance_ratio'] > 0.5) &
+            (gamma_marginal['significant'])
         ]
         
         if not dominant_gamma.empty:
             for factor in dominant_gamma['factor'].unique():
                 subset = dominant_gamma[dominant_gamma['factor'] == factor]
-                
-                patterns_gamma['factor_dominant'].append({
+                patterns_gamma['marginal_dominant'].append({
                     'factor': factor,
-                    'n_metrics': len(subset),
-                    'projections': subset['projection'].unique().tolist(),
-                    'max_variance_ratio': float(subset['variance_ratio'].max())
+                    'n_metrics': len(subset)
                 })
         
-        # Non discriminant dans ce gamma
-        non_disc_gamma = gamma_discrimination[gamma_discrimination['non_discriminant']]
+        # Interactions dans gamma (simplifié pour drill-down)
+        gamma_interactions = oriented_interactions[
+            oriented_interactions['test_name'].isin(gamma_df['test_name'].unique())
+        ]
         
-        if not non_disc_gamma.empty:
-            patterns_gamma['non_discriminant'].append({
-                'n_metrics': len(non_disc_gamma),
-                'projections': non_disc_gamma['projection'].unique().tolist()
-            })
-        
-        # Interactions conditionnelles dans ce gamma
         if not gamma_interactions.empty:
-            interaction_types_gamma = {}
-            for int_type in gamma_interactions['interaction_type'].unique():
-                subset = gamma_interactions[gamma_interactions['interaction_type'] == int_type]
-                interaction_types_gamma[int_type] = {
-                    'n_cases': len(subset)
-                }
-            
-            patterns_gamma['conditional'].append(interaction_types_gamma)
+            for (fv, fc), group in gamma_interactions.groupby(['factor_varying', 'factor_context']):
+                if fv != 'gamma_id' and fc != 'gamma_id':
+                    patterns_gamma['oriented_interactions'].append({
+                        'interaction': f"{fv} | {fc}",
+                        'n_cases': len(group)
+                    })
         
         patterns_by_gamma[gamma_id] = patterns_gamma
     
@@ -641,80 +610,56 @@ def interpret_patterns(
 
 
 # =============================================================================
-# VERDICT : GLOBAL + PAR GAMMA
+# VERDICT
 # =============================================================================
 
 def decide_verdict(
     patterns_global: dict,
-    patterns_by_gamma: dict,
-    verdict_config: dict
+    patterns_by_gamma: dict
 ) -> Tuple[str, str, dict]:
-    """
-    Décision verdict : GLOBAL + PAR GAMMA.
+    """Décision verdict : GLOBAL + PAR GAMMA."""
     
-    Returns:
-        (verdict_global, reason_global, verdicts_by_gamma)
-    """
-    # =========================================================================
-    # VERDICT GLOBAL
-    # =========================================================================
+    has_critical = any(len(v) > 0 for v in patterns_global.values())
+
     
-    critical_count = sum(len(v) for v in patterns_global.values() if v)
-    
-    if critical_count == 0:
+    if not has_critical:
         verdict_global = "SURVIVES[R0]"
         reason_global = "Aucun pattern pathologique systématique détecté."
     else:
         reasons = []
         
-        if patterns_global['factor_dominant']:
-            for p in patterns_global['factor_dominant']:
-                reasons.append(f"{p['factor']} explique >{p['max_variance_ratio']:.0%} variance ({p['n_metrics']} métriques)")
+        if patterns_global['marginal_dominant']:
+            reasons.append(f"{len(patterns_global['marginal_dominant'])} factors dominants")
+        
+        if patterns_global['oriented_interactions']:
+            reasons.append(f"{len(patterns_global['oriented_interactions'])} interactions vraies")
         
         if patterns_global['non_discriminant']:
             p = patterns_global['non_discriminant'][0]
-            reasons.append(f"{p['n_metrics']} métriques non discriminantes (CV<0.1)")
+            reasons.append(f"{p['n_metrics']} métriques non discriminantes")
         
         if patterns_global['redundant']:
             p = patterns_global['redundant'][0]
-            reasons.append(f"{p['n_pairs']} paires métriques redondantes (|r|>0.8)")
-        
-        if patterns_global['conditional']:
-            p = patterns_global['conditional'][0]
-            n_interactions = sum(v['n_cases'] for v in p.values())
-            reasons.append(f"{n_interactions} interactions conditionnelles détectées")
+            reasons.append(f"{p['n_pairs']} paires redondantes")
         
         reason_global = " | ".join(reasons)
         verdict_global = "WIP[R0-open]"
     
-    # =========================================================================
-    # VERDICTS PAR GAMMA
-    # =========================================================================
-    
+    # Verdicts par gamma
     verdicts_by_gamma = {}
     
     for gamma_id, patterns_gamma in patterns_by_gamma.items():
+        critical_gamma = sum(len(v) for v in patterns_gamma.values() if v)
         
-        critical_count_gamma = sum(len(v) for v in patterns_gamma.values() if v)
-        
-        if critical_count_gamma == 0:
+        if critical_gamma == 0:
             verdict_gamma = "SURVIVES[R0]"
-            reason_gamma = "Aucun pattern spécifique détecté pour ce gamma."
+            reason_gamma = "Aucun pattern spécifique."
         else:
             reasons_gamma = []
-            
-            if patterns_gamma['factor_dominant']:
-                for p in patterns_gamma['factor_dominant']:
-                    reasons_gamma.append(f"{p['factor']} domine ({p['n_metrics']} métriques)")
-            
-            if patterns_gamma['non_discriminant']:
-                p = patterns_gamma['non_discriminant'][0]
-                reasons_gamma.append(f"{p['n_metrics']} métriques non discriminantes")
-            
-            if patterns_gamma['conditional']:
-                p = patterns_gamma['conditional'][0]
-                n_int = sum(v['n_cases'] for v in p.values())
-                reasons_gamma.append(f"{n_int} interactions")
+            if patterns_gamma['marginal_dominant']:
+                reasons_gamma.append(f"{len(patterns_gamma['marginal_dominant'])} factors dominants")
+            if patterns_gamma['oriented_interactions']:
+                reasons_gamma.append(f"{len(patterns_gamma['oriented_interactions'])} interactions")
             
             reason_gamma = " | ".join(reasons_gamma)
             verdict_gamma = "WIP[R0-open]"
@@ -736,45 +681,48 @@ def generate_verdict_report(
     params_config_id: str,
     verdict_config_id: str,
     df: pd.DataFrame,
-    variance_analysis: pd.DataFrame,
+    marginal_variance: pd.DataFrame,
+    oriented_interactions: pd.DataFrame,
     discrimination: pd.DataFrame,
     correlations: pd.DataFrame,
-    interactions: pd.DataFrame,
     patterns_global: dict,
     patterns_by_gamma: dict,
     verdict_global: str,
     reason_global: str,
     verdicts_by_gamma: dict,
-    projections_analyzed: List[str],
     output_dir: str = "reports/verdicts"
 ) -> None:
-    """
-    Génère rapports : GLOBAL + PAR GAMMA.
-    """
+    """Génère rapports complets."""
+    
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     report_dir = Path(output_dir) / f"{timestamp}_analysis_full"
     report_dir.mkdir(parents=True, exist_ok=True)
     
     # Metadata
+    n_oriented_pairs = len(FACTORS) * (len(FACTORS) - 1)
+    
     metadata = {
         'generated_at': datetime.now().isoformat(),
         'engine_version': '5.5',
+        'architecture': 'oriented_interactions',
         'configs_used': {
             'params': params_config_id,
             'verdict': verdict_config_id
         },
-        'factors_analyzed': ['gamma_id', 'd_encoding_id', 'modifier_id', 'seed', 'test_name'],
-        'projections_analyzed': projections_analyzed,
-        'projections_ignored': ['transition', 'trend'],
+        'factors_analyzed': FACTORS,
+        'projections_analyzed': PROJECTIONS,
         'n_observations': len(df),
-        'n_gammas': len(df['gamma_id'].unique()),
-        'n_tests': len(df['test_name'].unique()),
-        'n_metrics': len(df.groupby(['test_name', 'metric_name'])),
+        'n_factors': len(FACTORS),
+        'n_oriented_pairs': n_oriented_pairs,
+        'testability_thresholds': {
+            'min_samples_per_group': MIN_SAMPLES_PER_GROUP,
+            'min_groups': MIN_GROUPS,
+            'min_total_samples': MIN_TOTAL_SAMPLES
+        },
         'limitations': {
-            'variance_ratio': 'Heuristique R0, pas décomposition ANOVA standard',
-            'p_values': 'Non corrigées pour multiplicité (faux positifs attendus)',
-            'seuils': 'Arbitraires fixes (0.3, 0.1, 0.8)',
-            'interactions': 'Conditionnelles simples uniquement'
+            'variance_ratio': 'Heuristique R0',
+            'p_values': 'Non corrigées multiplicité',
+            'interaction_strength': 'Ratio VR_conditionnel/VR_marginal (seuil=2.0)'
         }
     }
     
@@ -784,25 +732,22 @@ def generate_verdict_report(
     # Rapport humain
     with open(report_dir / 'summary.txt', 'w') as f:
         f.write("="*80 + "\n")
-        f.write(f"VERDICT ANALYSIS - EXPLORATOIRE R0\n")
+        f.write(f"VERDICT ANALYSIS - INTERACTIONS ORIENTÉES\n")
         f.write(f"{timestamp}\n")
         f.write("="*80 + "\n\n")
         
-        f.write("⚠️  LIMITATIONS MÉTHODOLOGIQUES :\n")
-        f.write("  - Tests statistiques NON CORRIGÉS pour multiplicité\n")
-        f.write("  - Variance ratio = heuristique R0 (pas ANOVA standard)\n")
-        f.write("  - Seuils fixes arbitraires (0.3, 0.1, 0.8)\n\n")
+        f.write("ARCHITECTURE:\n")
+        f.write(f"  Factors analysés : {', '.join(FACTORS)}\n")
+        f.write(f"  Paires orientées : {n_oriented_pairs}\n")
+        f.write(f"  Projections : {', '.join(PROJECTIONS)}\n")
+        f.write(f"  Testabilité : min_samples={MIN_SAMPLES_PER_GROUP}, min_groups={MIN_GROUPS}\n\n")
         
-        f.write("CONFIGURATION:\n")
-        f.write(f"  Params:  {params_config_id}\n")
-        f.write(f"  Verdict: {verdict_config_id}\n")
-        f.write(f"  Observations: {metadata['n_observations']}\n")
-        f.write(f"  Gammas: {metadata['n_gammas']}\n")
-        f.write(f"  Tests: {metadata['n_tests']}\n")
-        f.write(f"  Métriques: {metadata['n_metrics']}\n\n")
-        
-        f.write("FACTORS ANALYSÉS (tous égalitairement):\n")
-        f.write(f"  {', '.join(metadata['factors_analyzed'])}\n\n")
+        f.write("CORRECTIONS CRITIQUES APPLIQUÉES:\n")
+        f.write("  ✓ Paires orientées (permutations pas combinations)\n")
+        f.write("  ✓ Interaction = VR_conditionnel >> VR_marginal\n")
+        f.write("  ✓ Filtrage testabilité explicite\n")
+        f.write("  ✓ params_config_id exclu (corrélation)\n")
+        f.write("  ✓ Drill-down gamma recalculé\n\n")
         
         f.write("="*80 + "\n")
         f.write("VERDICT GLOBAL\n")
@@ -816,30 +761,19 @@ def generate_verdict_report(
                 f.write(f"  {pattern_type}: {len(pattern_list)} occurrences\n")
         f.write("\n")
         
-        f.write("="*80 + "\n")
-        f.write("VERDICTS PAR GAMMA (drill-down)\n")
-        f.write("="*80 + "\n\n")
-        
-        for gamma_id, verdict_info in verdicts_by_gamma.items():
-            f.write(f"--- {gamma_id} ---\n")
-            f.write(f"Verdict: {verdict_info['verdict']}\n")
-            f.write(f"Raison:  {verdict_info['reason']}\n")
+        if patterns_by_gamma:
+            f.write("="*80 + "\n")
+            f.write("VERDICTS PAR GAMMA (drill-down recalculé)\n")
+            f.write("="*80 + "\n\n")
             
-            patterns_gamma = verdict_info['patterns']
-            critical_gamma = sum(len(v) for v in patterns_gamma.values() if v)
-            if critical_gamma > 0:
-                f.write(f"Patterns: ")
-                for pt, pl in patterns_gamma.items():
-                    if pl:
-                        f.write(f"{pt}({len(pl)}) ")
-                f.write("\n")
-            f.write("\n")
+            for gamma_id, verdict_info in verdicts_by_gamma.items():
+                f.write(f"--- {gamma_id} ---\n")
+                f.write(f"Verdict: {verdict_info['verdict']}\n")
+                f.write(f"Raison:  {verdict_info['reason']}\n\n")
         
-        f.write("="*80 + "\n")
-        f.write("NOTE : Résultats exploratoires nécessitant validation humaine.\n")
         f.write("="*80 + "\n")
     
-    # Rapport JSON complet
+    # Rapport JSON
     report_json = {
         'metadata': metadata,
         'verdict_global': {
@@ -853,13 +787,13 @@ def generate_verdict_report(
     with open(report_dir / 'analysis_complete.json', 'w') as f:
         json.dump(report_json, f, indent=2)
     
-    # CSV analyses
-    variance_analysis.to_csv(report_dir / 'variance_by_factor.csv', index=False)
+    # CSV
+    marginal_variance.to_csv(report_dir / 'marginal_variance.csv', index=False)
+    if not oriented_interactions.empty:
+        oriented_interactions.to_csv(report_dir / 'oriented_interactions.csv', index=False)
     discrimination.to_csv(report_dir / 'discrimination.csv', index=False)
     if not correlations.empty:
         correlations.to_csv(report_dir / 'correlations.csv', index=False)
-    if not interactions.empty:
-        interactions.to_csv(report_dir / 'conditional_interactions.csv', index=False)
     
     print(f"\n✓ Rapports générés : {report_dir}")
 
@@ -872,94 +806,72 @@ def compute_verdict(
     params_config_id: str,
     verdict_config_id: str
 ) -> None:
-    """
-    Pipeline complet verdict exploratoire.
+    """Pipeline complet verdict exploratoire CORRIGÉ."""
     
-    Architecture à 2 niveaux :
-    1. Analyse globale (tous factors égalitairement)
-    2. Drill-down par gamma (présentation)
-    """
     print(f"\n{'='*70}")
-    print(f"VERDICT ANALYSIS - EXPLORATOIRE R0")
+    print(f"VERDICT ANALYSIS - INTERACTIONS ORIENTÉES")
     print(f"{'='*70}\n")
     
-    # Projections analysées
-    projections_analyzed = [
-        'value_final',
-        'value_mean', 
-        'slope',
-        'volatility',
-        'relative_change'
-    ]
+    n_oriented_pairs = len(FACTORS) * (len(FACTORS) - 1)
     
-    print(f"Projections analysées : {', '.join(projections_analyzed)}")
-    print(f"Projections ignorées : transition, trend (catégorielles)\n")
+    print(f"Factors analysés : {', '.join(FACTORS)}")
+    print(f"Paires orientées : {n_oriented_pairs}")
+    print(f"Projections : {', '.join(PROJECTIONS)}")
+    print(f"Testabilité : min_samples={MIN_SAMPLES_PER_GROUP}, min_groups={MIN_GROUPS}\n")
     
     # 1. Config
-    print("1. Chargement config verdict...")
+    print("1. Chargement config...")
     loader = get_loader()
     verdict_config = loader.load('verdict', verdict_config_id)
-    print(f"   ✓ Config {verdict_config_id} chargée")
     
     # 2. Observations
     print("2. Chargement observations...")
     observations = load_all_observations(params_config_id)
-    print(f"   ✓ {len(observations)} observations SUCCESS")
+    print(f"   ✓ {len(observations)} observations")
     
     # 3. DataFrame
     print("3. Structuration DataFrame...")
     df = observations_to_dataframe(observations)
     print(f"   ✓ {len(df)} lignes")
-    print(f"   ✓ {len(df['gamma_id'].unique())} gammas distincts")
     
     # 4. Analyses
     print("4. Analyses statistiques...")
     
-    # TOUS factors égalitairement
-    factors = ['gamma_id', 'd_encoding_id', 'modifier_id', 'seed', 'test_name']
-    print(f"   Factors analysés : {', '.join(factors)}")
+    # 4a. Variance marginale
+    marginal_variance = analyze_marginal_variance(df, FACTORS, PROJECTIONS)
+    print(f"   ✓ Variance marginale: {len(marginal_variance)} résultats")
     
-    variance_analysis = analyze_variance_by_factor(df, factors, projections_analyzed)
-    print(f"   ✓ Variance analysis: {len(variance_analysis)} résultats")
+    # 4b. Interactions orientées (CORRIGÉ)
+    oriented_interactions = analyze_oriented_interactions(
+        df, FACTORS, PROJECTIONS, marginal_variance
+    )
+    print(f"   ✓ Interactions orientées: {len(oriented_interactions)} détectées")
     
-    discrimination = analyze_metric_discrimination(df, projections_analyzed)
+    # 4c. Discrimination
+    discrimination = analyze_metric_discrimination(df, PROJECTIONS)
     print(f"   ✓ Discrimination: {len(discrimination)} métriques")
     
-    correlations = analyze_metric_correlations(df, projection='value_final')
-    print(f"   ✓ Correlations: {len(correlations)} paires")
+    # 4d. Corrélations
+    correlations = analyze_metric_correlations(df)
+    print(f"   ✓ Corrélations: {len(correlations)} paires")
     
-    interactions = analyze_conditional_interactions(df, projections_analyzed)
-    print(f"   ✓ Conditional interactions: {len(interactions)} détectées")
-    
-    # 5. Interpretation (2 niveaux)
+    # 5. Interpretation
     print("5. Interprétation patterns...")
     patterns_global, patterns_by_gamma = interpret_patterns(
         df,
-        variance_analysis,
+        marginal_variance,
+        oriented_interactions,
         discrimination,
-        correlations,
-        interactions,
-        verdict_config
+        correlations
     )
     
-    total_patterns_global = sum(len(v) for v in patterns_global.values() if v)
-    print(f"   ✓ Patterns globaux : {total_patterns_global}")
-    
-    for gamma_id, patterns_gamma in patterns_by_gamma.items():
-        total_gamma = sum(len(v) for v in patterns_gamma.values() if v)
-        if total_gamma > 0:
-            print(f"     - {gamma_id}: {total_gamma} patterns")
-    
-    # 6. Verdict (2 niveaux)
+    # 6. Verdict
     print("6. Décision verdict...")
     verdict_global, reason_global, verdicts_by_gamma = decide_verdict(
         patterns_global,
-        patterns_by_gamma,
-        verdict_config
+        patterns_by_gamma
     )
     print(f"   → Global: {verdict_global}")
-    for gamma_id, v in verdicts_by_gamma.items():
-        print(f"     - {gamma_id}: {v['verdict']}")
     
     # 7. Rapports
     print("7. Génération rapports...")
@@ -967,18 +879,17 @@ def compute_verdict(
         params_config_id,
         verdict_config_id,
         df,
-        variance_analysis,
+        marginal_variance,
+        oriented_interactions,
         discrimination,
         correlations,
-        interactions,
         patterns_global,
         patterns_by_gamma,
         verdict_global,
         reason_global,
-        verdicts_by_gamma,
-        projections_analyzed
+        verdicts_by_gamma
     )
     
     print(f"\n{'='*70}")
-    print(f"VERDICT GLOBAL: {verdict_global}")
+    print(f"VERDICT: {verdict_global}")
     print(f"{'='*70}\n")
