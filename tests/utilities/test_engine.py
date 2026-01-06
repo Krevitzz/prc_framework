@@ -43,7 +43,7 @@ class TestEngine:
         
         Args:
             test_module: Module test importé
-            run_metadata: {exec_id, gamma_id, d_base_id, modifier_id, seed, state_shape}
+            run_metadata: {exec_id, gamma_id, d_encoding_id, modifier_id, seed, state_shape}
             history: Liste complète des snapshots
             params_config_id: ID config params
         
@@ -141,7 +141,7 @@ class TestEngine:
             
             'run_metadata': {
                 'gamma_id': run_metadata['gamma_id'],
-                'd_base_id': run_metadata['d_base_id'],
+                'd_encoding_id': run_metadata['d_encoding_id'],
                 'modifier_id': run_metadata['modifier_id'],
                 'seed': run_metadata['seed'],
             },

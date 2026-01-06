@@ -278,7 +278,7 @@ def load_execution_context(exec_id: int) -> dict:
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT gamma_id, d_base_id, modifier_id, seed, run_id
+        SELECT gamma_id, d_encoding_id, modifier_id, seed, run_id
         FROM Executions WHERE id = ?
     """, (exec_id,))
     
@@ -290,7 +290,7 @@ def load_execution_context(exec_id: int) -> dict:
     
     return {
         'gamma_id': row[0],
-        'd_base_id': row[1],
+        'd_encoding_id': row[1],
         'modifier_id': row[2],
         'seed': row[3],
         'run_id': row[4]

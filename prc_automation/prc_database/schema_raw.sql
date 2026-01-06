@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS Executions (
   subspace_dim INTEGER,                  -- Projection
   
   -- Configuration D
-  d_base_id TEXT NOT NULL,              -- "SYM-001"
+  d_encoding_id TEXT NOT NULL,              -- "SYM-001"
   modifier_id TEXT NOT NULL,            -- "M0", "M1", etc.
   seed INTEGER NOT NULL,
   
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS Executions (
   -- Indexes pour requêtes rapides
   UNIQUE(gamma_id, alpha, beta, gamma_param, omega, memory_weight, window_size, 
          epsilon, sigma, lambda_param, eta, subspace_dim, 
-         d_base_id, modifier_id, seed)
+         d_encoding_id, modifier_id, seed)
 );
 
 -- Table snapshots : états sauvegardés à intervalles
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS Metrics (
 
 -- Indexes pour performance
 CREATE INDEX IF NOT EXISTS idx_exec_gamma ON Executions(gamma_id);
-CREATE INDEX IF NOT EXISTS idx_exec_dbase ON Executions(d_base_id);
+CREATE INDEX IF NOT EXISTS idx_exec_dbase ON Executions(d_encoding_id);
 CREATE INDEX IF NOT EXISTS idx_exec_status ON Executions(status);
 CREATE INDEX IF NOT EXISTS idx_exec_params ON Executions(gamma_id, beta, alpha, sigma);
 
