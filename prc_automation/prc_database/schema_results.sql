@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS TestObservations (
   observation_id INTEGER PRIMARY KEY,  -- ✅ PK explicite
   exec_id INTEGER NOT NULL,
   test_name TEXT NOT NULL,
+  test_category TEXT NOT NULL,
   
   -- Config params utilisée
   params_config_id TEXT NOT NULL,

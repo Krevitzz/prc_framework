@@ -52,7 +52,7 @@ def run_batch_brut(args):
     print(f"⚠ Mode --brut assume db_raw existante")
     print(f"  Vérifier executions pour {gamma_id}...")
     
-    conn = sqlite3.connect('prc_database/prc_r0_raw.db')
+    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_raw.db')
     cursor = conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM Executions WHERE gamma_id = ?", (gamma_id,))
     count = cursor.fetchone()[0]
@@ -77,7 +77,7 @@ def run_batch_test(args):
     Stocke dans db_results.
     """
     print(f"\n{'='*70}")
-    print("MODE TEST - Application tests + scoring")
+    print("MODE TEST - Application tests")
     print(f"{'='*70}\n")
     
     gamma_id = args.gamma
@@ -264,7 +264,7 @@ def run_batch_all(args):
 
 def get_exec_ids_for_gamma(gamma_id: str) -> list:
     """Récupère tous exec_ids pour une gamma."""
-    conn = sqlite3.connect('prc_database/prc_r0_raw.db')
+    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_raw.db')
     cursor = conn.cursor()
     cursor.execute("SELECT id FROM Executions WHERE gamma_id = ?", (gamma_id,))
     rows = cursor.fetchall()
@@ -274,7 +274,7 @@ def get_exec_ids_for_gamma(gamma_id: str) -> list:
 
 def load_execution_context(exec_id: int) -> dict:
     """Charge contexte depuis db_raw."""
-    conn = sqlite3.connect('prc_database/prc_r0_raw.db')
+    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_raw.db')
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -299,7 +299,7 @@ def load_execution_context(exec_id: int) -> dict:
 
 def load_first_snapshot(exec_id: int):
     """Charge premier snapshot pour déduire state_shape."""
-    conn = sqlite3.connect('prc_database/prc_r0_raw.db')
+    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_raw.db')
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -328,7 +328,7 @@ def load_execution_history(exec_id: int) -> list:
     import gzip
     import pickle
     
-    conn = sqlite3.connect('prc_database/prc_r0_raw.db')
+    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_raw.db')
     cursor = conn.cursor()
     
     cursor.execute("""
@@ -349,7 +349,7 @@ def load_execution_history(exec_id: int) -> list:
 
 def store_test_observation(exec_id: int, observation: dict):
     """Stocke observation dans db_results."""
-    conn = sqlite3.connect('prc_database/prc_r0_results.db')
+    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_results.db')
     cursor = conn.cursor()
     
     # Extraire stats pour colonnes rapides

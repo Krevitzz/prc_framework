@@ -5,11 +5,11 @@ import argparse
 import sqlite3
 from pathlib import Path
 
-DB_RAW_PATH = Path("prc_database/prc_r0_raw.db")
-DB_RESULTS_PATH = Path("prc_database/prc_r0_results.db")
+DB_RAW_PATH = Path("./prc_automation/prc_database/prc_r0_raw.db")
+DB_RESULTS_PATH = Path("./prc_automation/prc_database/prc_r0_results.db")
 
-SCHEMA_RAW_PATH = Path("prc_database/schema_raw.sql")
-SCHEMA_RESULTS_PATH = Path("prc_database/schema_results.sql")
+SCHEMA_RAW_PATH = Path("./prc_automation/prc_database/schema_raw.sql")
+SCHEMA_RESULTS_PATH = Path("./prc_automation/prc_database/schema_results.sql")
 
 
 def init_db_raw(reset: bool = False):

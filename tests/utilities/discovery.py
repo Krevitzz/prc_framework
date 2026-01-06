@@ -2,7 +2,7 @@
 """
 Discovery automatique tests actifs.
 
-Architecture Charter 5.4 - Section 12.10
+Architecture Charter 5.5 - Section 12.10
 """
 
 import importlib
@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict
 import warnings
 
-# Attributs requis architecture 5.4
+# Attributs requis architecture 5.5
 REQUIRED_ATTRIBUTES = [
     'TEST_ID',
     'TEST_CATEGORY',
@@ -84,7 +84,7 @@ def validate_test_structure(module) -> None:
     assert isinstance(module.COMPUTATION_SPECS, dict), "COMPUTATION_SPECS must be dict"
     
     # 3. Version 5.4 obligatoire
-    assert module.TEST_VERSION == "5.4", f"TEST_VERSION must be '5.4', got '{module.TEST_VERSION}'"
+    assert module.TEST_VERSION == "5.5", f"TEST_VERSION must be '5.5', got '{module.TEST_VERSION}'"
     
     # 4. TEST_ID format CAT-NNN
     import re
@@ -113,6 +113,6 @@ def validate_test_structure(module) -> None:
     
     # 9. Pas de is_applicable/compute_metric legacy
     assert not hasattr(module, 'is_applicable'), \
-        "is_applicable() is obsolete in 5.4, use APPLICABILITY_SPEC"
+        "is_applicable() is obsolete in 5.5, use APPLICABILITY_SPEC"
     assert not hasattr(module, 'compute_metric'), \
-        "compute_metric() is obsolete in 5.4, use COMPUTATION_SPECS with registries"
+        "compute_metric() is obsolete in 5.5, use COMPUTATION_SPECS with registries"

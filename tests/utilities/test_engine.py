@@ -24,7 +24,7 @@ class TestEngine:
     5. Retourner dict standardisé avec exec_id
     """
     
-    VERSION = "5.4"
+    VERSION = "5.5"
     
     def __init__(self):
         self.registry_manager = RegistryManager()
