@@ -19,11 +19,11 @@ from pathlib import Path
 from tests.utilities.discovery import discover_active_tests
 from tests.utilities.applicability import check as check_applicability
 from tests.utilities.test_engine import TestEngine
-from tests.utilities.verdict_engine import (
-    compute_gamma_verdict,
-    generate_human_report,
-    generate_llm_report
-)
+#from tests.utilities.verdict_engine import (
+ #   compute_gamma_verdict,
+#    generate_human_report,
+#    generate_llm_report
+#)
 
 
 class CriticalTestError(Exception):
@@ -67,7 +67,7 @@ def run_batch_brut(args):
 
 
 # =============================================================================
-# MODE TEST (observations + scoring)
+# MODE TEST (observations)
 # =============================================================================
 
 def run_batch_test(args):
@@ -82,7 +82,6 @@ def run_batch_test(args):
     
     gamma_id = args.gamma
     params_config_id = args.params
-    scoring_config_id = args.scoring
     
     # Vérifier db_raw
     exec_ids = get_exec_ids_for_gamma(gamma_id)
@@ -252,7 +251,7 @@ def run_batch_all(args):
     
     #run_batch_brut(args)
     run_batch_test(args)
-    run_batch_verdict(args)
+    #run_batch_verdict(args)
     
     print(f"\n{'#'*70}")
     print("# PIPELINE TERMINÉ")
@@ -418,7 +417,7 @@ def store_test_observation(exec_id: int, observation: dict):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Batch Runner Charter 5.4",
+        description="Batch Runner Charter 5.5",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples:
@@ -439,7 +438,7 @@ Exemples:
     parser.add_argument('--params', default='params_default_v1',
                        help="Global params config ID")
     
-    parser.add_argument('--verdict', default='verdict_default_v1')
+#    parser.add_argument('--verdict', default='verdict_default_v1')
     
     return parser.parse_args()
 
