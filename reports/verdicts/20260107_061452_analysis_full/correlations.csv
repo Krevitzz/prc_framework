@@ -1,0 +1,6 @@
+test_name,metric1,metric2,correlation,p_value,n_observations
+GRA-001,clustering_local,density,0.9708283143461159,0.0,2400
+PAT-001,diversity_simpson,uniformity,0.9999999999999999,0.0,2400
+SPE-001,eigenvalue_max,spectral_radius,1.0,0.0,2400
+SYM-001,asymmetry_norm,asymmetry_norm_normalized,0.8541118778276698,0.0,2400
+UNIV-002,trace_absolute,trace_normalized,0.9998245558699659,0.0,2400

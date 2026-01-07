@@ -1,11 +1,11 @@
 # prc_automation/batch_runner.py
 """
-Batch Runner Charter 5.4 - Pipeline exécution complet.
+Batch Runner Charter 5.5 - Pipeline exécution complet.
 
 Modes:
 - --brut: Collecte données (db_raw)
-- --test: Application tests + scoring (db_results)
-- --verdict: Génération verdict patterns (db_results + rapports)
+- --test: Application tests (db_results)
+- --verdict: Génération verdicts exploratoires (rapports)
 - --all: Pipeline complet
 """
 
@@ -19,11 +19,6 @@ from pathlib import Path
 from tests.utilities.discovery import discover_active_tests
 from tests.utilities.applicability import check as check_applicability
 from tests.utilities.test_engine import TestEngine
-#from tests.utilities.verdict_engine import (
- #   compute_gamma_verdict,
-#    generate_human_report,
-#    generate_llm_report
-#)
 
 
 class CriticalTestError(Exception):
@@ -49,7 +44,7 @@ def run_batch_brut(args):
     # TODO: Implémenter génération configs + exécution kernel
     # Pour l'instant, assume que db_raw existe déjà
     
-    print(f"⚠ Mode --brut assume db_raw existante")
+    print(f"⚠️ Mode --brut assume db_raw existante")
     print(f"  Vérifier executions pour {gamma_id}...")
     
     conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_raw.db')
@@ -73,7 +68,7 @@ def run_batch_brut(args):
 def run_batch_test(args):
     """
     Applique tests sur runs existants.
-    Calcule observations et scores.
+    Calcule observations.
     Stocke dans db_results.
     """
     print(f"\n{'='*70}")
@@ -102,7 +97,6 @@ def run_batch_test(args):
     
     # Compteurs
     total_observations = 0
-    total_scores = 0
     errors = []
     
     # Pour chaque run
@@ -136,7 +130,7 @@ def run_batch_test(args):
             # Appliquer chaque test
             for test_id, test_module in applicable_tests.items():
                 try:
-                    # Phase 1: Observation
+                    # Phase : Observation
                     observation = engine.execute_test(
                         test_module, context, history, params_config_id
                     )
@@ -145,11 +139,8 @@ def run_batch_test(args):
                     store_test_observation(exec_id, observation)
                     total_observations += 1
                     
-                    # Si NOT_APPLICABLE ou ERROR, skip scoring
-                    if observation['status'] not in ['SUCCESS']:
-                        print(f"    {test_id}: {observation['status']}")
-                        continue
-                                       
+                    status = observation['status']
+                    print(f"    ✓ {test_id}: {status}")
                 
                 except Exception as e:
                     error_msg = f"exec_id={exec_id}, test={test_id}: {str(e)}"
@@ -166,7 +157,6 @@ def run_batch_test(args):
     print("RÉSUMÉ MODE TEST")
     print(f"{'='*70}")
     print(f"Observations générées: {total_observations}")
-    print(f"Scores calculés:       {total_scores}")
     print(f"Erreurs:               {len(errors)}")
     
     if errors:
@@ -176,29 +166,49 @@ def run_batch_test(args):
 
 
 # =============================================================================
-# MODE VERDICT (patterns + rapports)
+# MODE VERDICT (analyse exploratoire)
 # =============================================================================
 
 def run_batch_verdict(args):
     """
-    Calcule verdict global pour gamma.
-    Agrège tous tests sur tous runs.
-    Génère 2 rapports (humain + LLM).
+    Génère verdicts exploratoires sur observations existantes.
+    
+    Architecture 5.5:
+    - Charge TOUTES observations pour params_config_id
+    - Analyse globale + drill-down par gamma
+    - Génère rapports complets (metadata, summary, JSON, CSVs)
     """
     print(f"\n{'='*70}")
-    print("MODE VERDICT - Analyse patterns + rapports")
+    print("MODE VERDICT - Analyse exploratoire")
     print(f"{'='*70}\n")
     
-    gamma_id = args.gamma
     params_config_id = args.params
     verdict_config_id = args.verdict
     
+    print(f"Params config:  {params_config_id}")
+    print(f"Verdict config: {verdict_config_id}\n")
     
-    # Calculer verdict
+    # Vérifier que observations existent
+    n_observations = count_observations(params_config_id)
+    if n_observations == 0:
+        print(f"❌ Aucune observation trouvée pour params={params_config_id}")
+        print(f"   Action: Exécuter --test d'abord")
+        sys.exit(1)
+    
+    print(f"✓ {n_observations} observations trouvées\n")
+    
+    # Import verdict engine
     try:
-        verdict = compute_gamma_verdict(
-            gamma_id,
-            params_config_id
+        from tests.utilities.verdict_engine import compute_verdict
+    except ImportError as e:
+        print(f"❌ Erreur import verdict_engine: {e}")
+        sys.exit(1)
+    
+    # Exécution pipeline verdict
+    try:
+        compute_verdict(
+            params_config_id=params_config_id,
+            verdict_config_id=verdict_config_id
         )
     except Exception as e:
         print(f"\n❌ Erreur calcul verdict: {e}")
@@ -206,36 +216,10 @@ def run_batch_verdict(args):
         traceback.print_exc()
         sys.exit(1)
     
-    # Stocker verdict
-    print("\n5. Stockage verdict...")
-    store_gamma_verdict(verdict)
-    print("   ✓ Verdict stocké dans db_results")
-    
-    # Générer rapports
-    print("\n6. Génération rapports...")
-    Path("reports").mkdir(exist_ok=True)
-    
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    
-    # Rapport humain (txt)
-    human_path = f"reports/verdict_{gamma_id}_{timestamp}_human.txt"
-    generate_human_report(verdict, human_path)
-    print(f"   ✓ Rapport humain: {human_path}")
-    
-    # Rapport LLM (JSON)
-    llm_path = f"reports/verdict_{gamma_id}_{timestamp}_llm.json"
-    generate_llm_report(verdict, llm_path)
-    print(f"   ✓ Rapport LLM: {llm_path}")
-    
-    # Afficher verdict
     print(f"\n{'='*70}")
-    print("VERDICT FINAL")
+    print("✓ VERDICT TERMINÉ")
     print(f"{'='*70}")
-    print(f"Gamma:    {verdict['gamma_id']}")
-    print(f"Verdict:  {verdict['verdict']}")
-    print(f"Raison:   {verdict['verdict_reason']}")
-    print(f"Runs:     {verdict['num_runs_analyzed']}")
-    print(f"Tests:    {verdict['num_tests_analyzed']}")
+    print("Consulter reports/verdicts/<timestamp>_analysis_full/")
     print(f"{'='*70}\n")
 
 
@@ -249,8 +233,8 @@ def run_batch_all(args):
     print("# PIPELINE COMPLET: brut → test → verdict")
     print(f"{'#'*70}\n")
     
-    #run_batch_brut(args)
-    #run_batch_test(args)
+    # run_batch_brut(args)  # Si gamma spécifié
+    # run_batch_test(args)  # Si gamma spécifié
     run_batch_verdict(args)
     
     print(f"\n{'#'*70}")
@@ -270,6 +254,19 @@ def get_exec_ids_for_gamma(gamma_id: str) -> list:
     rows = cursor.fetchall()
     conn.close()
     return [row[0] for row in rows]
+
+
+def count_observations(params_config_id: str) -> int:
+    """Compte observations SUCCESS pour une config."""
+    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_results.db')
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT COUNT(*) FROM TestObservations 
+        WHERE params_config_id = ? AND status = 'SUCCESS'
+    """, (params_config_id,))
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
 
 
 def load_execution_context(exec_id: int) -> dict:
@@ -409,8 +406,6 @@ def store_test_observation(exec_id: int, observation: dict):
     conn.close()
 
 
-
-
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -421,10 +416,20 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples:
-  python batch_runner.py --brut --gamma GAM-001
-  python batch_runner.py --test --gamma GAM-001 --params default_v1 --scoring pathologies_v1
-  python batch_runner.py --verdict --gamma GAM-001
-  python batch_runner.py --all --gamma GAM-001
+  # Mode brut (collecte données)
+  python -m prc_automation.batch_runner --mode brut --gamma GAM-001
+  
+  # Mode test (observations)
+  python -m prc_automation.batch_runner --mode test --gamma GAM-001 --params params_default_v1
+  
+  # Mode verdict (analyse exploratoire, configs par défaut)
+  python -m prc_automation.batch_runner --mode verdict
+  
+  # Mode verdict (configs spécifiques)
+  python -m prc_automation.batch_runner --mode verdict --params params_default_v1 --verdict verdict_strict_v1
+  
+  # Pipeline complet
+  python -m prc_automation.batch_runner --mode all --gamma GAM-001
         """
     )
     
@@ -432,13 +437,14 @@ Exemples:
                        choices=['brut', 'test', 'verdict', 'all'],
                        help="Mode exécution")
     
-    parser.add_argument('--gamma', required=True,
-                       help="Gamma ID (ex: GAM-001)")
+    parser.add_argument('--gamma', default=None,
+                       help="Gamma ID (ex: GAM-001) - Requis pour modes brut/test")
     
     parser.add_argument('--params', default='params_default_v1',
-                       help="Global params config ID")
+                       help="Params config ID (défaut: params_default_v1)")
     
-    parser.add_argument('--verdict', default='verdict_default_v1')
+    parser.add_argument('--verdict', default='verdict_default_v1',
+                       help="Verdict config ID (défaut: verdict_default_v1)")
     
     return parser.parse_args()
 
@@ -446,6 +452,12 @@ Exemples:
 def main():
     args = parse_args()
     
+    # Validation arguments
+    if args.mode in ['brut', 'test'] and not args.gamma:
+        print("❌ Erreur: --gamma requis pour modes 'brut' et 'test'")
+        sys.exit(1)
+    
+    # Exécution
     if args.mode == 'brut':
         run_batch_brut(args)
     elif args.mode == 'test':

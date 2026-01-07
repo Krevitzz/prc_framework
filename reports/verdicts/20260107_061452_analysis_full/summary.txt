@@ -1,0 +1,82 @@
+================================================================================
+VERDICT ANALYSIS - INTERACTIONS ORIENTÉES
+20260107_061452
+================================================================================
+
+ARCHITECTURE:
+  Factors analysés : gamma_id, d_encoding_id, modifier_id, seed, test_name
+  Paires orientées : 20
+  Projections : value_final, value_mean, slope, volatility, relative_change
+  Testabilité : min_samples=2, min_groups=2
+
+CORRECTIONS CRITIQUES APPLIQUÉES:
+  ✓ Paires orientées (permutations pas combinations)
+  ✓ Interaction = VR_conditionnel >> VR_marginal
+  ✓ Filtrage testabilité explicite
+  ✓ params_config_id exclu (corrélation)
+  ✓ Drill-down gamma recalculé
+
+================================================================================
+VERDICT GLOBAL
+================================================================================
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 7 interactions vraies | 5 paires redondantes
+
+PATTERNS GLOBAUX:
+  marginal_dominant: 1 occurrences
+  oriented_interactions: 7 occurrences
+  redundant: 1 occurrences
+
+================================================================================
+VERDICTS PAR GAMMA (drill-down recalculé)
+================================================================================
+
+--- GAM-001 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+--- GAM-002 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+--- GAM-003 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+--- GAM-004 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+--- GAM-005 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+--- GAM-006 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+--- GAM-007 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+--- GAM-008 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+--- GAM-009 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+--- GAM-010 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+--- GAM-012 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+--- GAM-013 ---
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 3 interactions
+
+================================================================================

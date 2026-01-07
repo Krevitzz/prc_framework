@@ -64,63 +64,112 @@ MIN_TOTAL_SAMPLES = 10
 # STRUCTURATION
 # =============================================================================
 
+# tests/utilities/verdict_engine.py
+# SECTION : CHARGEMENT (CORRIGÉ pour double DB)
+
 def load_all_observations(
     params_config_id: str,
-    db_path: str = './prc_database/prc_r0_results.db'
+    db_results_path: str = './prc_automation/prc_database/prc_r0_results.db',
+    db_raw_path: str = './prc_automation/prc_database/prc_r0_raw.db'
 ) -> List[dict]:
-    """Charge observations SUCCESS uniquement."""
-    conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
+    """
+    Charge observations SUCCESS avec métadonnées runs.
     
-    cursor.execute("""
+    ⚠️ DOUBLE CONNEXION : TestObservations (db_results) + Executions (db_raw)
+    """
+    # 1. Charger observations depuis db_results
+    conn_results = sqlite3.connect(db_results_path)
+    conn_results.row_factory = sqlite3.Row
+    cursor_results = conn_results.cursor()
+    
+    cursor_results.execute("""
         SELECT 
-            o.observation_id,
-            o.exec_id,
-            o.test_name,
-            o.params_config_id,
-            o.status,
-            o.observation_data,
-            o.computed_at,
-            e.run_id,
-            e.gamma_id,
-            e.d_encoding_id,
-            e.modifier_id,
-            e.seed
-        FROM TestObservations o
-        JOIN Executions e ON o.exec_id = e.id
-        WHERE o.params_config_id = ?
-          AND o.status = 'SUCCESS'
+            observation_id,
+            exec_id,
+            test_name,
+            params_config_id,
+            status,
+            observation_data,
+            computed_at
+        FROM TestObservations
+        WHERE params_config_id = ?
+          AND status = 'SUCCESS'
     """, (params_config_id,))
     
-    rows = cursor.fetchall()
-    conn.close()
+    obs_rows = cursor_results.fetchall()
+    conn_results.close()
     
-    if not rows:
+    if not obs_rows:
         raise ValueError(
             f"Aucune observation SUCCESS pour params={params_config_id}"
         )
     
+    # 2. Extraire exec_ids uniques
+    exec_ids = list(set(row['exec_id'] for row in obs_rows))
+    
+    # 3. Charger métadonnées Executions depuis db_raw
+    conn_raw = sqlite3.connect(db_raw_path)
+    conn_raw.row_factory = sqlite3.Row
+    cursor_raw = conn_raw.cursor()
+    
+    # Requête avec placeholders pour IN clause
+    placeholders = ','.join('?' * len(exec_ids))
+    cursor_raw.execute(f"""
+        SELECT 
+            id,
+            run_id,
+            gamma_id,
+            d_encoding_id,
+            modifier_id,
+            seed
+        FROM Executions
+        WHERE id IN ({placeholders})
+    """, exec_ids)
+    
+    exec_rows = cursor_raw.fetchall()
+    conn_raw.close()
+    
+    # 4. Index executions par id
+    executions_by_id = {
+        row['id']: {
+            'run_id': row['run_id'],
+            'gamma_id': row['gamma_id'],
+            'd_encoding_id': row['d_encoding_id'],
+            'modifier_id': row['modifier_id'],
+            'seed': row['seed']
+        }
+        for row in exec_rows
+    }
+    
+    # 5. Fusionner observations + métadonnées
     observations = []
-    for row in rows:
+    for row in obs_rows:
+        exec_id = row['exec_id']
+        
+        if exec_id not in executions_by_id:
+            print(f"⚠️ Skip observation {row['observation_id']}: exec_id={exec_id} introuvable dans db_raw")
+            continue
+        
+        exec_meta = executions_by_id[exec_id]
+        
         try:
             obs_data = json.loads(row['observation_data'])
             
             observations.append({
                 'observation_id': row['observation_id'],
-                'exec_id': row['exec_id'],
-                'run_id': row['run_id'],
-                'gamma_id': row['gamma_id'],
-                'd_encoding_id': row['d_encoding_id'],
-                'modifier_id': row['modifier_id'],
-                'seed': row['seed'],
+                'exec_id': exec_id,
+                'run_id': exec_meta['run_id'],
+                'gamma_id': exec_meta['gamma_id'],
+                'd_encoding_id': exec_meta['d_encoding_id'],
+                'modifier_id': exec_meta['modifier_id'],
+                'seed': exec_meta['seed'],
                 'test_name': row['test_name'],
                 'params_config_id': row['params_config_id'],
                 'observation_data': obs_data,
                 'computed_at': row['computed_at']
             })
         except (json.JSONDecodeError, KeyError) as e:
-            print(f"⚠️  Skip observation {row['observation_id']}: {e}")
+            print(f"⚠️ Skip observation {row['observation_id']}: {e}")
             continue
     
     return observations
@@ -335,7 +384,7 @@ def analyze_oriented_interactions(
                         # Variance factor_varying dans ce contexte
                         varying_groups = [
                             g[projection].dropna().values
-                            for name, g in group.groupby(factor_varying)
+                            for name, g in context_group.groupby(factor_varying)
                             if len(g.dropna()) >= MIN_SAMPLES_PER_GROUP
                         ]
                         
@@ -351,7 +400,7 @@ def analyze_oriented_interactions(
                         # Variance ratio conditionnel
                         group_means = [np.mean(g) for g in varying_groups]
                         var_between = np.var(group_means)
-                        var_total = np.var(group[projection].dropna())
+                        var_total = np.var(context_group[projection].dropna())
                         
                         if var_total < 1e-10:
                             vr_conditional = 0.0
@@ -726,11 +775,11 @@ def generate_verdict_report(
         }
     }
     
-    with open(report_dir / 'metadata.json', 'w') as f:
+    with open(report_dir / 'metadata.json', 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2)
     
     # Rapport humain
-    with open(report_dir / 'summary.txt', 'w') as f:
+    with open(report_dir / 'summary.txt', 'w', encoding='utf-8') as f:
         f.write("="*80 + "\n")
         f.write(f"VERDICT ANALYSIS - INTERACTIONS ORIENTÉES\n")
         f.write(f"{timestamp}\n")
@@ -784,7 +833,7 @@ def generate_verdict_report(
         'verdicts_by_gamma': verdicts_by_gamma
     }
     
-    with open(report_dir / 'analysis_complete.json', 'w') as f:
+    with open(report_dir / 'analysis_complete.json', 'w', encoding='utf-8') as f:
         json.dump(report_json, f, indent=2)
     
     # CSV
