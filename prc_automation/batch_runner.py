@@ -250,8 +250,8 @@ def run_batch_all(args):
     print(f"{'#'*70}\n")
     
     #run_batch_brut(args)
-    run_batch_test(args)
-    #run_batch_verdict(args)
+    #run_batch_test(args)
+    run_batch_verdict(args)
     
     print(f"\n{'#'*70}")
     print("# PIPELINE TERMINÉ")
@@ -438,7 +438,7 @@ Exemples:
     parser.add_argument('--params', default='params_default_v1',
                        help="Global params config ID")
     
-#    parser.add_argument('--verdict', default='verdict_default_v1')
+    parser.add_argument('--verdict', default='verdict_default_v1')
     
     return parser.parse_args()
 

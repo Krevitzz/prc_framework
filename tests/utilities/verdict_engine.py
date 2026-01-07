@@ -66,7 +66,7 @@ MIN_TOTAL_SAMPLES = 10
 
 def load_all_observations(
     params_config_id: str,
-    db_path: str = 'prc_database/prc_r0_results.db'
+    db_path: str = './prc_database/prc_r0_results.db'
 ) -> List[dict]:
     """Charge observations SUCCESS uniquement."""
     conn = sqlite3.connect(db_path)
