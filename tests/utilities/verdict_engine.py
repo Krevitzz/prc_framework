@@ -466,6 +466,235 @@ def print_scale_outliers_report(report):
     
     print("\n" + "=" * 80 + "\n")
     
+    
+    
+def stratify_by_regime(
+    observations: List[dict],
+    threshold: float = 1e50
+) -> Tuple[List[dict], List[dict]]:
+    """
+    Stratifie observations en régimes stable/explosif.
+    
+    Critère : présence valeurs >threshold dans projections exploitées.
+    Conserve TOUTES observations (aucun filtrage).
+    
+    Args:
+        observations: Liste observations complètes
+        threshold: Seuil magnitude extrême (défaut 1e50)
+    
+    Returns:
+        (obs_stable, obs_explosif)
+    """
+    stable = []
+    explosif = []
+    
+    for obs in observations:
+        obs_data = obs.get('observation_data', {})
+        stats = obs_data.get('statistics', {})
+        evol = obs_data.get('evolution', {})
+        
+        has_extreme = False
+        
+        # Vérifier toutes projections exploitées
+        for metric_stats in stats.values():
+            for key in ['initial', 'final', 'mean', 'max']:
+                val = metric_stats.get(key)
+                if val is not None and abs(val) > threshold:
+                    has_extreme = True
+                    break
+            if has_extreme:
+                break
+        
+        if not has_extreme:
+            for metric_evol in evol.values():
+                for key in ['slope', 'relative_change']:
+                    val = metric_evol.get(key)
+                    if val is not None and abs(val) > threshold:
+                        has_extreme = True
+                        break
+                if has_extreme:
+                    break
+        
+        if has_extreme:
+            explosif.append(obs)
+        else:
+            stable.append(obs)
+    
+    return stable, explosif
+
+
+def analyze_regime(
+    observations: List[dict],
+    regime_name: str,
+    params_config_id: str,
+    verdict_config_id: str
+) -> dict:
+    """
+    Pipeline analyse complet sur une strate.
+    
+    Identique à pipeline global, retourne structure complète.
+    """
+    df = observations_to_dataframe(observations)
+    
+    if len(df) < MIN_TOTAL_SAMPLES:
+        return {
+            'regime': regime_name,
+            'n_observations': len(observations),
+            'status': 'INSUFFICIENT_DATA',
+            'message': f'Moins de {MIN_TOTAL_SAMPLES} observations'
+        }
+    
+    # Analyses identiques pipeline global
+    marginal_variance = analyze_marginal_variance(df, FACTORS, PROJECTIONS)
+    oriented_interactions = analyze_oriented_interactions(
+        df, FACTORS, PROJECTIONS, marginal_variance
+    )
+    discrimination = analyze_metric_discrimination(df, PROJECTIONS)
+    correlations = analyze_metric_correlations(df)
+    
+    patterns_global, patterns_by_gamma = interpret_patterns(
+        df, marginal_variance, oriented_interactions,
+        discrimination, correlations
+    )
+    
+    verdict, reason, verdicts_by_gamma = decide_verdict(
+        patterns_global, patterns_by_gamma
+    )
+    
+    return {
+        'regime': regime_name,
+        'n_observations': len(observations),
+        'n_rows_df': len(df),
+        'status': 'SUCCESS',
+        'marginal_variance': marginal_variance,
+        'oriented_interactions': oriented_interactions,
+        'discrimination': discrimination,
+        'correlations': correlations,
+        'patterns_global': patterns_global,
+        'patterns_by_gamma': patterns_by_gamma,
+        'verdict': verdict,
+        'reason': reason,
+        'verdicts_by_gamma': verdicts_by_gamma
+    }
+    
+    
+def generate_stratified_report(
+    params_config_id: str,
+    verdict_config_id: str,
+    results_global: dict,
+    results_stable: dict,
+    results_explosif: dict,
+    output_dir: str = "reports/verdicts"
+) -> None:
+    """Génère rapport structuré avec 3 strates."""
+    
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    report_dir = Path(output_dir) / f"{timestamp}_stratified_analysis"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Metadata commune
+    metadata = {
+        'generated_at': datetime.now().isoformat(),
+        'engine_version': '5.5',
+        'architecture': 'stratified_parallel_regimes',
+        'stratification_threshold': 1e50,
+        'configs_used': {
+            'params': params_config_id,
+            'verdict': verdict_config_id
+        },
+        'regimes': {
+            'GLOBAL': {
+                'n_observations': results_global['n_observations'],
+                'description': 'Baseline complète (toutes observations)'
+            },
+            'STABLE': {
+                'n_observations': results_stable['n_observations'],
+                'description': 'Régime non-extrême (|projections| < 1e50)'
+            },
+            'EXPLOSIF': {
+                'n_observations': results_explosif['n_observations'],
+                'description': 'Régime magnitude extrême (|projections| >= 1e50)'
+            }
+        }
+    }
+    
+    with open(report_dir / 'metadata.json', 'w') as f:
+        json.dump(metadata, f, indent=2)
+    
+    # Rapport humain structuré
+    with open(report_dir / 'summary.txt', 'w') as f:
+        f.write("="*80 + "\n")
+        f.write("VERDICT ANALYSIS - STRATIFICATION PARALLÈLE\n")
+        f.write(f"{timestamp}\n")
+        f.write("="*80 + "\n\n")
+        
+        f.write("ARCHITECTURE:\n")
+        f.write("  3 analyses parallèles (pipeline identique)\n")
+        f.write("  Stratification : |projection| >= 1e50\n")
+        f.write("  Aucune donnée filtrée (conservation intégrale)\n\n")
+        
+        # Résumé par régime
+        for regime_name, results in [
+            ('GLOBAL', results_global),
+            ('STABLE', results_stable),
+            ('EXPLOSIF', results_explosif)
+        ]:
+            f.write("="*80 + "\n")
+            f.write(f"RÉGIME {regime_name}\n")
+            f.write("="*80 + "\n")
+            f.write(f"Observations: {results['n_observations']}\n")
+            
+            if results['status'] != 'SUCCESS':
+                f.write(f"Status: {results['status']}\n")
+                f.write(f"Message: {results.get('message', 'N/A')}\n\n")
+                continue
+            
+            f.write(f"Verdict: {results['verdict']}\n")
+            f.write(f"Raison:  {results['reason']}\n\n")
+            
+            f.write("PATTERNS DÉTECTÉS:\n")
+            for pattern_type, pattern_list in results['patterns_global'].items():
+                if pattern_list:
+                    f.write(f"  {pattern_type}: {len(pattern_list)} occurrences\n")
+            f.write("\n")
+    
+    # JSON complet par régime
+    for regime_name, results in [
+        ('global', results_global),
+        ('stable', results_stable),
+        ('explosif', results_explosif)
+    ]:
+        if results['status'] == 'SUCCESS':
+            report_json = {
+                'regime': results['regime'],
+                'n_observations': results['n_observations'],
+                'verdict': results['verdict'],
+                'reason': results['reason'],
+                'patterns_global': results['patterns_global'],
+                'patterns_by_gamma': results['patterns_by_gamma']
+            }
+            
+            with open(report_dir / f'analysis_{regime_name}.json', 'w') as f:
+                json.dump(report_json, f, indent=2)
+    
+    # CSVs par régime (marginal_variance, interactions, etc.)
+    for regime_name, results in [
+        ('global', results_global),
+        ('stable', results_stable),
+        ('explosif', results_explosif)
+    ]:
+        if results['status'] == 'SUCCESS':
+            results['marginal_variance'].to_csv(
+                report_dir / f'marginal_variance_{regime_name}.csv',
+                index=False
+            )
+            if not results['oriented_interactions'].empty:
+                results['oriented_interactions'].to_csv(
+                    report_dir / f'oriented_interactions_{regime_name}.csv',
+                    index=False
+                )
+    
+    print(f"\n✓ Rapports stratifiés générés : {report_dir}")
 # =============================================================================
 # STRUCTURATION
 # =============================================================================
@@ -1047,17 +1276,19 @@ def interpret_patterns(
                 })
         
         # Interactions dans gamma (simplifié pour drill-down)
-        gamma_interactions = oriented_interactions[
-            oriented_interactions['test_name'].isin(gamma_df['test_name'].unique())
-        ]
-        
-        if not gamma_interactions.empty:
-            for (fv, fc), group in gamma_interactions.groupby(['factor_varying', 'factor_context']):
-                if fv != 'gamma_id' and fc != 'gamma_id':
-                    patterns_gamma['oriented_interactions'].append({
-                        'interaction': f"{fv} | {fc}",
-                        'n_cases': len(group)
-                    })
+        # Protection contre oriented_interactions vide
+        if not oriented_interactions.empty:
+            gamma_interactions = oriented_interactions[
+                oriented_interactions['test_name'].isin(gamma_df['test_name'].unique())
+            ]
+    
+            if not gamma_interactions.empty:
+                for (fv, fc), group in gamma_interactions.groupby(['factor_varying', 'factor_context']):
+                    if fv != 'gamma_id' and fc != 'gamma_id':
+                        patterns_gamma['oriented_interactions'].append({
+                            'interaction': f"{fv} | {fc}",
+                            'n_cases': len(group)
+                        })  
         
         patterns_by_gamma[gamma_id] = patterns_gamma
     
@@ -1305,7 +1536,42 @@ def compute_verdict(
     scale_report = diagnose_scale_outliers(observations)
     print_scale_outliers_report(scale_report)
      
-        
+    
+    # NOUVEAU : Stratification
+    print("4. Stratification régimes...")
+    obs_stable, obs_explosif = stratify_by_regime(observations)
+    print(f"   Régime STABLE    : {len(obs_stable)} observations ({len(obs_stable)/len(observations)*100:.1f}%)")
+    print(f"   Régime EXPLOSIF  : {len(obs_explosif)} observations ({len(obs_explosif)/len(observations)*100:.1f}%)")
+    
+    # Analyses parallèles
+    print("\n5. Analyses statistiques...")
+    
+    print("   [GLOBAL] Baseline complète...")
+    results_global = analyze_regime(
+        observations, 'GLOBAL', 
+        params_config_id, verdict_config_id
+    )
+    
+    print("   [STABLE] Régime non-extrême...")
+    results_stable = analyze_regime(
+        obs_stable, 'STABLE',
+        params_config_id, verdict_config_id
+    )
+    
+    print("   [EXPLOSIF] Régime magnitude extrême...")
+    results_explosif = analyze_regime(
+        obs_explosif, 'EXPLOSIF',
+        params_config_id, verdict_config_id
+    )
+    
+    # Génération rapports stratifiés
+    print("\n6. Génération rapports stratifiés...")
+    generate_stratified_report(
+        params_config_id, verdict_config_id,
+        results_global, results_stable, results_explosif
+    )
+
+    
     # 3. DataFrame
     print("3. Structuration DataFrame...")
     #df = observations_to_dataframe(observations)
