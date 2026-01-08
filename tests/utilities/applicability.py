@@ -8,9 +8,11 @@ VALIDATORS: Dict[str, Callable] = {
     'requires_rank': lambda run_metadata, expected: 
         expected is None or len(run_metadata['state_shape']) == expected,
     
-    'requires_square': lambda run_metadata, _: 
-        len(run_metadata['state_shape']) == 2 and 
-        run_metadata['state_shape'][0] == run_metadata['state_shape'][1],
+    'requires_square': lambda run_metadata, required: 
+        not required or (
+            len(run_metadata['state_shape']) == 2 and 
+            run_metadata['state_shape'][0] == run_metadata['state_shape'][1]
+        ),
     
     'allowed_d_types': lambda run_metadata, allowed: 
         'ALL' in allowed or run_metadata['d_encoding_id'].split('-')[0] in allowed,

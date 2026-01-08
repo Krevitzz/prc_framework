@@ -20,6 +20,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import kruskal, spearmanr
 from typing import Dict, List, Tuple, Optional
+from collections import defaultdict
 import sqlite3
 import json
 from datetime import datetime
@@ -59,7 +60,276 @@ MIN_SAMPLES_PER_GROUP = 2
 MIN_GROUPS = 2
 MIN_TOTAL_SAMPLES = 10
 
+# =============================================================================
+# FILTRAGE ARTEFACTS NUMÉRIQUES (R0 minimal)
+# =============================================================================
 
+def is_numeric_valid(obs):
+    """
+    Détecte artefacts numériques (inf/nan) dans TOUTES les données exploitées.
+    
+    Vérifie :
+    - statistics : initial, final, mean, std, min, max
+    - evolution : slope, volatility, relative_change
+    """
+    # Vérifier statistics
+    statistics = obs.get('statistics', {})
+    evolution = obs.get('evolution', {})
+    
+    # DEBUG : afficher une observation SPE-001
+    if obs.get('test_name') == 'SPE-001':
+        print(f"\nDEBUG SPE-001:")
+        print(f"  statistics keys: {list(statistics.keys())}")
+        if 'eigenvalue_max' in statistics:
+            print(f"  eigenvalue_max/statistics: {statistics['eigenvalue_max']}")
+        if 'eigenvalue_max' in evolution:
+            print(f"  eigenvalue_max/evolution: {evolution['eigenvalue_max']}")
+        print()
+    
+    
+    for metric_stats in statistics.values():
+        values_to_check = [
+            metric_stats.get('initial'),
+            metric_stats.get('final'),
+            metric_stats.get('mean'),
+            metric_stats.get('std'),      # ← AJOUT
+            metric_stats.get('min'),      # ← AJOUT
+            metric_stats.get('max'),      # ← AJOUT
+        ]
+        
+        for v in values_to_check:
+            if v is not None:
+                if np.isinf(v) or np.isnan(v):
+                    return False
+    
+    # Vérifier evolution (projections analysées)  # ← AJOUT COMPLET
+    evolution = obs.get('evolution', {})
+    
+    for metric_evol in evolution.values():
+        values_to_check = [
+            metric_evol.get('slope'),
+            metric_evol.get('volatility'),
+            metric_evol.get('relative_change'),
+        ]
+        
+        for v in values_to_check:
+            if v is not None:
+                if np.isinf(v) or np.isnan(v):
+                    return False
+    
+    return True
+
+
+def filter_numeric_artifacts(observations):
+    """
+    Filtre observations avec artefacts numériques.
+    
+    Log rejets pour traçabilité.
+    
+    Args:
+        observations: liste observations
+    
+    Returns:
+        (valid_obs, rejection_stats)
+    """
+    valid = []
+    rejected_by_test = {}
+    
+    for obs in observations:
+        if is_numeric_valid(obs):
+            valid.append(obs)
+        else:
+            test_name = obs.get('test_name', 'UNKNOWN')
+            rejected_by_test[test_name] = rejected_by_test.get(test_name, 0) + 1
+    
+    total_rejected = len(observations) - len(valid)
+    
+    stats = {
+        'total_observations': len(observations),
+        'valid_observations': len(valid),
+        'rejected_observations': total_rejected,
+        'rejection_rate': total_rejected / len(observations) if observations else 0,
+        'rejected_by_test': rejected_by_test,
+    }
+    
+    return valid, stats
+
+def diagnose_numeric_degeneracy(obs):
+    """
+    Détecte dégénérescences numériques sur PROJECTIONS exploitées par verdict.
+    
+    Inspecte : value_final, value_mean, slope, volatility, relative_change
+    (pas statistics brutes)
+    
+    Flags diagnostics (non exclusifs) :
+    - NEAR_ZERO_VARIANCE : projection quasi constante
+    - DEGENERATE_SCALE : ratios extrêmes
+    - NUMERIC_COLLAPSE : distribution écrasée
+    - EXTREME_MAGNITUDE : valeurs très grandes
+    
+    Args:
+        obs: dict observation
+    
+    Returns:
+        list[str]: flags détectés (peut être vide)
+    """
+    flags = []
+    
+    statistics = obs.get('statistics', {})
+    evolution = obs.get('evolution', {})
+    
+    for metric_name in statistics.keys():
+        
+        # Récupérer les 5 projections utilisées par verdict
+        stat = statistics.get(metric_name, {})
+        evol = evolution.get(metric_name, {})
+        
+        projections = {
+            'value_final': stat.get('final'),
+            'value_mean': stat.get('mean'),
+            'slope': evol.get('slope'),
+            'volatility': evol.get('volatility'),
+            'relative_change': evol.get('relative_change'),
+        }
+        
+        # Inspecter chaque projection
+        for proj_name, value in projections.items():
+            
+            if value is None:
+                continue
+            
+            # Skip si inf/nan (déjà géré par filtre précédent)
+            if np.isinf(value):
+                flags.append(f"{metric_name}:{proj_name}:INFINITE_PROJECTION")
+                continue  # Skip les autres checks pour cette projection
+    
+            if np.isnan(value):
+                flags.append(f"{metric_name}:{proj_name}:NAN_PROJECTION")
+                continue
+            
+            abs_value = abs(value)
+            
+            # Flag 1: EXTREME_MAGNITUDE
+            # Valeurs très grandes (> 1e50 mais < inf)
+            if abs_value > 1e50:
+                flags.append(f"{metric_name}:{proj_name}:EXTREME_MAGNITUDE")
+        
+        # Flags nécessitant comparaison entre projections d'une même métrique
+        
+        # Collecter valeurs finies de value_final sur toutes métriques (pour variance globale)
+        # Note : on ne peut pas détecter variance sans plusieurs observations
+        # Donc on se concentre sur les flags par valeur individuelle ci-dessus
+    
+    return flags
+
+
+def generate_degeneracy_report(observations):
+    """
+    Génère rapport diagnostique dégénérescences sur PROJECTIONS.
+    
+    Args:
+        observations: liste observations (non filtrées)
+    
+    Returns:
+        dict: statistiques diagnostiques
+    """
+    flag_counts = defaultdict(int)
+    obs_with_flags = 0
+    flags_by_test = defaultdict(lambda: defaultdict(int))
+    flags_by_projection = defaultdict(int)
+    
+    for obs in observations:
+        flags = diagnose_numeric_degeneracy(obs)
+        
+        if flags:
+            obs_with_flags += 1
+            test_name = obs.get('test_name', 'UNKNOWN')
+            
+            for flag in flags:
+                flag_counts[flag] += 1
+                
+                # Parser flag: metric:projection:flag_type
+                parts = flag.split(':')
+                if len(parts) >= 3:
+                    projection = parts[1]
+                    flag_type = parts[2]
+                    flags_by_projection[projection] += 1
+                    flags_by_test[test_name][flag_type] += 1
+    
+    report = {
+        'total_observations': len(observations),
+        'observations_with_flags': obs_with_flags,
+        'flag_rate': obs_with_flags / len(observations) if observations else 0,
+        'flag_counts': dict(flag_counts),
+        'flags_by_test': {k: dict(v) for k, v in flags_by_test.items()},
+        'flags_by_projection': dict(flags_by_projection),
+    }
+    
+    return report
+
+
+def print_degeneracy_report(report):
+    """Affiche rapport diagnostique."""
+    
+    total = report['total_observations']
+    flagged = report['observations_with_flags']
+    rate = report['flag_rate']
+    
+    print(f"\n" + "=" * 80)
+    print("DIAGNOSTIC DÉGÉNÉRESCENCES NUMÉRIQUES (projections exploitées)")
+    print("=" * 80)
+    print(f"Total observations:        {total}")
+    print(f"Observations flaggées:     {flagged} ({rate*100:.1f}%)")
+    print()
+    
+    if flagged == 0:
+        print("✓ Aucune dégénérescence détectée\n")
+        return
+    
+    # Flags par projection
+    print("Dégénérescences par projection (variables analysées):")
+    print("-" * 80)
+    
+    projections = report['flags_by_projection']
+    if projections:
+        for proj_name in ['value_final', 'value_mean', 'slope', 'volatility', 'relative_change']:
+            count = projections.get(proj_name, 0)
+            if count > 0:
+                percentage = (count / total) * 100
+                print(f"  {proj_name:20s} : {count:5d} occurrences ({percentage:5.1f}%)")
+    
+    print()
+    
+    # Top flags globaux
+    print("Flags les plus fréquents:")
+    print("-" * 80)
+    
+    # Agréger par type de flag
+    flag_type_counts = defaultdict(int)
+    for flag, count in report['flag_counts'].items():
+        parts = flag.split(':')
+        flag_type = parts[-1] if parts else flag
+        flag_type_counts[flag_type] += count
+    
+    for flag_type, count in sorted(flag_type_counts.items(), key=lambda x: -x[1])[:5]:
+        percentage = (count / total) * 100
+        print(f"  {flag_type:25s} : {count:5d} occurrences ({percentage:5.1f}%)")
+    
+    print()
+    
+    # Détail par test
+    print("Dégénérescences par test:")
+    print("-" * 80)
+    
+    for test_name in sorted(report['flags_by_test'].keys()):
+        flags = report['flags_by_test'][test_name]
+        total_flags = sum(flags.values())
+        print(f"\n{test_name}: {total_flags} flags")
+        for flag_type, count in sorted(flags.items(), key=lambda x: -x[1]):
+            print(f"  {flag_type:25s} : {count:5d}")
+    
+    print("\n" + "=" * 80 + "\n")
+    
 # =============================================================================
 # STRUCTURATION
 # =============================================================================
@@ -878,67 +1148,84 @@ def compute_verdict(
     observations = load_all_observations(params_config_id)
     print(f"   ✓ {len(observations)} observations")
     
+    # Filtrage artefacts numériques (inf/nan)
+    observations, rejection_stats = filter_numeric_artifacts(observations)
+     
+    # Log rejets
+    if rejection_stats['rejected_observations'] > 0:
+        print(f"   ⊘ Filtré {rejection_stats['rejected_observations']} observations "
+              f"({rejection_stats['rejection_rate']*100:.1f}%) : artefacts numériques")
+        print(f"      Détail par test :")
+        for test, count in sorted(rejection_stats['rejected_by_test'].items()):
+            print(f"        {test}: {count} invalides")
+    print()
+    
+    # ← AJOUTER ICI (avant le "3. Structuration DataFrame...")
+    # Diagnostic dégénérescences numériques (informatif uniquement)
+    degeneracy_report = generate_degeneracy_report(observations)
+    print_degeneracy_report(degeneracy_report)
+        
     # 3. DataFrame
     print("3. Structuration DataFrame...")
-    df = observations_to_dataframe(observations)
-    print(f"   ✓ {len(df)} lignes")
+    #df = observations_to_dataframe(observations)
+    #print(f"   ✓ {len(df)} lignes")
     
     # 4. Analyses
     print("4. Analyses statistiques...")
     
     # 4a. Variance marginale
-    marginal_variance = analyze_marginal_variance(df, FACTORS, PROJECTIONS)
-    print(f"   ✓ Variance marginale: {len(marginal_variance)} résultats")
+    #marginal_variance = analyze_marginal_variance(df, FACTORS, PROJECTIONS)
+    #print(f"   ✓ Variance marginale: {len(marginal_variance)} résultats")
     
     # 4b. Interactions orientées (CORRIGÉ)
-    oriented_interactions = analyze_oriented_interactions(
-        df, FACTORS, PROJECTIONS, marginal_variance
-    )
-    print(f"   ✓ Interactions orientées: {len(oriented_interactions)} détectées")
+    #oriented_interactions = analyze_oriented_interactions(
+    #    df, FACTORS, PROJECTIONS, marginal_variance
+    #)
+    #print(f"   ✓ Interactions orientées: {len(oriented_interactions)} détectées")
     
     # 4c. Discrimination
-    discrimination = analyze_metric_discrimination(df, PROJECTIONS)
-    print(f"   ✓ Discrimination: {len(discrimination)} métriques")
+    #discrimination = analyze_metric_discrimination(df, PROJECTIONS)
+    #print(f"   ✓ Discrimination: {len(discrimination)} métriques")
     
     # 4d. Corrélations
-    correlations = analyze_metric_correlations(df)
-    print(f"   ✓ Corrélations: {len(correlations)} paires")
+    #correlations = analyze_metric_correlations(df)
+    #print(f"   ✓ Corrélations: {len(correlations)} paires")
     
     # 5. Interpretation
     print("5. Interprétation patterns...")
-    patterns_global, patterns_by_gamma = interpret_patterns(
-        df,
-        marginal_variance,
-        oriented_interactions,
-        discrimination,
-        correlations
-    )
+    #patterns_global, patterns_by_gamma = interpret_patterns(
+    #    df,
+     #   marginal_variance,
+     #   oriented_interactions,
+     #   discrimination,
+     #   correlations
+    #)
     
     # 6. Verdict
     print("6. Décision verdict...")
-    verdict_global, reason_global, verdicts_by_gamma = decide_verdict(
-        patterns_global,
-        patterns_by_gamma
-    )
-    print(f"   → Global: {verdict_global}")
+    #verdict_global, reason_global, verdicts_by_gamma = decide_verdict(
+    #    patterns_global,
+    #    patterns_by_gamma
+    #)
+    #print(f"   → Global: {verdict_global}")
     
     # 7. Rapports
     print("7. Génération rapports...")
-    generate_verdict_report(
-        params_config_id,
-        verdict_config_id,
-        df,
-        marginal_variance,
-        oriented_interactions,
-        discrimination,
-        correlations,
-        patterns_global,
-        patterns_by_gamma,
-        verdict_global,
-        reason_global,
-        verdicts_by_gamma
-    )
+    #generate_verdict_report(
+    #    params_config_id,
+    #    verdict_config_id,
+    #    df,
+    #    marginal_variance,
+    #    oriented_interactions,
+    #    discrimination,
+    #    correlations,
+     #   patterns_global,
+     #   patterns_by_gamma,
+    #    verdict_global,
+    #    reason_global,
+    #    verdicts_by_gamma
+    #)
     
     print(f"\n{'='*70}")
-    print(f"VERDICT: {verdict_global}")
+    #print(f"VERDICT: {verdict_global}")
     print(f"{'='*70}\n")

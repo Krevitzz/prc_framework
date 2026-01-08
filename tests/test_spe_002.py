@@ -12,8 +12,7 @@ Métriques :
 - spectral_radius : Rayon spectral (stabilité itérations)
 
 Algorithmes utilisés :
-- spectral.eigenvalue_max : Calcul λ_max
-- spectral.spectral_gap : Écart spectral
+- spectral.spectral_radius : Rayon spectral
 
 Exclusions :
 - Entropie spectrale : Redondant avec statistical tests
@@ -22,7 +21,7 @@ Exclusions :
 
 import numpy as np
 
-TEST_ID = "SPE-001"
+TEST_ID = "SPE-002"
 TEST_CATEGORY = "SPECTRAL"
 TEST_VERSION = "5.5" 
 TEST_WEIGHT = 1.0   
@@ -32,25 +31,15 @@ APPLICABILITY_SPEC = {
     "requires_rank": 2,
     "requires_square": True,
     "allowed_d_types": ["ALL"],
-    "minimum_dimension": None,  
+    "minimum_dimension": 3,  # Gap nécessite ≥3 valeurs propres
     "requires_even_dimension": False,
 }
 
 COMPUTATION_SPECS = {
-    'eigenvalue_max': {
-        'registry_key': 'spectral.eigenvalue_max',
-        'default_params': {
-            'absolute': True,
-        },
+    
+    'spectral_radius': {
+        'registry_key': 'spectral.spectral_radius',
+        'default_params': {},
         'post_process': 'round_4',
-    },
-    
-    'spectral_gap': {
-        'registry_key': 'spectral.spectral_gap',
-        'default_params': {
-            'normalize': True,  # Valeur relative
-        },
-        'post_process': 'round_6',
     }
-    
 }
