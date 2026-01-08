@@ -73,18 +73,9 @@ def is_numeric_valid(obs):
     - evolution : slope, volatility, relative_change
     """
     # Vérifier statistics
-    statistics = obs.get('statistics', {})
-    evolution = obs.get('evolution', {})
-    
-    # DEBUG : afficher une observation SPE-001
-    if obs.get('test_name') == 'SPE-001':
-        print(f"\nDEBUG SPE-001:")
-        print(f"  statistics keys: {list(statistics.keys())}")
-        if 'eigenvalue_max' in statistics:
-            print(f"  eigenvalue_max/statistics: {statistics['eigenvalue_max']}")
-        if 'eigenvalue_max' in evolution:
-            print(f"  eigenvalue_max/evolution: {evolution['eigenvalue_max']}")
-        print()
+    obs_data = obs.get('observation_data', {})
+    statistics = obs_data.get('statistics', {})
+    evolution = obs_data.get('evolution', {})
     
     
     for metric_stats in statistics.values():
@@ -175,8 +166,9 @@ def diagnose_numeric_degeneracy(obs):
     """
     flags = []
     
-    statistics = obs.get('statistics', {})
-    evolution = obs.get('evolution', {})
+    obs_data = obs.get('observation_data', {})
+    statistics = obs_data.get('statistics', {})
+    evolution = obs_data.get('evolution', {})
     
     for metric_name in statistics.keys():
         
@@ -327,6 +319,150 @@ def print_degeneracy_report(report):
         print(f"\n{test_name}: {total_flags} flags")
         for flag_type, count in sorted(flags.items(), key=lambda x: -x[1]):
             print(f"  {flag_type:25s} : {count:5d}")
+    
+    print("\n" + "=" * 80 + "\n")
+    
+def diagnose_scale_outliers(observations):
+    """
+    Détecte ruptures d'échelle relatives par test/métrique (en log10).
+    
+    Critère : valeur > P90 + 5 décades (facteur 1e5)
+    Raisonnement relatif, pas seuil absolu.
+    
+    Args:
+        observations: liste observations
+    
+    Returns:
+        dict: rapport ruptures d'échelle
+    """
+    # Projections à analyser
+    projections = ['value_final', 'value_mean', 'slope', 'relative_change']
+    
+    # Collecter valeurs par (test, metric, projection)
+    by_context = defaultdict(list)
+    obs_indices = defaultdict(list)
+    
+    for i, obs in enumerate(observations):
+        test_name = obs.get('test_name')
+        obs_data = obs.get('observation_data', {})
+        statistics = obs_data.get('statistics', {})
+        evolution = obs_data.get('evolution', {})
+        
+        for metric_name in statistics.keys():
+            stat = statistics.get(metric_name, {})
+            evol = evolution.get(metric_name, {})
+            
+            values = {
+                'value_final': stat.get('final'),
+                'value_mean': stat.get('mean'),
+                'slope': evol.get('slope'),
+                'relative_change': evol.get('relative_change'),
+            }
+            
+            for proj_name, value in values.items():
+                if value and np.isfinite(value) and abs(value) > 1e-10:
+                    key = (test_name, metric_name, proj_name)
+                    log_val = np.log10(abs(value))
+                    by_context[key].append(log_val)
+                    obs_indices[key].append((i, value))
+    
+    # Calculer P90 par contexte (min 10 observations)
+    thresholds = {}
+    for key, log_values in by_context.items():
+        if len(log_values) >= 10:
+            p90 = np.percentile(log_values, 90)
+            thresholds[key] = p90
+    
+    # Détecter outliers (+5 décades au-dessus P90)
+    outliers = defaultdict(list)
+    outlier_obs_ids = set()
+    
+    for key, threshold in thresholds.items():
+        test_name, metric_name, proj_name = key
+        
+        for obs_idx, value in obs_indices[key]:
+            log_val = np.log10(abs(value))
+            gap = log_val - threshold
+            
+            if gap > 5.0:  # 5 décades = facteur 1e5
+                outliers[key].append({
+                    'obs_idx': obs_idx,
+                    'value': value,
+                    'log_value': log_val,
+                    'gap_decades': gap,
+                })
+                outlier_obs_ids.add(obs_idx)
+    
+    # Compiler rapport
+    report = {
+        'total_observations': len(observations),
+        'observations_with_outliers': len(outlier_obs_ids),
+        'outlier_rate': len(outlier_obs_ids) / len(observations) if observations else 0,
+        'contexts_analyzed': len(thresholds),
+        'contexts_with_outliers': len(outliers),
+        'outliers_by_context': dict(outliers),
+        'thresholds': thresholds,
+    }
+    
+    return report
+
+
+def print_scale_outliers_report(report):
+    """Affiche rapport ruptures d'échelle."""
+    
+    total = report['total_observations']
+    flagged = report['observations_with_outliers']
+    rate = report['outlier_rate']
+    contexts_analyzed = report['contexts_analyzed']
+    contexts_with_outliers = report['contexts_with_outliers']
+    
+    print(f"\n" + "=" * 80)
+    print("DIAGNOSTIC RUPTURES D'ÉCHELLE RELATIVES")
+    print("=" * 80)
+    print(f"Total observations:              {total}")
+    print(f"Contextes analysés (test×métrique×proj): {contexts_analyzed}")
+    print(f"Observations avec outliers:      {flagged} ({rate*100:.1f}%)")
+    print(f"Contextes ayant outliers:        {contexts_with_outliers}")
+    print()
+    
+    if flagged == 0:
+        print("✓ Aucune rupture d'échelle détectée\n")
+        return
+    
+    # Top contextes avec le plus d'outliers
+    print("Contextes avec ruptures d'échelle (>P90 + 5 décades):")
+    print("-" * 80)
+    
+    outliers_by_context = report['outliers_by_context']
+    
+    # Trier par nombre d'outliers
+    sorted_contexts = sorted(
+        outliers_by_context.items(),
+        key=lambda x: len(x[1]),
+        reverse=True
+    )
+    
+    for key, outlier_list in sorted_contexts[:10]:  # Top 10
+        test_name, metric_name, proj_name = key
+        count = len(outlier_list)
+        percentage = (count / total) * 100
+        
+        # Stats sur les gaps
+        gaps = [o['gap_decades'] for o in outlier_list]
+        max_gap = max(gaps)
+        mean_gap = np.mean(gaps)
+        
+        print(f"\n{test_name}/{metric_name} [{proj_name}]:")
+        print(f"  {count:4d} outliers ({percentage:5.2f}%)")
+        print(f"  Gap max: +{max_gap:.1f} décades, moyen: +{mean_gap:.1f} décades")
+        
+        # Exemples (3 pires cas)
+        worst_cases = sorted(outlier_list, key=lambda x: x['gap_decades'], reverse=True)[:3]
+        if worst_cases:
+            print(f"  Pires cas:")
+            for case in worst_cases:
+                print(f"    obs#{case['obs_idx']:5d}: {case['value']:.2e} "
+                      f"(+{case['gap_decades']:.1f} décades)")
     
     print("\n" + "=" * 80 + "\n")
     
@@ -1164,6 +1300,11 @@ def compute_verdict(
     # Diagnostic dégénérescences numériques (informatif uniquement)
     degeneracy_report = generate_degeneracy_report(observations)
     print_degeneracy_report(degeneracy_report)
+    
+    # Diagnostic ruptures d'échelle relatives (contextuel)
+    scale_report = diagnose_scale_outliers(observations)
+    print_scale_outliers_report(scale_report)
+     
         
     # 3. DataFrame
     print("3. Structuration DataFrame...")
