@@ -875,7 +875,7 @@ def observations_to_dataframe(observations: List[dict]) -> pd.DataFrame:
     
     return df
 
-#\TODO analyse_marginal_variance et analyze_oriented_interactions ont un chanck de code similaire qui pourra être réuni dans une fonction dédiée.
+#\TODO analyse_marginal_variance et analyze_oriented_interactions ont un chunck de code similaire qui pourra être réuni dans une fonction dédiée.
 # =============================================================================
 # ANALYSIS 1 : VARIANCE MARGINALE
 # =============================================================================
@@ -1049,14 +1049,30 @@ def analyze_oriented_interactions(
                             continue
                         
                         # Variance ratio conditionnel
-                        group_means = [np.mean(g) for g in varying_groups]
-                        var_between = np.var(group_means)
-                        var_total = np.var(context_group[projection].dropna())
+                        varying_groups_arrays = [g for g in varying_groups]  # Déjà défini plus haut
+                        all_values = np.concatenate(varying_groups_arrays)
+                        grand_mean = np.mean(all_values)
                         
-                        if var_total < 1e-10:
-                            vr_conditional = 0.0
+                        # SSB (Sum of Squares Between)
+                        ssb = sum(
+                            len(g) * (np.mean(g) - grand_mean)**2 
+                            for g in varying_groups_arrays
+                        )
+                        
+                        # SSW (Sum of Squares Within)
+                        ssw = sum(
+                            np.sum((g - np.mean(g))**2) 
+                            for g in varying_groups_arrays
+                        )
+                        
+                        # SST
+                        sst = ssb + ssw
+                        
+                        # Variance ratio conditionnel
+                        if sst > 1e-10:
+                            vr_conditional = ssb / sst
                         else:
-                            vr_conditional = var_between / var_total
+                            vr_conditional = 0.0
                         
                         # Comparer à variance marginale
                         marginal_key = (test_name, metric_name, projection, factor_varying)
