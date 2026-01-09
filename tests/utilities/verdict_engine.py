@@ -875,7 +875,34 @@ def observations_to_dataframe(observations: List[dict]) -> pd.DataFrame:
     
     return df
 
-#\TODO analyse_marginal_variance et analyze_oriented_interactions ont un chunck de code similaire qui pourra être réuni dans une fonction dédiée.
+#\TODO analyse_marginal_variance et analyze_oriented_interactions ont un chunck de code similaire qui pourra être réuni dans une fonction dédiée.type:
+#def compute_eta_squared(groups):
+    """
+    Compute eta-squared (SSB / SST) for grouped data.
+    
+    groups: list[np.ndarray]
+    """
+#    all_values = np.concatenate(groups)
+ #   if len(all_values) < 2:
+#        return 0.0, 0.0, 0.0
+    
+#    grand_mean = np.mean(all_values)
+    
+#    ssb = sum(
+#        len(g) * (np.mean(g) - grand_mean)**2
+#       for g in groups if len(g) > 0
+#    )
+    
+#    ssw = sum(
+ #       np.sum((g - np.mean(g))**2)
+#        for g in groups if len(g) > 0
+ #   )
+    
+#    sst = ssb + ssw
+#    eta2 = ssb / sst if sst > 1e-10 else 0.0
+    
+ #   return eta2, ssb, ssw
+
 # =============================================================================
 # ANALYSIS 1 : VARIANCE MARGINALE
 # =============================================================================
