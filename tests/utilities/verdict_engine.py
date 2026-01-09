@@ -926,15 +926,31 @@ def analyze_marginal_variance(
                 except (ValueError, Exception):
                     continue
                 
-                # Variance ratio
-                group_means = [np.mean(g) for g in factor_groups]
-                var_between = np.var(group_means)
-                var_total = np.var(group[projection].dropna())
+                # Variance ratio CORRIGÉ (η²-like : SSB / SST)
+                # Calcul grand mean
+                all_values = np.concatenate(factor_groups)
+                grand_mean = np.mean(all_values)
                 
-                if var_total < 1e-10:
-                    variance_ratio = 0.0
+                # SSB (Sum of Squares Between groups)
+                ssb = sum(
+                    len(g) * (np.mean(g) - grand_mean)**2 
+                    for g in factor_groups
+                )
+                
+                # SSW (Sum of Squares Within groups)
+                ssw = sum(
+                    np.sum((g - np.mean(g))**2) 
+                    for g in factor_groups
+                )
+                
+                # SST (Sum of Squares Total)
+                sst = ssb + ssw
+                
+                # Variance ratio = proportion variance expliquée
+                if sst > 1e-10:
+                    variance_ratio = ssb / sst
                 else:
-                    variance_ratio = var_between / var_total
+                    variance_ratio = 0.0
                 
                 results.append({
                     'test_name': test_name,
@@ -1031,10 +1047,11 @@ def analyze_oriented_interactions(
                             statistic, p_value = kruskal(*varying_groups)
                         except:
                             continue
-                        
                         # Variance ratio CORRIGÉ (η²-like : SSB / SST)
                         # Calcul grand mean
-                        all_values = np.concatenate(factor_groups)
+                        # Variance ratio conditionnel
+                        varying_groups_arrays = [g for g in varying_groups]  # Déjà défini plus haut
+                        all_values = np.concatenate(varying_groups_arrays)
                         grand_mean = np.mean(all_values)
                 
                         # SSB (Sum of Squares Between groups)
@@ -1057,7 +1074,6 @@ def analyze_oriented_interactions(
                             variance_ratio = ssb / sst
                         else:
                             variance_ratio = 0.0
-                        
                         # Comparer à variance marginale
                         marginal_key = (test_name, metric_name, projection, factor_varying)
                         vr_marginal = marginal_index.get(marginal_key, 0.0)
