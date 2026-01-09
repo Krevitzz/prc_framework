@@ -1032,15 +1032,31 @@ def analyze_oriented_interactions(
                         except:
                             continue
                         
-                        # Variance ratio conditionnel
-                        group_means = [np.mean(g) for g in varying_groups]
-                        var_between = np.var(group_means)
-                        var_total = np.var(context_group[projection].dropna())
-                        
-                        if var_total < 1e-10:
-                            vr_conditional = 0.0
+                        # Variance ratio CORRIGÉ (η²-like : SSB / SST)
+                        # Calcul grand mean
+                        all_values = np.concatenate(factor_groups)
+                        grand_mean = np.mean(all_values)
+                
+                        # SSB (Sum of Squares Between groups)
+                        ssb = sum(
+                            len(g) * (np.mean(g) - grand_mean)**2 
+                            for g in factor_groups
+                        )
+                
+                        # SSW (Sum of Squares Within groups)
+                        ssw = sum(
+                            np.sum((g - np.mean(g))**2) 
+                            for g in factor_groups
+                        )
+                
+                        # SST (Sum of Squares Total)
+                        sst = ssb + ssw
+                
+                        # Variance ratio = proportion variance expliquée
+                        if sst > 1e-10:
+                            variance_ratio = ssb / sst
                         else:
-                            vr_conditional = var_between / var_total
+                            variance_ratio = 0.0
                         
                         # Comparer à variance marginale
                         marginal_key = (test_name, metric_name, projection, factor_varying)

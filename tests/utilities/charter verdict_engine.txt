@@ -1,1293 +1,553 @@
-MINI-CHARTER — RÉÉCRITURE DU verdict_engine (R0)
+# CHARTER VERDICT ENGINE R0 — POSTURE MÉTHODOLOGIQUE
 
-### étape 0
-1. Objet du moteur
+> Document normatif pour réécriture verdict_engine.py
+> Version : R0 (trivialité/expressivité)
+> Date : 2026-01-09
 
-Le verdict_engine a pour unique fonction de produire un diagnostic R0 sur les gammas.
-
-Il ne vise ni l’optimisation, ni la validation des tests, ni l’interprétation physique fine, mais la détection structurale de régimes pathologiques ou discriminants susceptibles de contraindre l’exploration ultérieure.
-
-2. Unité de verdict
-2.1 Entité verdictable
-
-Le gamma est l’unique entité verdictable.
-
-Tout verdict global n’est qu’une agrégation dérivée de verdicts gamma-centrés.
-
-Conséquence :
-
-Un moteur produisant des verdicts invariants sur tous les gammas, sans justification explicite, est structurellement défaillant.
-
-3. Nature du verdict R0
-
-Le verdict R0 caractérise un régime comportemental, non une performance.
-
-Il peut indiquer notamment :
-
-invariance structurelle
-
-dominance d’un facteur
-
-dépendance conditionnelle
-
-pathologie numérique ou dynamique
-
-absence de discriminabilité exploitable
-
-Le verdict R0 peut légitimement conduire à une réduction du champ exploratoire futur.
-
-4. Obligation de diagnostic
-
-Le moteur doit toujours produire un diagnostic, même en cas d’invariance totale.
-
-L’absence de patterns détectables signifie :
-
-soit une invariance réelle du système,
-
-soit une mauvaise définition des tests, seuils ou observations.
-
-Dans les deux cas, le moteur doit le signaler explicitement.
-
-5. Définition normative d’une interaction (R0)
-5.1 Définition centrale (prioritaire)
-
-Une interaction existe si un gamma devient discriminable uniquement sous condition d’un autre facteur.
-
-Autrement dit :
-
-le gamma n’est pas différenciable marginalement,
-
-mais devient différenciable conditionnellement (test, D, modifier, etc.).
-
-👉 L’interaction est donc un mécanisme de visibilité conditionnelle du gamma.
-
-5.2 Définitions compatibles (secondaires)
-
-Les notions suivantes sont admises si et seulement si elles se ramènent à la définition centrale :
-
-Non-factorisabilité :
-l’effet d’un facteur ne peut être décrit indépendamment d’un autre.
-
-Bifurcation de régime :
-une combinaison de facteurs induit un changement qualitatif du comportement (stabilité, explosion, oscillation, etc.).
-
-Ces formulations sont des lectures possibles, mais non des critères autonomes.
-
-6. Statut des valeurs extrêmes
-
-Il n’existe aucun seuil numérique global valide (type 1e50) au niveau du moteur verdict.
-
-Toute valeur finie peut être légitime ou pathologique selon le test.
-
-Conséquence :
-
-Le moteur verdict ne filtre pas sur la magnitude seule.
-
-Les explosions doivent être attribuées, contextualisées et éventuellement stratifiées, jamais supprimées génériquement.
-
-7. Critère de falsification du moteur
-
-Le moteur est considéré suspect ou défaillant si :
-
-une grande diversité de conditions initiales (≈ 10⁴–10⁵)
-
-conduit systématiquement à des verdicts quasi identiques
-
-sans justification explicite de type invariance structurelle globale.
-
-Dans ce cas, la priorité est :
-
-l’audit du moteur,
-
-pas l’interprétation des résultats.
-
-8. Implication directe pour la réécriture
-
-La réécriture du verdict_engine doit :
-
-partir d’une page blanche fonctionnelle (pas de recyclage implicite),
-
-rendre impossible la détection automatique d’“interactions” non discriminantes,
-
-forcer tout pattern détecté à se rattacher explicitement à la différenciation des gammas,
-
-séparer clairement :
-
-diagnostic global,
-
-diagnostics conditionnels,
-
-diagnostics gamma-spécifiques.
-
-Très bien.
-Voici **l’ÉTAPE 1** : **architecture conceptuelle normative** du nouveau `verdict_engine`, strictement alignée sur le mini-charter que tu as validé.
-Aucun code encore. Objectif : éliminer toute ambiguïté avant implémentation.
-
----
-
-# ÉTAPE 1 — ARCHITECTURE CONCEPTUELLE DU `verdict_engine` (R0)
-
-## 1. Principe directeur
-
-Le `verdict_engine` est un **moteur de diagnostic structurel**, pas un moteur statistique générique.
-
-Il répond à une seule question :
-
-> **Les gammas sont-ils structurellement différenciables, et si oui, comment et sous quelles conditions ?**
-
-Tout ce qui ne contribue pas directement à cette question est hors périmètre.
-
----
-
-## 2. Entrées / sorties (contrat minimal)
-
-### 2.1 Entrées
-
-* `observations` (db_results, post-test)
-* `verdict_config` (seuils, règles R0)
-* métadonnées factorielles :
-
-  * `gamma_id` (central)
-  * facteurs conditionnels possibles :
-
-    * `test_name`
-    * `d_encoding_id`
-    * `modifier_id`
-    * `seed` (⚠️ jamais verdictant)
-
-Aucune autre entrée implicite (pas de dépendance cachée à la DB, au batch, etc.).
-
----
-
-### 2.2 Sorties
-
-* **Verdict par gamma** (obligatoire)
-* **Justification explicite** par gamma
-* **Patterns identifiés**, chacun rattaché à :
-
-  * un mécanisme,
-  * un sous-ensemble de données,
-  * un rôle dans la discriminabilité.
-
-Le verdict global est **dérivé**, jamais primaire.
-
----
-
-## 3. Décomposition fonctionnelle (modules logiques)
-
-### Vue d’ensemble
-
-```
-Chargement
-   ↓
-Validation structurelle
-   ↓
-Construction des espaces de comparaison
-   ↓
-Analyse marginale (gamma seul)
-   ↓
-Analyse conditionnelle (gamma | facteur)
-   ↓
-Détection des mécanismes (patterns)
-   ↓
-Synthèse gamma → verdict
-   ↓
-Agrégation globale (secondaire)
-```
-
----
-
-## 4. Étape par étape (normatif)
-
-### 4.1 Validation structurelle (gate obligatoire)
-
-Objectif : s’assurer que **le moteur a le droit de conclure**.
-
-Vérifications minimales :
-
-* diversité effective des gammas (>1 valeur)
-* effectifs suffisants par gamma
-* projections exploitables (variance non nulle **relative**, pas absolue)
-
-⚠️
-Si ces conditions ne sont pas remplies :
-
-* **verdict = INVALID_INPUT**
-* avec explication
-* **pas de patterns calculés**
-
----
-
-### 4.2 Construction des espaces de comparaison
-
-On construit explicitement :
-
-* **E₀ : espace marginal**
-
-  ```
-  P(values | gamma)
-  ```
-
-* **E₁(f) : espaces conditionnels**
-
-  ```
-  P(values | gamma, facteur = f)
-  ```
-
-où `facteur ∈ {test, d_encoding, modifier}`
-(`seed` exclu par principe)
-
-👉 Aucune interaction n’existe en dehors de cette comparaison E₀ vs E₁.
-
----
-
-### 4.3 Analyse marginale (gamma seul)
-
-Question unique :
-
-> **Les gammas sont-ils différenciables sans condition ?**
-
-Résultats possibles :
-
-* ✅ différenciables → **dominance gamma**
-* ❌ non différenciables → **invariance marginale**
-
-C’est un **diagnostic**, pas encore un verdict.
-
----
-
-### 4.4 Analyse conditionnelle (cœur du moteur)
-
-Pour chaque facteur admissible :
-
-> **Le facteur rend-il les gammas différenciables alors qu’ils ne l’étaient pas marginalement ?**
-
-C’est **la seule définition valide d’une interaction R0**.
-
-Résultat par (gamma, facteur) :
-
-* interaction vraie
-* pas d’interaction
-* non testable (insuffisance données)
-
-Aucune métrique brute ne suffit :
-seule compte la **variation de discriminabilité**.
-
----
-
-## 5. Détection des mécanismes (patterns)
-
-Un **pattern** est un **mécanisme explicatif**, pas un signal statistique.
-
-Patterns R0 autorisés :
-
-### 5.1 Dominance marginale
-
-* gamma discriminable sans condition
-
-### 5.2 Interaction conditionnelle
-
-* gamma discriminable **uniquement sous condition**
-
-### 5.3 Invariance structurelle
-
-* gamma indifférenciable partout
-
-### 5.4 Pathologie de régime
-
-* gamma associé systématiquement à :
-
-  * explosions
-  * instabilités
-  * dégénérescences
-    → **signal de réduction exploratoire**
-
-⚠️
-Les patterns **ne sont jamais comptés**, ils sont **attribués**.
-
----
-
-## 6. Synthèse par gamma (obligatoire)
-
-Chaque gamma doit produire :
-
-* un statut :
-
-  * `OK`
-  * `PATHOLOGICAL`
-  * `INVARIANT`
-  * `DISCRIMINATED_CONDITIONALLY`
-* une **liste de mécanismes observés**
-* les **facteurs impliqués**
-* une justification lisible
-
-Un gamma sans justification explicite = **bug moteur**.
-
----
-
-## 7. Verdict global (secondaire)
-
-Le verdict global :
-
-* **ne vote pas**
-* **n’écrase pas**
-* **ne moyenne pas**
-
-Il décrit :
-
-* la diversité des régimes gamma
-* l’existence (ou non) d’un gamma pathologique
-* la pertinence de poursuivre R0 ou non
-
----
-
-## 8. Ce que le moteur ne fait PAS (interdits explicites)
-
-* ❌ filtrer des données “trop grandes” par seuil arbitraire
-* ❌ confondre corrélation et interaction
-* ❌ produire des verdicts invariants sans justification structurelle
-* ❌ traiter `seed` comme facteur causal
-* ❌ inférer des conclusions physiques
-
----
-
-## 9. Critère de réussite de la réécriture
-
-La nouvelle version est considérée **correcte** si :
-
-* deux ensembles de données très différents
-* peuvent produire **des verdicts structurellement différents**
-* **sans changer les seuils**,
-* uniquement via la structure des discriminabilités.
-
----
-
-Voici **l’ÉTAPE 2** : **spécification formelle des métriques de discriminabilité (R0)**.
-C’est l’étape clé : elle fixe **ce que le verdict engine a le droit de mesurer**, et surtout **ce qu’il n’a pas le droit d’inférer**. Aucun code encore.
-
----
-
-# ÉTAPE 2 — MÉTRIQUES DE DISCRIMINABILITÉ (SPÉCIFICATION NORMATIVE R0)
-
-## 1. Principe fondamental (non négociable)
-
-Le verdict engine **ne mesure pas des valeurs**, il mesure des **écarts de structure entre distributions conditionnées**.
-
-Formulation canonique :
-
-> Une métrique R0 est valide **uniquement si elle compare des distributions de gamma**, pas des valeurs absolues d’observables.
-
----
-
-## 2. Objet mathématique manipulé
-
-### 2.1 Ce qui est mesuré
-
-Pour toute projection ( p ) (ex. `value_final`, `slope`, etc.) :
-
-* On ne manipule jamais :
-
-  ```
-  p(x)
-  ```
-* On manipule toujours :
-
-  ```
-  P(p | gamma)
-  ```
-
-ou, en conditionnel :
-
-```
-P(p | gamma, facteur = f)
-```
-
----
-
-### 2.2 Espace de référence obligatoire
-
-Toute mesure de discriminabilité compare **deux espaces** :
-
-* **E₀ (marginal)**
-
-  ```
-  { P(p | gamma₁), …, P(p | gammaₙ) }
-  ```
-
-* **E₁(f) (conditionnel)**
-
-  ```
-  { P(p | gamma₁, f), …, P(p | gammaₙ, f) }
-  ```
-
-👉 Une métrique sans E₀ **est invalide par construction**.
-
----
-
-## 3. Définition formelle de la discriminabilité
-
-### 3.1 Discriminabilité marginale
-
-Un ensemble de gammas est **discriminable marginalement** si :
-
-> il existe au moins une projection ( p ) telle que
-> les distributions ( P(p | gamma_i) ) ne sont pas équivalentes.
-
-Équivalence = **indiscernabilité structurelle**, pas égalité numérique.
-
----
-
-### 3.2 Gain de discriminabilité (clé R0)
-
-On définit le **gain de discriminabilité** :
-
-[
-\Delta D(p, f) = D(E₁(p, f)) - D(E₀(p))
-]
-
-où :
-
-* ( D(\cdot) ) est une **fonction de séparabilité** (cf. §4)
-* ( f ) est un facteur conditionnel
-
-👉 **Interaction R0 ⇔ (\Delta D > 0)**
-👉 **Pas d’interaction ⇔ (\Delta D \le 0)**
-
----
-
-## 4. Fonctions de séparabilité autorisées (R0)
-
-### 4.1 Contraintes générales
-
-Une fonction ( D ) doit :
-
-* être **insensible à l’échelle absolue**
-* être **robuste aux valeurs extrêmes finies**
-* dépendre uniquement des **relations inter-gammas**
-
-Toute fonction violant un de ces points est interdite en R0.
-
----
-
-### 4.2 Fonctions admissibles (familles)
-
-#### A. Séparabilité par variance conditionnelle relative
-
-Forme générique :
-
-```
-VR(p) = Var( E[p | gamma] ) / E( Var(p | gamma) )
-```
-
-Usage autorisé :
-
-* comparer VR(E₀) vs VR(E₁)
-
-⚠️ Interdit :
-
-* comparer VR entre projections
-* sommer des VR hétérogènes
-
----
-
-#### B. Séparabilité par rang (ordinal)
-
-Comparer :
-
-* les **ordres relatifs** des gammas selon une projection
-
-Avantage :
-
-* robuste aux explosions numériques
-* invariant par transformation monotone
-
-Usage typique :
-
-* permutation stable vs instable sous condition
-
----
-
-#### C. Séparabilité par clustering gamma
-
-Mesurer si les gammas forment :
-
-* 1 cluster → invariance
-* ≥2 clusters → différenciation
-
-⚠️ Le nombre de clusters **n’est pas** un score, juste un diagnostic.
-
----
-
-## 5. Agrégation des projections (interdit vs autorisé)
-
-### 5.1 Interdits explicites
-
-* ❌ moyenne des projections
-* ❌ somme de scores hétérogènes
-* ❌ vote majoritaire “3 projections sur 5”
-
----
-
-### 5.2 Agrégation autorisée
-
-Une interaction est valide si :
-
-> **au moins une projection** montre un
-> (\Delta D > \tau) **structurellement robuste**
-
-Robuste = observable :
-
-* sur plusieurs seeds
-* sur plusieurs gammas
-* sans dépendre d’une valeur extrême isolée
-
----
-
-## 6. Seuils R0 (sémantique)
-
-Les seuils ne sont **jamais des seuils numériques bruts**.
-
-Ils expriment :
-
-* un **minimum de séparation structurelle**
-* un **rapport**, pas une valeur absolue
-
-Exemples sémantiques :
-
-* “VR conditionnel doit être significativement > VR marginal”
-* “le rang relatif doit changer pour ≥ k gammas”
-
----
-
-## 7. Cas pathologiques (traitement normatif)
-
-### 7.1 Explosions numériques
-
-Une explosion **n’est jamais filtrée par défaut**.
-
-Elle devient informative si :
-
-* elle est **corrélée à un gamma**
-* elle est **répétée** (pas un outlier unique)
-* elle induit une séparation structurelle
-
-Sinon :
-
-* classée comme **bruit numérique**
-
----
-
-### 7.2 Invariance totale
-
-Si :
-
-* aucune projection
-* aucune condition
-* aucun facteur
-
-ne produit de (\Delta D > 0),
-
-alors :
-
-> **le verdict engine doit conclure à une invariance structurelle**,
-> **pas** à une convergence physique.
-
----
-
-## 8. Lien explicite avec l’Étape 1
-
-* Étape 1 définissait **où** chercher les interactions
-* Étape 2 définit **comment** les mesurer
-
-Toute interaction détectée en violation de l’Étape 2 est **nulle et non avenue**, même si elle “a l’air significative”.
-
----
-
-## 9. Critère de validation de l’Étape 2
-
-Cette étape est correcte si :
-
-* on peut expliquer chaque interaction détectée par :
-
-  * une projection
-  * un facteur
-  * un gain de discriminabilité clair
-* sans jamais invoquer :
-
-  * des valeurs absolues
-  * des seuils arbitraires
-  * des moyennes globales
-
----
-
-Voici **l’ÉTAPE 3** : **spécification algorithmique complète du Verdict Engine R0**.
-On fixe ici **l’algorithme exact**, l’ordre des opérations, les objets intermédiaires, et les invariants. Toujours **sans code** : c’est le plan d’implémentation normatif que tu mettras en bibliothèque.
-
----
-
-# ÉTAPE 3 — SPÉCIFICATION ALGORITHMIQUE DU VERDICT ENGINE (R0)
-
-## 0. Rappel de contrainte globale
-
-Le Verdict Engine R0 est :
-
-* **post-hoc** (aucune modification TestEngine / db_results)
-* **déterministe** (mêmes entrées → mêmes sorties)
-* **sans heuristique implicite**
-* **sans seuils magiques non documentés**
-* **structurel**, pas numérique
-
----
-
-## 1. Entrées et sorties formelles
-
-### 1.1 Entrées obligatoires
-
-* `observations`
-  Liste d’observations unitaires, format canonique :
-
-  ```
-  {
-    gamma_id,
-    d_encoding_id,
-    modifier_id,
-    seed,
-    test_name,
-    projection_name,
-    projection_value
-  }
-  ```
-
-* `verdict_config`
-  Contient **uniquement** :
-
-  * projections autorisées
-  * facteurs analysables
-  * fonctions de séparabilité activées
-  * seuils sémantiques (non numériques bruts)
-
----
-
-### 1.2 Sorties obligatoires
-
-* `analysis_global.json`
-* `analysis_by_gamma.json`
-* `diagnostics.json`
-* `verdict.txt` (humain)
-
-Chaque sortie doit être **reconstructible** à partir des précédentes.
-
----
-
-## 2. Pipeline global (ordre strict)
-
-```
-1. Normalisation structurelle
-2. Construction espaces E₀
-3. Construction espaces E₁ (par facteur)
-4. Calcul discriminabilités
-5. Détection interactions
-6. Agrégation patterns
-7. Verdict global
-8. Verdicts conditionnels
-9. Diagnostics de cohérence
-```
-
-Aucun saut, aucune étape optionnelle en R0.
-
----
-
-## 3. Étape 1 — Normalisation structurelle
-
-### 3.1 But
-
-Garantir que toute analyse ultérieure compare **des objets homogènes**.
-
 ---
 
-### 3.2 Opérations autorisées
+## SECTION 0 : RAPPEL FONDAMENTAL
 
-* Filtrage **structurel** uniquement :
+### **Γ n'est pas l'objet étudié, Γ est l'instrument expérimental**
 
-  * projection manquante → exclusion
-  * gamma singleton → exclusion
-* Aucune transformation numérique (pas de log, pas de clamp)
+En R0, un mécanisme Γ est une **excitation différentielle** du système.
+Il ne peut jamais être "fautif" par défaut.
 
----
-
-### 3.3 Sortie
-
-```
-normalized_observations
-```
-
-Invariant :
-
-> Toute observation restante participe à au moins une comparaison inter-gamma.
-
----
-
-## 4. Étape 2 — Construction des espaces E₀ (référence)
-
-Pour chaque projection `p` :
-
-```
-E₀(p) = {
-  gamma_i → distribution des p pour gamma_i
-}
-```
-
-Contraintes :
-
-* distribution ≠ moyenne
-* au moins 2 gammas non vides
-
----
-
-Sortie :
-
-```
-E0_spaces[p]
-```
-
----
-
-## 5. Étape 3 — Construction des espaces E₁ (conditionnels)
-
-Pour chaque facteur `f`
-Pour chaque valeur `v` de `f`
-Pour chaque projection `p` :
-
-```
-E₁(p, f=v) = {
-  gamma_i → distribution des p | f=v
-}
-```
-
-Contraintes :
-
-* cardinalité suffisante par gamma (min_samples)
-* au moins 2 gammas exploitables
-
----
-
-Sortie :
-
-```
-E1_spaces[p][f][v]
-```
-
----
-
-## 6. Étape 4 — Calcul des discriminabilités
-
-### 6.1 Calcul marginal
-
-Pour chaque projection `p` :
-
-```
-D₀(p) = D( E₀(p) )
-```
-
----
-
-### 6.2 Calcul conditionnel
-
-Pour chaque `(p, f, v)` :
-
-```
-D₁(p, f=v) = D( E₁(p, f=v) )
-```
-
----
-
-### 6.3 Gain de discriminabilité
-
-```
-ΔD(p, f=v) = D₁(p, f=v) - D₀(p)
-```
-
-Invariant fondamental :
-
-> Si D₀(p) n’est pas défini → aucune interaction possible sur p.
-
----
-
-Sortie :
-
-```
-discriminability_table[
-  projection,
-  factor,
-  value,
-  D0,
-  D1,
-  delta
-]
-```
-
----
-
-## 7. Étape 5 — Détection des interactions
-
-### 7.1 Définition opérationnelle
-
-Une interaction R0 est déclarée si :
+**Échec d'un observable sous Γ peut invalider** :
+- L'ordre tensoriel (ex : rang 2 insuffisant)
+- La base de représentation (SYM vs ASY inadéquate)
+- L'observable elle-même (test mal conditionné)
+- Le mécanisme Γ (dans ce cadre spécifique)
 
-* `ΔD(p, f=v) > 0`
-* séparation structurelle explicable
-* stabilité inter-seeds
+**Conséquence** : Tout pattern détecté doit préciser **dans quelles conditions structurelles** il se manifeste.
 
 ---
 
-### 7.2 Interdits explicites
+## SECTION 1 : OBJECTIFS R0 (non négociables)
 
-* ❌ somme de ΔD
-* ❌ moyenne sur facteurs
-* ❌ vote majoritaire
+### **1.1 Objectif primaire**
+Tester la **suffisance expressive** du cadre expérimental (bases, ordre tensoriel, observables), en utilisant une famille de mécanismes Γ comme excitations différentielles.
 
----
-
-Sortie :
-
-```
-interactions = [
-  {
-    projection,
-    factor,
-    value,
-    delta,
-    stability_metrics
-  }
-]
-```
-
----
-
-## 8. Étape 6 — Agrégation en patterns
-
-### 8.1 Types de patterns R0
-
-* `marginal_dominant`
-* `oriented_interaction`
-* `redundant_projection`
-* `invariance_structurelle`
-
----
-
-### 8.2 Règles d’agrégation
-
-* 1 interaction ≠ 1 pattern
-* patterns = **classes structurelles**
-* agrégation par logique, jamais par score
-
----
-
-Sortie :
-
-```
-patterns_global
-patterns_by_gamma
-```
-
----
-
-## 9. Étape 7 — Verdict global
-
-Le verdict global dépend uniquement des patterns :
-
-| Situation détectée               | Verdict          |
-| -------------------------------- | ---------------- |
-| Invariance totale                | STABLE[R0]       |
-| Discriminabilité marginale seule | WIP[R0-open]     |
-| Interactions conditionnelles     | ACTIVE[R0]       |
-| Pathologies dominantes           | PATHOLOGICAL[R0] |
-
----
-
-Sortie :
-
-```
-verdict_global
-```
-
----
-
-## 10. Étape 8 — Verdicts conditionnels (drill-down)
-
-Même pipeline **restreint** à :
-
-```
-observations | gamma = g
-```
-
-Interdit :
-
-* recalculer seuils
-* changer fonctions D
-
----
-
-## 11. Étape 9 — Diagnostics obligatoires
-
-Le moteur **doit logguer** :
-
-* gammas exclus
-* projections muettes
-* facteurs inactifs
-* interactions rejetées + raison
-* cas ΔD ≈ 0 systématique
-
----
+### **1.2 Questions R0**
+1. **Trivialité** : Ce Γ produit-il des variations observables ?
+2. **Expressivité** : Le cadre (rang 2, bases SYM/ASY) permet-il de capturer des comportements différenciés ?
+3. **Stabilité structurelle** : Quels facteurs (modifier, seed, base) influencent la stabilité numérique ?
+4. **Discriminabilité observables** : Quels tests sont informatifs vs triviaux vs mal conditionnés ?
 
-Sortie :
+### **1.3 Non-objectifs R0**
+❌ Identifier "le meilleur gamma"
+❌ Produire un verdict global unique
+❌ Hiérarchiser gammas (ça, c'est R1)
+❌ Optimiser métriques
 
-```
-diagnostics.json
-```
-
----
-
-## 12. Invariants critiques (tests mentaux)
-
-Le moteur est **incorrect** si :
-
-* 20k observations → mêmes patterns **sans justification**
-* toutes les projections concluent pareil
-* suppression d’un gamma ne change rien
-* explosion numérique change la structure sans changer les rangs
-
----
-
-## 13. Critère de sortie de l’Étape 3
-
-Cette étape est validée si :
-
-* chaque ligne du futur `verdict_engine.py`
-  peut être rattachée à **une étape précise**
-* aucun calcul n’est “pour aider”
-* aucun score n’est interprété hors contexte
-
 ---
-
-Voici **l’ÉTAPE 4** : **implémentation minimale from scratch du Verdict Engine R0**, strictement conforme au mini-charter et à la spécification algorithmique (Étapes 1–3).
-On ne parle toujours **pas de tuning**, **pas d’optimisation**, **pas de rétro-compatibilité**. Seulement : *un moteur correct ou rien*.
 
----
+## SECTION 2 : AXES D'ANALYSE (orthogonaux, non hiérarchisés)
 
-# ÉTAPE 4 — IMPLÉMENTATION MINIMALE DU VERDICT ENGINE (R0)
+### **Axe A : Γ (mécanisme)**
+**Rôle** : Paramètre de variation, repère comparatif
 
-## 0. Principe directeur (non négociable)
+**Questions** :
+- Sous Γᵢ, observable X stable/explosive/trivial ?
+- Γᵢ vs Γⱼ : qui révèle mieux phénomène Y ?
+- Comportements généraux : quels Γ convergent, divergent, oscillent ?
 
-> **Chaque fonction correspond à UNE étape conceptuelle.**
-> Aucune fonction “fourre-tout”.
-> Aucune variable globale implicite.
-> Aucune ligne héritée “par sécurité”.
+**Formulations correctes** :
+✅ "Sous GAM-001, SYM-001 conserve asymétrie"
+✅ "GAM-013 amplifie tous observables (instabilité structurelle ?)"
 
-Si une ligne ne se rattache pas explicitement à l’Étape 3 → elle est interdite.
+**Formulations interdites** :
+❌ "GAM-001 est bon"
+❌ "GAM-013 échoue"
 
 ---
-
-## 1. Architecture du fichier
 
-### 1.1 Fichier unique (phase R0)
+### **Axe B : Représentation (bases, ordre tensoriel)**
+**Rôle** : Cadre structurel sous test
 
-```
-verdict_engine_r0.py
-```
+**Questions** :
+- Rang 2 suffisant ou tous Γ explosent ?
+- SYM vs ASY : discrimination observable ?
+- Modifiers : effet sur stabilité numérique ?
 
-Pas de sous-modules. Pas de classes profondes.
-Fonctions pures + structures de données explicites.
+**Exemples patterns attendus** :
+- "TOP-001 échoue **tous Γ** sur rang 2 → ordre insuffisant ?"
+- "Explosions corrélées à **rang 2**, pas à Γ spécifique"
+- "M3 amplifie instabilité sur **tous encodings ASY**"
 
 ---
 
-### 1.2 Ordre strict du fichier
+### **Axe C : Observables (tests)**
+**Rôle** : Instrumentation sous test
 
-1. Types & constantes sémantiques
-2. Fonctions de normalisation
-3. Construction E₀
-4. Construction E₁
-5. Discriminabilité
-6. Interactions
-7. Patterns
-8. Verdicts
-9. Diagnostics
-10. Point d’entrée unique
+**Questions** :
+- Ce test discrimine-t-il des Γ ?
+- Ce test est-il numériquement stable ?
+- Ce test est-il trivial (variance nulle) ?
 
-L’ordre du fichier = l’ordre conceptuel.
+**Exemples patterns attendus** :
+- "PAT-001 non discriminant : aucun Γ ne varie"
+- "SPE-001 mal conditionné : explosions numériques systématiques"
+- "SYM-001 informatif : sépare 3 classes Γ"
 
 ---
 
-## 2. Types et structures (explicites)
+## SECTION 3 : FORMAT DE SORTIE R0
 
-### 2.1 Observation canonique (R0)
+### **3.1 Structure obligatoire**
 
-```python
-Observation = TypedDict(
-    'Observation',
-    {
-        'gamma_id': str,
-        'factor_values': dict[str, str],
-        'test_name': str,
-        'projection': str,
-        'value': float
+```json
+{
+  "gamma_profiles": {
+    "GAM-001": {
+      "tests": {
+        "SYM-001": {
+          "behavior": "stable",
+          "regime": "CONSERVES_SYMMETRY",
+          "final_value": 1.2e-6,
+          "trend": "stable"
+        },
+        "UNIV-001": {
+          "behavior": "explosive", 
+          "regime": "NUMERIC_INSTABILITY",
+          "final_value": 2.3e50,
+          "trend": "exponential"
+        }
+      },
+      "summary": {
+        "dominant_property": "conserves_fine_structure",
+        "stable_tests": ["SYM-001", "PAT-001"],
+        "explosive_tests": ["UNIV-001"]
+      }
     }
-)
-```
-
-⚠️
-
-* Pas de `statistics`, pas de `evolution`
-* Le Verdict Engine **ne raisonne que sur des scalaires comparables**
-
----
-
-### 2.2 Espaces
-
-```python
-E0Space = dict[str, list[float]]      # gamma → valeurs
-E1Space = dict[str, list[float]]      # gamma → valeurs (conditionné)
-```
-
----
-
-## 3. Étape 1 implémentée — Normalisation structurelle
-
-### 3.1 Fonction unique
-
-```python
-def normalize_observations(
-    observations: list[Observation],
-    *,
-    min_samples_per_gamma: int
-) -> list[Observation]:
-```
-
-### 3.2 Règles strictes
-
-* supprimer observations si :
-
-  * projection absente
-  * gamma avec < min_samples
-* **aucune transformation numérique**
-
-Sortie : observations propres, homogènes.
-
----
-
-## 4. Étape 2 implémentée — Construction E₀
-
-```python
-def build_E0_spaces(
-    observations: list[Observation],
-    projections: list[str]
-) -> dict[str, E0Space]:
-```
-
-Pour chaque projection `p` :
-
-```
-E0[p][gamma] = [values...]
-```
-
-Invariants vérifiés ici :
-
-* ≥ 2 gammas
-* distributions non vides
-
-Sinon → diagnostic, pas d’exception silencieuse.
-
----
-
-## 5. Étape 3 implémentée — Construction E₁
-
-```python
-def build_E1_spaces(
-    observations: list[Observation],
-    factors: list[str],
-    projections: list[str],
-    min_samples: int
-) -> dict:
-```
-
-Structure exacte :
-
-```
-E1[p][factor][value][gamma] → list[float]
-```
-
-Filtrage :
-
-* gamma avec < min_samples **dans ce contexte uniquement**
-* pas de réutilisation de seuils globaux
-
----
-
-## 6. Étape 4 implémentée — Discriminabilité
-
-### 6.1 Fonction D (pluggable mais simple en R0)
-
-```python
-def discriminability(space: dict[str, list[float]]) -> float:
-```
-
-R0 recommandé (non discutable ici) :
-
-* variance inter-gamma des **médianes**
-* aucune normalisation globale
-
----
-
-### 6.2 Calculs
-
-```python
-def compute_discriminabilities(E0, E1):
-```
-
-Produit une table plate :
-
-```
-[
-  {
-    projection,
-    factor,
-    value,
-    D0,
-    D1,
-    delta
+  },
+  
+  "test_profiles": {
+    "SYM-001": {
+      "discriminant": true,
+      "gamma_ranking": ["GAM-001", "GAM-002", ...],
+      "numeric_stability": "stable",
+      "variance_ratio": 0.82
+    }
+  },
+  
+  "structural_patterns": {
+    "order_sufficiency": {
+      "rank_2_adequate": false,
+      "evidence": "TOP-001 fails all Γ on rank 2"
+    },
+    "modifier_effects": [
+      {
+        "modifier": "M3",
+        "effect": "amplifies_instability",
+        "affected_bases": ["ASY-*"]
+      }
+    ]
+  },
+  
+  "critical_regimes": [
+    {
+      "conditions": {"seed": ">=4", "modifier": "M3"},
+      "affected_gammas": ["GAM-001", "GAM-007"],
+      "affected_tests": ["TOP-001"],
+      "phenomenon": "instability_threshold"
+    }
+  ],
+  
+  "comparisons": {
+    "by_test": {
+      "SYM-001": {
+        "best_conservation": "GAM-001",
+        "worst_conservation": "GAM-013"
+      }
+    }
   }
+}
+```
+
+### **3.2 Principes de reporting**
+
+1. **Traçabilité structurelle** : Tout pattern précise conditions (rang, base, modifier)
+2. **Profils individuels > agrégation** : Gamma profiles d'abord, synthèse ensuite
+3. **Axes orthogonaux séparés** : Γ / représentation / observables = sections distinctes
+4. **Pas de verdict unique** : R0 = exploration, pas décision
+
+---
+
+## SECTION 4 : DÉTECTION PATTERNS
+
+### **4.1 Profiling gamma (prioritaire)**
+
+**Pour chaque gamma** :
+- Extraire runs de ce gamma uniquement
+- Calculer comportement par test : stable/explosive/trivial
+- Classifier régime : CONSERVES_X, DESTROYS_Y, NUMERIC_INSTABILITY
+
+**Métriques par test** :
+- `behavior` : stable, explosive, oscillating, trivial
+- `regime` : classification qualitative (à définir par test)
+- `final_value` : valeur finale médiane
+- `trend` : slope normalisé
+
+### **4.2 Comparaisons inter-gammas**
+
+**Pour chaque test** :
+- Classer gammas par conservation (meilleur → pire)
+- Identifier outliers (≠ comportement majoritaire)
+- Mesurer discriminabilité : variance entre gammas
+
+### **4.3 Détection seuils (non systématique)**
+
+**Approche** : Détection anomalies conditionnelles d'abord (B), approfondissement ciblé si nécessaire (A)
+
+**Étape 1** : Scanner contextes à écart comportemental fort
+```
+Contexte (seed=4, M3) :
+  - TOP-001 échoue 80% vs 5% global
+  → Anomalie détectée
+```
+
+**Étape 2** : Si anomalie confirmée, exploration exhaustive triplets/quadruplets
+```
+Combinaisons testées :
+  - (seed=4, M3, GAM-001) → échoue
+  - (seed=4, M3, GAM-002) → stable
+  → Affiner
+```
+
+**Critère lancement approfondissement** : Écart > 50% taux échec conditionnel vs marginal
+
+---
+
+## SECTION 5 : RÉGIMES COMPORTEMENTAUX
+
+### **5.1 Taxonomie gamma**
+
+**CONSERVES_SYMMETRY** : asymétrie finale < 1e-6
+**CONSERVES_NORM** : norme finale < 2× initiale
+**CONSERVES_PATTERNS** : diversity/uniformity stable
+**NUMERIC_INSTABILITY** : ≥1 observable > 1e50
+**DESTROYS_TOPOLOGY** : euler_characteristic change signe
+**TRIVIAL** : aucune variation observable (σ/μ < 0.01)
+
+### **5.2 Taxonomie tests**
+
+**DISCRIMINANT** : variance entre gammas > 0.5
+**NON_DISCRIMINANT** : variance < 0.1
+**NUMERICALLY_UNSTABLE** : >10% runs explosifs
+**WELL_CONDITIONED** : <1% explosions, variance exploitable
+
+---
+
+## SECTION 6 : INTERDICTIONS CRITIQUES
+
+### **Formulations bannies**
+
+❌ "Ce gamma est mauvais/bon"
+❌ "Gamma X échoue" (sans préciser contexte)
+❌ "Verdict global : REJECTED"
+❌ "Variance marginale globale" (agrégation aveugle)
+❌ Interactions sans traçabilité runs
+
+### **Patterns auto-validants interdits**
+
+❌ Seuils numériques absolus universels (1e10, 1e50, etc.)
+❌ Logique OR global ("∃ pattern → verdict")
+❌ Agrégation multi-tests avant analyse individuelle
+❌ Drill-down par filtrage (recalcul obligatoire)
+
+---
+
+## SECTION 7 : PLAN ASSAINISSEMENT CODE
+
+### **Phase 1 : Nettoyage**
+- Supprimer code commenté obsolète
+- Extraire constantes magiques → CONFIG
+- Factoriser fonctions dupliquées
+- Séparer calculs / formatting rapports
+
+### **Phase 2 : Restructuration**
+- Module `gamma_profiling.py` (nouveau)
+- Module `test_profiling.py` (nouveau)
+- Module `regime_detection.py` (nouveau)
+- `verdict_engine.py` = orchestration uniquement
+
+### **Phase 3 : Implémentation**
+- Profiling gamma (priorité 1)
+- Comparaisons inter-gammas (priorité 2)
+- Profiling tests (priorité 3)
+- Détection seuils (priorité 4)
+
+---
+
+## SECTION 8 : VALIDATION
+
+### **Critères de sortie R0**
+
+Un verdict engine R0 est correct si :
+
+1. **Suppression 30% données** → profils gammas changent structurellement
+2. **Retrait 1 gamma** → classements tests affectés
+3. **Projection différente** → comportements différents révélés
+4. **Test absurde** → détecté comme non discriminant/mal conditionné
+
+### **Cas de test minimal**
+
+```python
+# Jeu de données synthétique
+gamma_conserves_all = artificial_runs(stable=True, all_tests=True)
+gamma_explodes_all = artificial_runs(explosive=True, all_tests=True)
+gamma_mixed = artificial_runs(stable_sym=True, explosive_norm=True)
+
+# Vérifications
+assert profile(gamma_conserves_all)['regime'] == 'STABLE_GLOBAL'
+assert profile(gamma_explodes_all)['regime'] == 'NUMERIC_INSTABILITY'
+assert profile(gamma_mixed)['stable_tests'] == ['SYM-001']
+assert profile(gamma_mixed)['explosive_tests'] == ['UNIV-001']
+```
+
+---
+
+**FIN CHARTER R0**
+
+compléments:
+PLAN D'ASSAINISSEMENT CODE
+Maintenant que le charter verrouille la direction, voici le plan concret pour nettoyer et restructurer verdict_engine.py.
+
+PHASE 0 : AUDIT (avant toute modification)
+Inventaire fonctions actuelles :
+✅ GARDER (utiles, correctes)
+- load_all_observations()
+- observations_to_dataframe()
+- filter_numeric_artifacts()
+- diagnose_numeric_degeneracy()
+- diagnose_scale_outliers()
+- stratify_by_regime()
+
+⚠️ CORRIGER (biaisées structurellement)
+- analyze_marginal_variance()  → variance ratio faussée
+- analyze_oriented_interactions()  → trop permissif
+- decide_verdict()  → logique OR global
+
+🔄 REFACTORISER (trop complexes)
+- interpret_patterns()  → 300 lignes, 3 responsabilités
+- generate_verdict_report()  → mélange calculs/formatting
+- compute_verdict()  → pipeline monolithique
+
+❌ SUPPRIMER (obsolètes/commentées)
+- Ligne ~850-950 : analyses désactivées
+- analyze_metric_discrimination()  → jamais utilisé ?
+- analyze_metric_correlations()  → redondance ?
+
+Questions audit :
+
+Les fonctions commentées lignes 850-950 sont-elles futures (R0.5/R1) ou deadcode ?
+elles ont été commentées pour permettre un testing plus rapide, puis petit à petit réécrite d'une autre façon ailleurs, pas forcément mieux, tu pourras décider si elles sont réutilisables ou désormais complètement obsolètes. la suppression définitive ne se fera que lorsque tout le code sera réécrit proprement avec toutes les fonctionnalités.
+
+discrimination et correlations sont calculées mais peu exploitées → conserver ?
+comme les fonctions commentées, on les garde le temps de voir où et si elles pourront-être utilisées, elles pourraient servir de base à une réécriture si elles ne s'averent pas obsolètes.
+
+---
+
+### **PHASE 1 : NETTOYAGE (sans changement logique)**
+
+#### **1.1 marquer obsolètes/inutilisés**
+```python
+# Rechercher
+- Blocs commentés #  (anciennes versions)
+- Variables inutilisées (discrimination si pas exploité)
+- Imports orphelins
+```
+
+#### **1.2 Extraire constantes**
+```python
+# Avant (éparpillé)
+if variance_ratio > 0.5:
+if p_value < 0.05:
+if len(values) < MIN_TOTAL_SAMPLES:
+
+# Après (CONFIG en tête)
+THRESHOLDS = {
+    'variance_dominant': 0.5,
+    'significance_level': 0.05,
+    'min_samples': MIN_TOTAL_SAMPLES,
+    'interaction_strength': 2.0,
+}
+```
+
+#### **1.3 Factoriser duplications**
+```python
+# Pattern répété 5× dans le code
+for metric_stats in stats.values():
+    for key in ['initial', 'final', 'mean']:
+        val = metric_stats.get(key)
+        # ...
+
+# → Fonction utilitaire
+def extract_projections(obs_data, keys):
+    """Extrait projections depuis observation_data."""
+    ...
+```
+
+---
+
+### **PHASE 2 : CORRECTIONS CRITIQUES (biais structurels)**
+
+#### **2.1 Variance marginale (PRIORITÉ 1)**
+
+**Problème actuel** :
+```python
+group_means = [np.mean(g) for g in factor_groups]
+var_between = np.var(group_means)  # ← variance de moyennes
+var_total = np.var(group[projection].dropna())  # ← variance brute
+variance_ratio = var_between / var_total  # ← INCOMPATIBLE
+```
+
+**Correction (ANOVA-like)** :
+```python
+def compute_variance_ratio_corrected(group, factor, projection):
+    """
+    Variance ratio corrigé : SSB / (SSB + SSW)
+    
+    SSB = variance entre groupes (between)
+    SSW = variance intra-groupes (within)
+    """
+    groups = [g[projection].dropna().values for _, g in group.groupby(factor)]
+    
+    # Grand mean
+    grand_mean = np.mean(np.concatenate(groups))
+    
+    # SSB (Sum of Squares Between)
+    ssb = sum(len(g) * (np.mean(g) - grand_mean)**2 for g in groups)
+    
+    # SSW (Sum of Squares Within)
+    ssw = sum(np.sum((g - np.mean(g))**2) for g in groups)
+    
+    # Variance ratio (η²-like)
+    variance_ratio = ssb / (ssb + ssw) if (ssb + ssw) > 1e-10 else 0.0
+    
+    return variance_ratio, ssb, ssw
+```
+
+#### **2.2 Interactions (seuil conditionnel)**
+
+**Ajout filtrage testabilité** :
+```python
+# Avant
+if vr_conditional > 0.3 and interaction_strength > 2.0:
+    # interaction détectée
+
+# Après
+if (vr_conditional > 0.3 and 
+    vr_marginal > 0.1 and  # ← marginal doit être non trivial
+    interaction_strength > 2.0 and
+    n_groups >= 3 and  # ← au moins 3 niveaux factor
+    min_group_size >= 5):  # ← robustesse
+    # interaction détectée
+```
+
+#### **2.3 Drill-down gamma (recalcul réel)**
+
+**Problème actuel** :
+```python
+# Filtre patterns globaux
+gamma_interactions = oriented_interactions[
+    oriented_interactions['test_name'].isin(gamma_df['test_name'].unique())
 ]
 ```
 
-Invariant :
-
-> Si D0 n’existe pas → aucune ligne E1 associée ne doit exister.
-
----
-
-## 7. Étape 5 implémentée — Interactions
-
-### 7.1 Définition codée
-
+**Correction** :
 ```python
-def detect_interactions(discriminability_rows):
+# Recalcule sur sous-ensemble gamma
+def compute_gamma_patterns(df_gamma, factors_without_gamma):
+    """Recalcule patterns sur runs d'un gamma uniquement."""
+    marginal = analyze_marginal_variance(
+        df_gamma, 
+        factors_without_gamma,  # Exclure gamma_id
+        PROJECTIONS
+    )
+    # ... reste pipeline identique
+    return patterns
 ```
 
-Une interaction existe si :
-
-* `delta > 0`
-* stabilité inter-seeds (si seed présent comme facteur passif)
-* pas marginal_only
-
-Aucun seuil numérique global.
-
 ---
 
-## 8. Étape 6 implémentée — Patterns
+### **PHASE 3 : RESTRUCTURATION MODULAIRE**
 
-```python
-def aggregate_patterns(interactions, discriminability_rows):
+#### **3.1 Architecture cible**
+
+```
+tests/utilities/
+├── verdict_engine.py          # Orchestration uniquement
+├── gamma_profiling.py         # Nouveau (priorité 1)
+├── test_profiling.py          # Nouveau (priorité 2)
+├── regime_detection.py        # Nouveau (priorité 3)
+├── variance_analysis.py       # Refactor code existant
+└── report_generation.py       # Extraction formatting
 ```
 
-Patterns R0 **exclusivement** :
+#### **3.2 Séparation responsabilités**
 
-* marginal_dominant
-* oriented_interaction
-* redundant_projection
-* invariance_structurelle
-
-Chaque pattern doit référencer :
-
-* projections concernées
-* facteurs impliqués
-* justification structurelle
-
----
-
-## 9. Étape 7 implémentée — Verdicts
-
-### 9.1 Verdict global
-
+**gamma_profiling.py** :
 ```python
-def compute_global_verdict(patterns):
+def profile_gamma(observations, gamma_id, tests):
+    """
+    Profil comportemental d'un gamma.
+    
+    Returns:
+        {
+            'tests': {test: behavior},
+            'summary': {dominant_property, stable_tests, ...}
+        }
+    """
+    ...
+
+def classify_gamma_regime(profile):
+    """CONSERVES_X, NUMERIC_INSTABILITY, ..."""
+    ...
+
+def rank_gammas_by_test(profiles, test_name):
+    """Classement gammas pour un test donné."""
+    ...
 ```
 
-Mapping strict (déjà validé en Étape 3).
-
----
-
-### 9.2 Verdicts par gamma
-
+**test_profiling.py** :
 ```python
-def compute_gamma_verdicts(
-    observations,
-    verdict_config
-):
+def profile_test(df, test_name):
+    """
+    Profil discriminabilité test.
+    
+    Returns:
+        {
+            'discriminant': bool,
+            'gamma_ranking': [...],
+            'numeric_stability': str,
+            'variance_ratio': float
+        }
+    """
+    ...
 ```
 
-⚠️
-Pipeline **identique**, données restreintes.
+---
+
+### **PHASE 4 : IMPLÉMENTATION NOUVELLES FONCTIONS (post-assainissement)**
+
+Selon charter Section 4 :
+
+1. **Profiling gamma** (priorité 1)
+2. **Comparaisons inter-gammas** (priorité 2)
+3. **Profiling tests** (priorité 3)
+4. **Détection seuils** (priorité 4)
+
+Implémentation progressive après phases 1-3 terminées.
 
 ---
 
-## 10. Étape 8 implémentée — Diagnostics
+## ❓ **AVANT DE COMMENCER**
 
-```python
-def collect_diagnostics(
-    observations,
-    E0,
-    E1,
-    discriminability_rows,
-    interactions
-):
-```
+3. **Ordre préféré** :
+   Phase 2 (corrections) → Phase 3 (restructuration) → Phase 1 (nettoyage) streamlining avec suppression du code temporaire superflu.
+   
 
-Diagnostics obligatoires :
-
-* projections muettes
-* facteurs inactifs
-* contextes rejetés
-* ΔD toujours nul
-* verdicts invariants suspects
-
----
-
-## 11. Point d’entrée unique
-
-```python
-def run_verdict_engine(
-    observations,
-    verdict_config
-):
-```
-
-Pipeline **linéaire**, lisible, testable.
-
----
-
-## 12. Ce qui est volontairement ABSENT en Étape 4
-
-❌ seuils adaptatifs
-❌ log-scale
-❌ filtrage “numérique intelligent”
-❌ heuristiques de robustesse
-❌ compatibilité legacy
-❌ optimisation perf
-
-Si le moteur est faux ici, il restera faux après.
-
----
-
-## 13. Critère de validation de l’Étape 4
-
-Cette étape est validée si :
-
-* tu peux **supprimer 30% des observations**
-  → les patterns changent **structurellement**
-* enlever un gamma change le verdict
-* projections différentes ne racontent pas la même histoire
-* un test volontairement absurde est détecté comme tel
-
----
-
+4. **Scope correction variance** : Juste `analyze_marginal_variance()` ou aussi réviser `analyze_oriented_interactions()` en même temps ? les deux 
 
