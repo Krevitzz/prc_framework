@@ -875,33 +875,76 @@ def observations_to_dataframe(observations: List[dict]) -> pd.DataFrame:
     
     return df
 
-#\TODO analyse_marginal_variance et analyze_oriented_interactions ont un chunck de code similaire qui pourra être réuni dans une fonction dédiée.type:
-#def compute_eta_squared(groups):
+# =============================================================================
+# UTILITAIRE : CALCUL ETA-SQUARED (η²)
+# =============================================================================
+
+def compute_eta_squared(groups: List[np.ndarray]) -> Tuple[float, float, float]:
     """
-    Compute eta-squared (SSB / SST) for grouped data.
+    Calcule eta-squared (η²) : proportion de variance expliquée par groupes.
     
-    groups: list[np.ndarray]
+    η² = SSB / SST où :
+    - SSB (Sum of Squares Between) : variance entre groupes
+    - SSW (Sum of Squares Within) : variance intra-groupes
+    - SST (Sum of Squares Total) : SSB + SSW
+    
+    Args:
+        groups: Liste de tableaux numpy (un par groupe)
+    
+    Returns:
+        (eta2, ssb, ssw)
+        - eta2 : proportion variance expliquée [0, 1]
+        - ssb : somme carrés entre groupes
+        - ssw : somme carrés intra-groupes
+    
+    Examples:
+        >>> g1 = np.array([1, 2, 3])
+        >>> g2 = np.array([4, 5, 6])
+        >>> eta2, ssb, ssw = compute_eta_squared([g1, g2])
+        >>> # eta2 proche de 1.0 (groupes bien séparés)
+    
+    Notes:
+        - Retourne (0.0, 0.0, 0.0) si données insuffisantes
+        - Protection division par zéro (sst < 1e-10)
+        - Filtre groupes vides automatiquement
     """
-#    all_values = np.concatenate(groups)
- #   if len(all_values) < 2:
-#        return 0.0, 0.0, 0.0
+    # Filtrer groupes vides
+    groups_valid = [g for g in groups if len(g) > 0]
     
-#    grand_mean = np.mean(all_values)
+    if len(groups_valid) < 2:
+        return 0.0, 0.0, 0.0
     
-#    ssb = sum(
-#        len(g) * (np.mean(g) - grand_mean)**2
-#       for g in groups if len(g) > 0
-#    )
+    # Concaténer toutes valeurs
+    all_values = np.concatenate(groups_valid)
     
-#    ssw = sum(
- #       np.sum((g - np.mean(g))**2)
-#        for g in groups if len(g) > 0
- #   )
+    if len(all_values) < 2:
+        return 0.0, 0.0, 0.0
     
-#    sst = ssb + ssw
-#    eta2 = ssb / sst if sst > 1e-10 else 0.0
+    # Grand mean (moyenne totale)
+    grand_mean = np.mean(all_values)
     
- #   return eta2, ssb, ssw
+    # SSB : variance expliquée par appartenance groupe
+    ssb = sum(
+        len(g) * (np.mean(g) - grand_mean)**2
+        for g in groups_valid
+    )
+    
+    # SSW : variance résiduelle intra-groupes
+    ssw = sum(
+        np.sum((g - np.mean(g))**2)
+        for g in groups_valid
+    )
+    
+    # SST : variance totale
+    sst = ssb + ssw
+    
+    # η² : proportion variance expliquée
+    if sst > 1e-10:
+        eta2 = ssb / sst
+    else:
+        eta2 = 0.0
+    
+    return eta2, ssb, ssw
 
 # =============================================================================
 # ANALYSIS 1 : VARIANCE MARGINALE
@@ -913,12 +956,39 @@ def analyze_marginal_variance(
     projections: List[str]
 ) -> pd.DataFrame:
     """
-    Variance marginale : chaque factor pris isolément.
+    Analyse variance marginale : chaque facteur pris isolément.
     
-    ⚠️  Filtrage testabilité : min_samples, min_groups.
+    Utilise η² (eta-squared) pour mesurer proportion variance expliquée :
+    - η² = SSB / (SSB + SSW)
+    - 0 ≤ η² ≤ 1
+    - η² proche 1 → facteur très discriminant
+    - η² proche 0 → facteur peu informatif
+    
+    ⚠️ PHASE 2.1 : Correction critique du calcul variance ratio
+    Ancien calcul (biaisé) :
+        var_between = np.var([mean_1, mean_2, ...])
+        var_total = np.var([all_values])
+        ratio = var_between / var_total  # ← FAUX
+    
+    Nouveau calcul (correct) :
+        η² = SSB / SST via compute_eta_squared()
+    
+    Args:
+        df: DataFrame observations
+        factors: Liste facteurs à analyser
+        projections: Liste projections numériques
     
     Returns:
-        DataFrame avec [test, metric, projection, factor, variance_ratio, p_value]
+        DataFrame avec colonnes :
+        - test_name, metric_name, projection, factor
+        - variance_ratio (η²)
+        - p_value (Kruskal-Wallis)
+        - n_groups, significant
+    
+    Filtrage testabilité :
+        - Contexte global : ≥ MIN_TOTAL_SAMPLES observations
+        - Par groupe : ≥ MIN_SAMPLES_PER_GROUP observations
+        - Facteur : ≥ MIN_GROUPS niveaux distincts
     """
     results = []
     skipped_testability = 0
@@ -952,25 +1022,9 @@ def analyze_marginal_variance(
                 except (ValueError, Exception):
                     continue
                 
-                # Variance ratio CORRIGÉ (η²-like : SSB / SST)
-                # Calcul grand mean
-                all_values = np.concatenate(factor_groups)
-                grand_mean = np.mean(all_values)
                 
-                # SSB (Sum of Squares Between groups)
-                ssb = sum(
-                    len(g) * (np.mean(g) - grand_mean)**2 
-                    for g in factor_groups
-                )
-                
-                # SSW (Sum of Squares Within groups)
-                ssw = sum(
-                    np.sum((g - np.mean(g))**2) 
-                    for g in factor_groups
-                )
-                
-                # SST (Sum of Squares Total)
-                sst = ssb + ssw
+                # Calcul η² via fonction utilitaire
+                variance_ratio, ssb, ssw = compute_eta_squared(factor_groups)
                 
                 # Variance ratio = proportion variance expliquée
                 if sst > 1e-10:
@@ -1006,24 +1060,49 @@ def analyze_oriented_interactions(
     min_interaction_strength: float = 2.0
 ) -> pd.DataFrame:
     """
-    Interactions ORIENTÉES : A|B distinct de B|A.
+     Détecte interactions ORIENTÉES : A|B distinct de B|A.
     
-    Interaction détectée si :
-    - VR(A|B=b) significatif
-    - VR(A|B=b) >> VR(A) marginal (ratio > min_interaction_strength)
+    Interaction vraie détectée si :
+    1. VR(A|B=b) significatif (η² > 0.3, p < 0.05)
+    2. VR(A|B=b) >> VR(A) marginal (ratio > min_interaction_strength)
+    3. Testabilité robuste (≥3 niveaux, ≥5 obs/groupe)
     
-    ⚠️  Correction critique : permutations() pas combinations().
-    ⚠️  Interaction = changement d'effet, pas juste effet conditionnel.
+    ⚠️ PHASE 2.2 : Critères testabilité renforcés
+    - vr_marginal ≥ 0.1 (marginal substantiel)
+    - n_groups ≥ 3 (interaction nécessite ≥3 niveaux)
+    - min_group_size ≥ 5 (robustesse statistique)
+    
+    Différence vs combinations() :
+    - Paires orientées : (A, B) ET (B, A) testées séparément
+    - Total : len(factors) × (len(factors) - 1) paires
+    - Interaction orientée : effet de A change selon contexte B
     
     Args:
         df: DataFrame observations
-        factors: Liste factors
-        projections: Projections
-        marginal_variance: Variance marginale (pour comparaison)
-        min_interaction_strength: Ratio VR_conditionnel / VR_marginal
+        factors: Liste facteurs
+        projections: Projections numériques
+        marginal_variance: Résultats analyze_marginal_variance()
+        min_interaction_strength: Seuil ratio VR_cond / VR_marg
     
     Returns:
-        DataFrame interactions VRAIES détectées
+        DataFrame interactions détectées avec colonnes :
+        - factor_varying, factor_context, context_value
+        - test_name, metric_name, projection
+        - vr_conditional, vr_marginal, interaction_strength
+        - p_value, n_groups
+    
+    Examples:
+        Interaction détectée :
+        factor_varying = "seed"
+        factor_context = "modifier"
+        context_value = "M3"
+        vr_conditional = 0.62
+        vr_marginal = 0.15
+        interaction_strength = 4.13
+        
+        Interprétation : 
+        "L'effet de seed sur la métrique devient 4× plus fort 
+         quand modifier=M3 (62% variance vs 15% normalement)"
     """
     results = []
     skipped_testability = 0
@@ -1075,25 +1154,8 @@ def analyze_oriented_interactions(
                         except:
                             continue
                         
-                        # Variance ratio conditionnel
-                        varying_groups_arrays = [g for g in varying_groups]  # Déjà défini plus haut
-                        all_values = np.concatenate(varying_groups_arrays)
-                        grand_mean = np.mean(all_values)
-                        
-                        # SSB (Sum of Squares Between)
-                        ssb = sum(
-                            len(g) * (np.mean(g) - grand_mean)**2 
-                            for g in varying_groups_arrays
-                        )
-                        
-                        # SSW (Sum of Squares Within)
-                        ssw = sum(
-                            np.sum((g - np.mean(g))**2) 
-                            for g in varying_groups_arrays
-                        )
-                        
-                        # SST
-                        sst = ssb + ssw
+                        # Calcul η² conditionnel via fonction utilitaire
+                        vr_conditional, ssb, ssw = compute_eta_squared(varying_groups)
                         
                         # Variance ratio conditionnel
                         if sst > 1e-10:
@@ -1101,17 +1163,19 @@ def analyze_oriented_interactions(
                         else:
                             vr_conditional = 0.0
                         
-                        # Comparer à variance marginale
+                        
+                        # Récupérer variance marginale pour comparaison
                         marginal_key = (test_name, metric_name, projection, factor_varying)
                         vr_marginal = marginal_index.get(marginal_key, 0.0)
                         
-                        if vr_marginal < 0.05:
+                        # PHASE 2.2 : Marginal doit être substantiel (≥10%)
+                        if vr_marginal < 0.1:
                             continue
-                            #interaction_strength = np.inf if vr_conditional > 0.3 else 0.0
-                        else:
-                            interaction_strength = vr_conditional / vr_marginal
                         
-                        # Interaction = effet change selon contexte
+                        # Calcul force interaction
+                        interaction_strength = vr_conditional / vr_marginal
+                        
+                        # Détection interaction vraie (critères combinés)
                         if (vr_conditional > 0.3 and 
                             p_value < 0.05 and 
                             interaction_strength > min_interaction_strength):
