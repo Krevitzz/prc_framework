@@ -875,7 +875,7 @@ def observations_to_dataframe(observations: List[dict]) -> pd.DataFrame:
     
     return df
 
-#\TODO analyse_marginal_variance et analyze_oriented_interactions ont un chanck de code similaire qui pourra être réuni dans une fonction dédiée.
+
 # =============================================================================
 # ANALYSIS 1 : VARIANCE MARGINALE
 # =============================================================================
@@ -905,6 +905,7 @@ def analyze_marginal_variance(
                 continue
             
             for factor in factors:
+                
                 # Filtrage cardinalité factor
                 if group[factor].nunique() < MIN_GROUPS:
                     continue
@@ -925,31 +926,15 @@ def analyze_marginal_variance(
                 except (ValueError, Exception):
                     continue
                 
-                # Variance ratio CORRIGÉ (η²-like : SSB / SST)
-                # Calcul grand mean
-                all_values = np.concatenate(factor_groups)
-                grand_mean = np.mean(all_values)
+                # Variance ratio
+                group_means = [np.mean(g) for g in factor_groups]
+                var_between = np.var(group_means)
+                var_total = np.var(group[projection].dropna())
                 
-                # SSB (Sum of Squares Between groups)
-                ssb = sum(
-                    len(g) * (np.mean(g) - grand_mean)**2 
-                    for g in factor_groups
-                )
-                
-                # SSW (Sum of Squares Within groups)
-                ssw = sum(
-                    np.sum((g - np.mean(g))**2) 
-                    for g in factor_groups
-                )
-                
-                # SST (Sum of Squares Total)
-                sst = ssb + ssw
-                
-                # Variance ratio = proportion variance expliquée
-                if sst > 1e-10:
-                    variance_ratio = ssb / sst
-                else:
+                if var_total < 1e-10:
                     variance_ratio = 0.0
+                else:
+                    variance_ratio = var_between / var_total
                 
                 results.append({
                     'test_name': test_name,
@@ -1030,9 +1015,8 @@ def analyze_oriented_interactions(
                         if len(context_group) < MIN_TOTAL_SAMPLES:
                             continue
 
-
                         
-                        # Variance factor_varying dans ce contexte                        
+                        # Variance factor_varying dans ce contexte
                         varying_groups = [
                             g[projection].dropna().values
                             for name, g in context_group.groupby(factor_varying)
