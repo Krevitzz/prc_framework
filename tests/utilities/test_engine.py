@@ -12,6 +12,140 @@ from .registries.registry_manager import RegistryManager
 from .config_loader import get_loader
 
 
+# =============================================================================
+# NOUVEAU : DÉTECTION ÉVÉNEMENTS DYNAMIQUES
+# =============================================================================
+
+def detect_dynamic_events(values: np.ndarray) -> dict:
+    """
+    Détecte événements dynamiques sur trajectoire métrique.
+    
+    Événements R0 :
+    - deviation_onset : |val - initial| > 0.1 * |initial|
+    - instability_onset : |diff| > P90(diffs) * 10
+    - oscillatory : nb sign_changes > 10% iterations
+    - saturation : std(last_20%) / mean(last_20%) < 0.05
+    - collapse : any(|last_10| < 1e-10) and max(|all|) > 1.0
+    
+    Args:
+        values: array (n_iterations,) - trajectoire métrique
+    
+    Returns:
+        {
+            'deviation_onset': int | None,
+            'instability_onset': int | None,
+            'oscillatory': bool,
+            'saturation': bool,
+            'collapse': bool
+        }
+    """
+    if len(values) < 2:
+        return {
+            'deviation_onset': None,
+            'instability_onset': None,
+            'oscillatory': False,
+            'saturation': False,
+            'collapse': False
+        }
+    
+    # 1. Deviation onset (>10% initial)
+    initial = values[0]
+    deviations = np.abs(values - initial) / (np.abs(initial) + 1e-10)
+    deviation_idx = np.where(deviations > 0.1)[0]
+    deviation_onset = int(deviation_idx[0]) if len(deviation_idx) > 0 else None
+    
+    # 2. Instability onset (|diff| > P90 * 10)
+    diffs = np.diff(values)
+    abs_diffs = np.abs(diffs)
+    threshold_instability = np.percentile(abs_diffs, 90) * 10
+    instability_idx = np.where(abs_diffs > threshold_instability)[0]
+    instability_onset = int(instability_idx[0]) if len(instability_idx) > 0 else None
+    
+    # 3. Oscillations (>10% sign changes)
+    signs = np.sign(diffs)
+    sign_changes = np.sum(signs[:-1] != signs[1:])
+    oscillatory = sign_changes > len(values) * 0.1
+    
+    # 4. Saturation (std(last_20%) / mean < 5%)
+    last_20pct = max(int(len(values) * 0.2), 1)
+    final_segment = values[-last_20pct:]
+    saturation = (np.std(final_segment) / (np.abs(np.mean(final_segment)) + 1e-10)) < 0.05
+    
+    # 5. Collapse (retour brutal à ~0)
+    last_10 = values[-10:] if len(values) >= 10 else values
+    collapse = np.any(np.abs(last_10) < 1e-10) and np.max(np.abs(values)) > 1.0
+    
+    return {
+        'deviation_onset': deviation_onset,
+        'instability_onset': instability_onset,
+        'oscillatory': oscillatory,
+        'saturation': saturation,
+        'collapse': collapse
+    }
+
+
+def compute_event_sequence(
+    events: dict,
+    n_iterations: int
+) -> dict:
+    """
+    Construit séquence ordonnée depuis événements.
+    
+    Calcule onsets RELATIFS (fraction durée totale) pour timelines.
+    
+    Args:
+        events: Retour de detect_dynamic_events()
+        n_iterations: Nombre total itérations (pour calcul relatif)
+    
+    Returns:
+        {
+            'sequence': ['deviation', 'instability'],
+            'sequence_timing': [3, 7],
+            'sequence_timing_relative': [0.015, 0.035],
+            'saturation_onset_estimated': bool
+        }
+    """
+    timed_events = []
+    saturation_estimated = False
+    
+    # Événements avec onset ponctuel
+    if events['deviation_onset'] is not None:
+        onset_abs = events['deviation_onset']
+        onset_rel = onset_abs / n_iterations
+        timed_events.append(('deviation', onset_abs, onset_rel))
+    
+    if events['instability_onset'] is not None:
+        onset_abs = events['instability_onset']
+        onset_rel = onset_abs / n_iterations
+        timed_events.append(('instability', onset_abs, onset_rel))
+    
+    # Saturation : onset estimé à 80% (heuristique R0)
+    if events['saturation']:
+        onset_abs = int(0.80 * n_iterations)
+        onset_rel = 0.80
+        timed_events.append(('saturation', onset_abs, onset_rel))
+        saturation_estimated = True
+    
+    # Collapse : onset estimé à 90% (fin de run)
+    if events['collapse']:
+        onset_abs = int(0.90 * n_iterations)
+        onset_rel = 0.90
+        timed_events.append(('collapse', onset_abs, onset_rel))
+    
+    # Oscillatory : pas d'onset (comportement global)
+    # Inséré si présent mais pas dans séquence temporelle
+    
+    # Trier par timing absolu
+    timed_events.sort(key=lambda x: x[1])
+    
+    return {
+        'sequence': [name for name, _, _ in timed_events],
+        'sequence_timing': [timing_abs for _, timing_abs, _ in timed_events],
+        'sequence_timing_relative': [timing_rel for _, _, timing_rel in timed_events],
+        'saturation_onset_estimated': saturation_estimated,
+        'oscillatory_global': events['oscillatory']
+    }
+
 class TestEngine:
     """
     Moteur exécution tests PRC 5.4.
@@ -117,8 +251,11 @@ class TestEngine:
             execution_time = time.time() - start_time
             
             # NOUVEAU : Calculer événements dynamiques + séquence
-            dynamic_events = {}
-            timeseries = {}
+            n_iterations = len(history)
+            dynamic_events, timeseries = patch_execute_test_dynamic_events(
+                metric_buffers,
+                n_iterations
+            )
 
             for metric_name, values in metric_buffers.items():
                 timeseries[metric_name] = list(values)  # Convertir np.array → list JSON
@@ -139,6 +276,7 @@ class TestEngine:
             return self._compile_results(
                 result, metric_buffers, skipped_iterations,
                 computations, execution_time, common_params
+                dynamic_events, timeseries  # ← AJOUTER
             )
             
         
@@ -227,8 +365,10 @@ class TestEngine:
         skipped: Dict,
         computations: Dict,
         exec_time: float,
-        params: dict
-    ) -> Dict:
+        params: dict,
+        dynamic_events: dict,  # ← NOUVEAU
+        timeseries: dict       # ← NOUVEAU
+        ) -> Dict:
         """Compile résultats finaux."""
         for metric_name, values in buffers.items():
             if len(values) < 2:
@@ -250,7 +390,15 @@ class TestEngine:
             
             # Evolution
             result['evolution'][metric_name] = self._analyze_evolution(values, params)
+
+            # Ajouter dynamic_events + timeseries
+            result['dynamic_events'] = dynamic_events
+            result['timeseries'] = timeseries  # Optionnel (lourd en stockage)
             
+            # Ajouter n_iterations dans metadata
+            result['metadata']['n_iterations'] = len(next(iter(buffers.values()), []))
+
+    
             # Metadata
             result['metadata']['computations'][metric_name] = {
                 'registry_key': computations[metric_name]['registry_key'],
@@ -327,104 +475,3 @@ class TestEngine:
             'volatility': float(volatility),
             'relative_change': float(relative_change),
         }
-    def detect_dynamic_events(values: np.ndarray) -> dict:
-        """
-        Détecte événements dynamiques sur trajectoire métrique.
-    
-        À appeler dans execute_test() pour chaque métrique.
-    
-        Args:
-            values: array (n_iterations,) - valeurs métrique au cours du temps
-    
-        Returns:
-            {
-                'deviation_onset': int | None,
-                'instability_onset': int | None,
-                'oscillatory': bool,
-                'saturation': bool,
-                'collapse': bool
-            }
-        """
-        if len(values) < 2:
-            return {
-                'deviation_onset': None,
-                'instability_onset': None,
-                'oscillatory': False,
-                'saturation': False,
-                'collapse': False
-            }
-    
-        # Deviation onset (>10% initial)
-        initial = values[0]
-        deviations = np.abs(values - initial) / (np.abs(initial) + 1e-10)
-        deviation_idx = np.where(deviations > 0.1)[0]
-        deviation_onset = int(deviation_idx[0]) if len(deviation_idx) > 0 else None
-    
-        # Instability onset (|diff| > P90 * 10)
-        diffs = np.diff(values)
-        abs_diffs = np.abs(diffs)
-        threshold_instability = np.percentile(abs_diffs, 90) * 10
-        instability_idx = np.where(abs_diffs > threshold_instability)[0]
-        instability_onset = int(instability_idx[0]) if len(instability_idx) > 0 else None
-        
-        # Oscillations (>10% sign changes)
-        signs = np.sign(diffs)
-        sign_changes = np.sum(signs[:-1] != signs[1:])
-        oscillatory = sign_changes > len(values) * 0.1
-        
-        # Saturation (std(last_20%) / mean < 5%)
-        last_20pct = max(int(len(values) * 0.2), 1)
-        final_segment = values[-last_20pct:]
-        saturation = (np.std(final_segment) / (np.abs(np.mean(final_segment)) + 1e-10)) < 0.05
-        
-        # Collapse (retour à ~0)
-        collapse = np.any(np.abs(values[-10:]) < 1e-10) and np.max(np.abs(values)) > 1.0
-        
-        return {
-            'deviation_onset': deviation_onset,
-            'instability_onset': instability_onset,
-            'oscillatory': oscillatory,
-            'saturation': saturation,
-            'collapse': collapse
-        }
-    def compute_event_sequence(events: dict) -> dict:
-        """
-        Construit séquence ordonnée depuis événements.
-        
-        À appeler après detect_dynamic_events().
-        
-        Args:
-            events: Retour de detect_dynamic_events()
-        
-        Returns:
-            {
-                'sequence': ['deviation', 'instability', 'saturation'],
-                'sequence_timing': [3, 7, 150]
-            }
-        """
-        timed_events = []
-        
-        if events['deviation_onset'] is not None:
-            timed_events.append(('deviation', events['deviation_onset']))
-        
-        if events['instability_onset'] is not None:
-            timed_events.append(('instability', events['instability_onset']))
-        
-        # Saturation : onset estimé à 80% durée
-        # (nécessite connaissance n_iterations, passer en paramètre)
-        # Pour l'instant, skip dans séquence
-        
-        if events['collapse']:
-            # Collapse détecté, onset = fin
-            # (nécessite n_iterations)
-            pass
-        
-        # Trier par timing
-        timed_events.sort(key=lambda x: x[1])
-        
-        return {
-            'sequence': [name for name, _ in timed_events],
-            'sequence_timing': [timing for _, timing in timed_events]
-        }
-        
-    
