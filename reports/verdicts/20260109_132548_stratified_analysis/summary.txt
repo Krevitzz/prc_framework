@@ -1,0 +1,45 @@
+================================================================================
+VERDICT ANALYSIS - STRATIFICATION PARALLÈLE
+20260109_132548
+================================================================================
+
+ARCHITECTURE:
+  3 analyses parallèles (pipeline identique)
+  Stratification : |projection| >= 1e50
+  Aucune donnée filtrée (conservation intégrale)
+
+================================================================================
+RÉGIME GLOBAL
+================================================================================
+Observations: 19154
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 4 interactions vraies | 5 paires redondantes
+
+PATTERNS DÉTECTÉS:
+  marginal_dominant: 1 occurrences
+  oriented_interactions: 4 occurrences
+  redundant: 1 occurrences
+
+================================================================================
+RÉGIME STABLE
+================================================================================
+Observations: 19044
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 4 interactions vraies | 5 paires redondantes
+
+PATTERNS DÉTECTÉS:
+  marginal_dominant: 1 occurrences
+  oriented_interactions: 4 occurrences
+  redundant: 1 occurrences
+
+================================================================================
+RÉGIME EXPLOSIF
+================================================================================
+Observations: 110
+Verdict: WIP[R0-open]
+Raison:  1 factors dominants | 2 paires redondantes
+
+PATTERNS DÉTECTÉS:
+  marginal_dominant: 1 occurrences
+  redundant: 1 occurrences
+

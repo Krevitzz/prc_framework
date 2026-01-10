@@ -1026,12 +1026,6 @@ def analyze_marginal_variance(
                 # Calcul η² via fonction utilitaire
                 variance_ratio, ssb, ssw = compute_eta_squared(factor_groups)
                 
-                # Variance ratio = proportion variance expliquée
-                if sst > 1e-10:
-                    variance_ratio = ssb / sst
-                else:
-                    variance_ratio = 0.0
-                
                 results.append({
                     'test_name': test_name,
                     'metric_name': metric_name,
@@ -1157,13 +1151,6 @@ def analyze_oriented_interactions(
                         # Calcul η² conditionnel via fonction utilitaire
                         vr_conditional, ssb, ssw = compute_eta_squared(varying_groups)
                         
-                        # Variance ratio conditionnel
-                        if sst > 1e-10:
-                            vr_conditional = ssb / sst
-                        else:
-                            vr_conditional = 0.0
-                        
-                        
                         # Récupérer variance marginale pour comparaison
                         marginal_key = (test_name, metric_name, projection, factor_varying)
                         vr_marginal = marginal_index.get(marginal_key, 0.0)
@@ -1175,10 +1162,16 @@ def analyze_oriented_interactions(
                         # Calcul force interaction
                         interaction_strength = vr_conditional / vr_marginal
                         
-                        # Détection interaction vraie (critères combinés)
+                        # Interaction = effet change selon contexte
+                        # Critères testabilité renforcés (Phase 2.2)
+                        min_group_size = min(len(g) for g in varying_groups)
+                        
                         if (vr_conditional > 0.3 and 
+                            vr_marginal > 0.1 and  # ← Déjà filtré avant, mais explicit
                             p_value < 0.05 and 
-                            interaction_strength > min_interaction_strength):
+                            interaction_strength > min_interaction_strength and
+                            len(varying_groups) >= 3 and  # ← Au moins 3 niveaux factor_varying
+                            min_group_size >= 5):  # ← Robustesse statistique
                             
                             results.append({
                                 'factor_varying': factor_varying,
@@ -1364,26 +1357,28 @@ def interpret_patterns(
     # =========================================================================
     # PATTERNS PAR GAMMA (drill-down STRICT)
     # =========================================================================
+    # TODO Phase 3 : Remplacer par gamma_profiling.profile_all_gammas()
+    # Le drill-down actuel filtre les patterns globaux (pas recalcul réel)
+    # Désactivé en attendant implémentation Phase 3 (profiling gamma)
     
     patterns_by_gamma = {}
-    
+
     for gamma_id in df['gamma_id'].unique():
-        
+    
         # Sous-ensemble STRICT
         gamma_df = df[df['gamma_id'] == gamma_id]
-        
+    
         # RECALCUL analyses sur ce gamma uniquement
         gamma_marginal = analyze_marginal_variance(
             gamma_df,
             [f for f in FACTORS if f != 'gamma_id'],  # Exclure gamma
             PROJECTIONS
         )
-        
+    
         patterns_gamma = {
             'marginal_dominant': [],
             'oriented_interactions': []
         }
-        
         # Dominant dans gamma
         dominant_gamma = gamma_marginal[
             (gamma_marginal['variance_ratio'] > 0.5) &
@@ -1414,7 +1409,9 @@ def interpret_patterns(
                         })  
         
         patterns_by_gamma[gamma_id] = patterns_gamma
-    
+        
+    # NOTE : Les analyses par gamma seront dans gamma_profiling.py
+    # qui recalculera TOUT (marginal + interactions) par gamma  
     return patterns_global, patterns_by_gamma
 
 
@@ -1455,30 +1452,36 @@ def decide_verdict(
         verdict_global = "WIP[R0-open]"
     
     # Verdicts par gamma
+    # TODO Phase 3 : Verdicts par gamma via gamma_profiling
     verdicts_by_gamma = {}
     
-    for gamma_id, patterns_gamma in patterns_by_gamma.items():
-        critical_gamma = sum(len(v) for v in patterns_gamma.values() if v)
+    if patterns_by_gamma:  # Si non vide (future Phase 3)
+        for gamma_id, patterns_gamma in patterns_by_gamma.items():
+            for gamma_id, patterns_gamma in patterns_by_gamma.items():
+                critical_gamma = sum(len(v) for v in patterns_gamma.values() if v)
         
-        if critical_gamma == 0:
-            verdict_gamma = "SURVIVES[R0]"
-            reason_gamma = "Aucun pattern spécifique."
-        else:
-            reasons_gamma = []
-            if patterns_gamma['marginal_dominant']:
-                reasons_gamma.append(f"{len(patterns_gamma['marginal_dominant'])} factors dominants")
-            if patterns_gamma['oriented_interactions']:
-                reasons_gamma.append(f"{len(patterns_gamma['oriented_interactions'])} interactions")
+                if critical_gamma == 0:
+                    verdict_gamma = "SURVIVES[R0]"
+                    reason_gamma = "Aucun pattern spécifique."
+                else:
+                    reasons_gamma = []
+                    if patterns_gamma['marginal_dominant']:
+                        reasons_gamma.append(f"{len(patterns_gamma['marginal_dominant'])} factors dominants")
+                    if patterns_gamma['oriented_interactions']:
+                        reasons_gamma.append(f"{len(patterns_gamma['oriented_interactions'])} interactions")
             
-            reason_gamma = " | ".join(reasons_gamma)
-            verdict_gamma = "WIP[R0-open]"
+                    reason_gamma = " | ".join(reasons_gamma)
+                    verdict_gamma = "WIP[R0-open]"
+            
+                verdicts_by_gamma[gamma_id] = {
+                    'verdict': verdict_gamma,
+                    'reason': reason_gamma,
+                    'patterns': patterns_gamma
+                }
+    else:
+        # Phase 3 en attente : pas de verdicts individuels
+        pass
         
-        verdicts_by_gamma[gamma_id] = {
-            'verdict': verdict_gamma,
-            'reason': reason_gamma,
-            'patterns': patterns_gamma
-        }
-    
     return verdict_global, reason_global, verdicts_by_gamma
 
 
@@ -1579,6 +1582,11 @@ def generate_verdict_report(
                 f.write(f"--- {gamma_id} ---\n")
                 f.write(f"Verdict: {verdict_info['verdict']}\n")
                 f.write(f"Raison:  {verdict_info['reason']}\n\n")
+        
+        else:
+            f.write("\n")
+            f.write("NOTE : Profiling par gamma disponible en Phase 3\n")
+            f.write("  Module gamma_profiling.py en développement\n")        
         
         f.write("="*80 + "\n")
     
