@@ -116,17 +116,48 @@ class TestEngine:
             
             execution_time = time.time() - start_time
             
+            # NOUVEAU : Calculer événements dynamiques + séquence
+            dynamic_events = {}
+            timeseries = {}
+
+            for metric_name, values in metric_buffers.items():
+                timeseries[metric_name] = list(values)  # Convertir np.array → list JSON
+                if len(values) >= 2:
+                    # Détecter événements
+                    events = detect_dynamic_events(np.array(values))
+                    
+                    # Calculer séquence
+                    seq_info = compute_event_sequence(events)
+                    
+                    # Fusionner
+                    dynamic_events[metric_name] = {
+                        **events,
+                        'sequence': seq_info['sequence'],
+                        'sequence_timing': seq_info['sequence_timing']
+                    }
             # Compiler résultats
             return self._compile_results(
                 result, metric_buffers, skipped_iterations,
                 computations, execution_time, common_params
             )
+            
         
         except Exception as e:
             result['status'] = 'ERROR'
             result['message'] = f"Erreur: {str(e)}"
             result['traceback'] = traceback.format_exc()
-            return result
+            return {
+                'run_metadata': {...},
+                'test_name': test_module.TEST_ID,
+                'status': 'SUCCESS',
+                
+                'statistics': statistics,
+                'evolution': evolution,
+                'dynamic_events': dynamic_events,  # ← NOUVEAU
+                'timeseries': timeseries,  # ← OPTIONNEL (lourd en stockage)
+                
+                'metadata': {...}
+            }
     
     def _init_result(
         self,
@@ -296,3 +327,104 @@ class TestEngine:
             'volatility': float(volatility),
             'relative_change': float(relative_change),
         }
+    def detect_dynamic_events(values: np.ndarray) -> dict:
+        """
+        Détecte événements dynamiques sur trajectoire métrique.
+    
+        À appeler dans execute_test() pour chaque métrique.
+    
+        Args:
+            values: array (n_iterations,) - valeurs métrique au cours du temps
+    
+        Returns:
+            {
+                'deviation_onset': int | None,
+                'instability_onset': int | None,
+                'oscillatory': bool,
+                'saturation': bool,
+                'collapse': bool
+            }
+        """
+        if len(values) < 2:
+            return {
+                'deviation_onset': None,
+                'instability_onset': None,
+                'oscillatory': False,
+                'saturation': False,
+                'collapse': False
+            }
+    
+        # Deviation onset (>10% initial)
+        initial = values[0]
+        deviations = np.abs(values - initial) / (np.abs(initial) + 1e-10)
+        deviation_idx = np.where(deviations > 0.1)[0]
+        deviation_onset = int(deviation_idx[0]) if len(deviation_idx) > 0 else None
+    
+        # Instability onset (|diff| > P90 * 10)
+        diffs = np.diff(values)
+        abs_diffs = np.abs(diffs)
+        threshold_instability = np.percentile(abs_diffs, 90) * 10
+        instability_idx = np.where(abs_diffs > threshold_instability)[0]
+        instability_onset = int(instability_idx[0]) if len(instability_idx) > 0 else None
+        
+        # Oscillations (>10% sign changes)
+        signs = np.sign(diffs)
+        sign_changes = np.sum(signs[:-1] != signs[1:])
+        oscillatory = sign_changes > len(values) * 0.1
+        
+        # Saturation (std(last_20%) / mean < 5%)
+        last_20pct = max(int(len(values) * 0.2), 1)
+        final_segment = values[-last_20pct:]
+        saturation = (np.std(final_segment) / (np.abs(np.mean(final_segment)) + 1e-10)) < 0.05
+        
+        # Collapse (retour à ~0)
+        collapse = np.any(np.abs(values[-10:]) < 1e-10) and np.max(np.abs(values)) > 1.0
+        
+        return {
+            'deviation_onset': deviation_onset,
+            'instability_onset': instability_onset,
+            'oscillatory': oscillatory,
+            'saturation': saturation,
+            'collapse': collapse
+        }
+    def compute_event_sequence(events: dict) -> dict:
+        """
+        Construit séquence ordonnée depuis événements.
+        
+        À appeler après detect_dynamic_events().
+        
+        Args:
+            events: Retour de detect_dynamic_events()
+        
+        Returns:
+            {
+                'sequence': ['deviation', 'instability', 'saturation'],
+                'sequence_timing': [3, 7, 150]
+            }
+        """
+        timed_events = []
+        
+        if events['deviation_onset'] is not None:
+            timed_events.append(('deviation', events['deviation_onset']))
+        
+        if events['instability_onset'] is not None:
+            timed_events.append(('instability', events['instability_onset']))
+        
+        # Saturation : onset estimé à 80% durée
+        # (nécessite connaissance n_iterations, passer en paramètre)
+        # Pour l'instant, skip dans séquence
+        
+        if events['collapse']:
+            # Collapse détecté, onset = fin
+            # (nécessite n_iterations)
+            pass
+        
+        # Trier par timing
+        timed_events.sort(key=lambda x: x[1])
+        
+        return {
+            'sequence': [name for name, _ in timed_events],
+            'sequence_timing': [timing for _, timing in timed_events]
+        }
+        
+    
