@@ -461,7 +461,7 @@ def _write_metadata(report_dir: Path, metadata: dict):
 
 
 def _write_summary_report(report_dir: Path, results: dict):
-    """Écrit rapport humain principal."""
+    """Écrit rapport humain principal (ENRICHI R0+)."""
     
     metadata = results['metadata']
     gamma_profiles = results['gamma_profiles']
@@ -470,7 +470,7 @@ def _write_summary_report(report_dir: Path, results: dict):
     
     with open(report_dir / 'summary.txt', 'w', encoding='utf-8') as f:
         f.write("="*80 + "\n")
-        f.write("VERDICT REPORT R0 - POSTURE NON GAMMA-CENTRIQUE\n")
+        f.write("VERDICT REPORT R0+ - POSTURE NON GAMMA-CENTRIQUE\n")
         f.write(f"{metadata['generated_at']}\n")
         f.write("="*80 + "\n\n")
         
@@ -496,7 +496,21 @@ def _write_summary_report(report_dir: Path, results: dict):
         f.write(f"  Dégénérescences détectées : {quality['observations_with_degeneracy']} ({quality['degeneracy_rate']*100:.1f}%)\n")
         f.write(f"  Ruptures échelle          : {quality['observations_with_scale_outliers']} ({quality['scale_outlier_rate']*100:.1f}%)\n\n")
         
-        # GAMMA PROFILES (résumé)
+        # NOUVEAU : SYNTHÈSE RÉGIMES GLOBALE
+        f.write("="*80 + "\n")
+        f.write("SYNTHÈSE RÉGIMES (vue transversale)\n")
+        f.write("="*80 + "\n")
+        _write_regime_synthesis(f, gamma_profiles)
+        f.write("\n")
+        
+        # NOUVEAU : SIGNATURES DYNAMIQUES
+        f.write("="*80 + "\n")
+        f.write("SIGNATURES DYNAMIQUES PAR GAMMA\n")
+        f.write("="*80 + "\n")
+        _write_dynamic_signatures(f, gamma_profiles)
+        f.write("\n")
+        
+        # GAMMA PROFILES (résumé par gamma)
         f.write("="*80 + "\n")
         f.write("GAMMA PROFILES (régimes dominants par gamma)\n")
         f.write("="*80 + "\n")
@@ -508,21 +522,19 @@ def _write_summary_report(report_dir: Path, results: dict):
             f.write(f"  Régime dominant : {summary['dominant_regime']}\n")
             f.write(f"  Tests profilés  : {summary['n_tests']}\n")
             f.write(f"  Distribution    : {summary['regime_distribution']}\n")
+            
+            # NOUVEAU : Propriétés conservées
+            conserved = _extract_conserved_properties(profile)
+            if conserved:
+                f.write(f"  Propriétés conservées : {', '.join(conserved)}\n")
         
         f.write("\n")
         
-        # COMPARISONS (top 5 tests)
+        # COMPARISONS (enrichi avec contexte)
         f.write("="*80 + "\n")
-        f.write("COMPARISONS INTER-GAMMAS (top 5 tests)\n")
+        f.write("COMPARISONS INTER-GAMMAS (par propriété)\n")
         f.write("="*80 + "\n")
-        
-        by_test = comparisons['by_test']
-        for i, (test_name, comp) in enumerate(sorted(by_test.items())[:5], 1):
-            f.write(f"\n{i}. {test_name}:\n")
-            f.write(f"   Meilleure conservation : {comp['best_conservation']}\n")
-            f.write(f"   Pire conservation      : {comp['worst_conservation']}\n")
-            f.write(f"   Classement complet     : {', '.join(comp['ranking'][:5])}...\n")
-        
+        _write_comparisons_enriched(f, comparisons, gamma_profiles)
         f.write("\n")
         
         # STRUCTURAL PATTERNS (analyses globales)
@@ -638,3 +650,138 @@ def _make_json_serializable(obj):
         return "|".join(str(x) for x in obj)
     else:
         return obj
+
+
+# =============================================================================
+# HELPERS SUMMARY ENRICHI
+# =============================================================================
+
+def _write_regime_synthesis(f, gamma_profiles: dict):
+    """Écrit synthèse régimes transversale."""
+    
+    # Compter régimes globalement
+    regime_counter = defaultdict(int)
+    for gamma_data in gamma_profiles.values():
+        for test_data in gamma_data['tests'].values():
+            regime = test_data['regime']
+            regime_counter[regime] += 1
+    
+    total = sum(regime_counter.values())
+    
+    f.write(f"Total profils : {total}\n\n")
+    
+    # Grouper par famille
+    conservation = {k: v for k, v in regime_counter.items() if 'CONSERVES_' in k}
+    pathologies = {k: v for k, v in regime_counter.items() if k in ['NUMERIC_INSTABILITY', 'OSCILLATORY_UNSTABLE', 'TRIVIAL', 'DEGRADING']}
+    mixed = {k: v for k, v in regime_counter.items() if k.startswith('MIXED::')}
+    other = {k: v for k, v in regime_counter.items() if k not in conservation and k not in pathologies and k not in mixed}
+    
+    if conservation:
+        f.write("CONSERVATION (régimes sains):\n")
+        for regime, count in sorted(conservation.items(), key=lambda x: -x[1]):
+            pct = count / total * 100
+            f.write(f"  {regime:30s} : {count:3d} ({pct:5.1f}%)\n")
+        f.write(f"  Total conservation : {sum(conservation.values())} ({sum(conservation.values())/total*100:.1f}%)\n\n")
+    
+    if pathologies:
+        f.write("PATHOLOGIES:\n")
+        for regime, count in sorted(pathologies.items(), key=lambda x: -x[1]):
+            pct = count / total * 100
+            f.write(f"  {regime:30s} : {count:3d} ({pct:5.1f}%)\n")
+        f.write(f"  Total pathologies : {sum(pathologies.values())} ({sum(pathologies.values())/total*100:.1f}%)\n\n")
+    
+    if mixed:
+        f.write("MULTIMODALITÉ (MIXED::X):\n")
+        for regime, count in sorted(mixed.items(), key=lambda x: -x[1])[:5]:
+            pct = count / total * 100
+            f.write(f"  {regime:30s} : {count:3d} ({pct:5.1f}%)\n")
+        f.write(f"  Total multimodal : {sum(mixed.values())} ({sum(mixed.values())/total*100:.1f}%)\n\n")
+    
+    if other:
+        f.write("AUTRES (SATURATES, UNCATEGORIZED):\n")
+        for regime, count in sorted(other.items(), key=lambda x: -x[1]):
+            pct = count / total * 100
+            f.write(f"  {regime:30s} : {count:3d} ({pct:5.1f}%)\n")
+
+
+def _write_dynamic_signatures(f, gamma_profiles: dict):
+    """Écrit signatures dynamiques par gamma."""
+    
+    for gamma_id in sorted(gamma_profiles.keys()):
+        gamma_data = gamma_profiles[gamma_id]
+        
+        # Compter timelines dominantes
+        timeline_counter = defaultdict(int)
+        for test_data in gamma_data['tests'].values():
+            timeline = test_data['timeline']
+            timeline_counter[timeline] += 1
+        
+        # Timeline dominante
+        if timeline_counter:
+            dominant_timeline, count = max(timeline_counter.items(), key=lambda x: x[1])
+            confidence = count / len(gamma_data['tests'])
+            
+            f.write(f"\n{gamma_id}:\n")
+            f.write(f"  Timeline dominante : {dominant_timeline} ({confidence*100:.0f}% tests)\n")
+            
+            # Diversité timelines
+            if len(timeline_counter) > 1:
+                f.write(f"  Variantes ({len(timeline_counter)} timelines distinctes):\n")
+                for tl, cnt in sorted(timeline_counter.items(), key=lambda x: -x[1])[:3]:
+                    if tl != dominant_timeline:
+                        f.write(f"    - {tl} ({cnt} tests)\n")
+
+
+def _extract_conserved_properties(profile: dict) -> list:
+    """Extrait propriétés conservées depuis profil gamma."""
+    
+    properties = set()
+    
+    for test_data in profile['tests'].values():
+        regime = test_data['regime']
+        
+        if 'CONSERVES_SYMMETRY' in regime:
+            properties.add('Symétrie')
+        elif 'CONSERVES_NORM' in regime:
+            properties.add('Norme')
+        elif 'CONSERVES_PATTERN' in regime:
+            properties.add('Pattern')
+        elif 'CONSERVES_TOPOLOGY' in regime:
+            properties.add('Topologie')
+        elif 'CONSERVES_GRADIENT' in regime:
+            properties.add('Gradient')
+        elif 'CONSERVES_SPECTRUM' in regime:
+            properties.add('Spectre')
+    
+    return sorted(properties)
+
+
+def _write_comparisons_enriched(f, comparisons: dict, gamma_profiles: dict):
+    """Écrit comparaisons enrichies avec contexte propriétés."""
+    
+    # Grouper tests par propriété
+    tests_by_property = {
+        'Symétrie': ['SYM-001'],
+        'Norme': ['SPE-001', 'SPE-002', 'UNIV-001', 'UNIV-002'],
+        'Pattern': ['PAT-001'],
+        'Topologie': ['TOP-001'],
+        'Gradient': ['GRA-001'],
+        'Spectre': ['SPA-001']
+    }
+    
+    by_test = comparisons['by_test']
+    
+    for property_name, test_list in tests_by_property.items():
+        tests_in_data = [t for t in test_list if t in by_test]
+        
+        if not tests_in_data:
+            continue
+        
+        f.write(f"\n{property_name.upper()}:\n")
+        
+        for test_name in tests_in_data:
+            comp = by_test[test_name]
+            f.write(f"\n  {test_name}:\n")
+            f.write(f"    Meilleur : {comp['best_conservation']}\n")
+            f.write(f"    Pire     : {comp['worst_conservation']}\n")
+            f.write(f"    Classement : {', '.join(comp['ranking'][:5])}...\n")

@@ -421,25 +421,35 @@ def aggregate_dynamic_signatures(observations: List[dict], metric_name: str) -> 
 
 
 # =============================================================================
-# CLASSIFICATION RÉGIME (Patch #2 : MIXED comme qualificatif)
+# CLASSIFICATION RÉGIME (Patch #2 : MIXED comme qualificatif + Régimes spécifiques)
 # =============================================================================
 
 def classify_regime(
     metrics: dict,
     dynamic_sig: dict,
     timeline_dist: dict,
-    dispersion: dict
+    dispersion: dict,
+    test_name: str  # ← NOUVEAU : Pour déterminer propriété conservée
 ) -> str:
     """
-    Classification régime R0 avec MIXED::BASE.
+    Classification régime R0 avec régimes SPÉCIFIQUES.
     
-    Patch #2 appliqué : Multimodalité = qualificatif pas régime de base.
+    Au lieu de CONSERVES_X générique, on détecte :
+    - CONSERVES_SYMMETRY (SYM-*)
+    - CONSERVES_NORM (SPE-*, UNIV-*)
+    - CONSERVES_PATTERN (PAT-*)
+    - CONSERVES_TOPOLOGY (TOP-*)
+    - CONSERVES_GRADIENT (GRA-*)
+    - CONSERVES_SPECTRUM (SPA-*)
     
-    Régimes de base :
-    - CONSERVES_X, NUMERIC_INSTABILITY, SATURATES_HIGH,
-      OSCILLATORY_UNSTABLE, TRIVIAL, DEGRADING, UNCATEGORIZED
+    Régimes pathologiques :
+    - NUMERIC_INSTABILITY, OSCILLATORY_UNSTABLE, TRIVIAL, 
+      DEGRADING, SATURATES_HIGH, UNCATEGORIZED
     
     Si bimodal détecté → MIXED::{régime_base}
+    
+    Args:
+        test_name: Nom du test (pour déduire propriété)
     """
     if not metrics:
         return "NO_DATA"
@@ -451,21 +461,57 @@ def classify_regime(
     # Classifier régime de base d'abord
     instability_onset = dynamic_sig.get('instability_onset_median')
     
+    # PATHOLOGIES (prioritaires)
     if instability_onset is not None and instability_onset < 20 and final > 1e20:
         base_regime = "NUMERIC_INSTABILITY"
     elif dynamic_sig['oscillatory_fraction'] > 0.3:
         base_regime = "OSCILLATORY_UNSTABLE"
     elif cv < 0.01:
         base_regime = "TRIVIAL"
+    
+    # CONSERVATION (dépend du test)
     elif final < 2 * initial and cv < 0.1:
-        base_regime = "CONSERVES_X"
+        # Détecter propriété conservée selon préfixe test
+        if test_name.startswith('SYM-'):
+            base_regime = "CONSERVES_SYMMETRY"
+        elif test_name.startswith('SPE-') or test_name.startswith('UNIV-'):
+            base_regime = "CONSERVES_NORM"
+        elif test_name.startswith('PAT-'):
+            base_regime = "CONSERVES_PATTERN"
+        elif test_name.startswith('TOP-'):
+            base_regime = "CONSERVES_TOPOLOGY"
+        elif test_name.startswith('GRA-'):
+            base_regime = "CONSERVES_GRADIENT"
+        elif test_name.startswith('SPA-'):
+            base_regime = "CONSERVES_SPECTRUM"
+        else:
+            base_regime = "CONSERVES_PROPERTY"  # Fallback générique
+    
+    # SATURATION
     elif 'saturation' in timeline_dist.get('dominant_timeline', '') and dynamic_sig['saturation_fraction'] > 0.7:
         if final > 10 * initial:
             base_regime = "SATURATES_HIGH"
         else:
-            base_regime = "CONSERVES_X"
+            # Saturation mais pas croissance → Conservation
+            if test_name.startswith('SYM-'):
+                base_regime = "CONSERVES_SYMMETRY"
+            elif test_name.startswith('SPE-') or test_name.startswith('UNIV-'):
+                base_regime = "CONSERVES_NORM"
+            elif test_name.startswith('PAT-'):
+                base_regime = "CONSERVES_PATTERN"
+            elif test_name.startswith('TOP-'):
+                base_regime = "CONSERVES_TOPOLOGY"
+            elif test_name.startswith('GRA-'):
+                base_regime = "CONSERVES_GRADIENT"
+            elif test_name.startswith('SPA-'):
+                base_regime = "CONSERVES_SPECTRUM"
+            else:
+                base_regime = "CONSERVES_PROPERTY"
+    
+    # DEGRADING
     elif final < 0.5 * initial and dynamic_sig['collapse_fraction'] < 0.1:
         base_regime = "DEGRADING"
+    
     else:
         base_regime = "UNCATEGORIZED"
     
@@ -486,7 +532,8 @@ def compute_prc_profile(
     timeline_dist: dict,
     dispersion: dict,
     n_runs: int,
-    n_valid: int
+    n_valid: int,
+    test_name: str  # ← NOUVEAU
 ) -> dict:
     """
     Génère profil PRC avec confidence heuristique documentée.
@@ -503,18 +550,22 @@ def compute_prc_profile(
             'confidence_metadata': {}
         }
     
-    # Régime (avec qualificatif MIXED si applicable)
-    regime = classify_regime(metrics, dynamic_sig, timeline_dist, dispersion)
+    # Régime (avec qualificatif MIXED si applicable + propriété spécifique)
+    regime = classify_regime(metrics, dynamic_sig, timeline_dist, dispersion, test_name)
     
     # Behavior
     base_regime = regime.split('::')[-1] if '::' in regime else regime
     
-    if base_regime in ['CONSERVES_X', 'TRIVIAL', 'SATURATES_HIGH']:
+    if base_regime.startswith('CONSERVES_'):
         behavior = 'stable'
     elif base_regime in ['NUMERIC_INSTABILITY', 'OSCILLATORY_UNSTABLE']:
         behavior = 'unstable'
     elif base_regime == 'DEGRADING':
         behavior = 'degrading'
+    elif base_regime == 'TRIVIAL':
+        behavior = 'stable'  # ← Techniquement stable (pas de dynamique)
+    elif base_regime == 'SATURATES_HIGH':
+        behavior = 'stable'  # ← Converge vers plateau
     else:
         behavior = 'uncategorized'
     
@@ -539,7 +590,8 @@ def compute_prc_profile(
         'numeric_instability': 'NUMERIC_INSTABILITY' in regime,
         'oscillatory': dynamic_sig['oscillatory_fraction'] > 0.3,
         'collapse': dynamic_sig['collapse_fraction'] > 0.1,
-        'trivial': base_regime == 'TRIVIAL'
+        'trivial': base_regime == 'TRIVIAL',
+        'degrading': base_regime == 'DEGRADING'  # ← AJOUT
     }
     
     # Confidence heuristique (Patch #4)
@@ -671,7 +723,8 @@ def profile_test_for_gamma(
         event_aggregates['timeline_distribution'],
         run_dispersion,
         n_runs,
-        n_valid
+        n_valid,
+        test_name  # ← AJOUTER
     )
     
     return {
