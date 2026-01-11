@@ -6,7 +6,7 @@ Test Engine Charter 5.4 - Génération observations pures.
 import numpy as np
 import time
 import traceback
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple, Optional
 
 from .registries.registry_manager import RegistryManager
 from .config_loader import get_loader
@@ -64,16 +64,16 @@ def detect_dynamic_events(values: np.ndarray) -> dict:
     # 3. Oscillations (>10% sign changes)
     signs = np.sign(diffs)
     sign_changes = np.sum(signs[:-1] != signs[1:])
-    oscillatory = sign_changes > len(values) * 0.1
+    oscillatory = bool(sign_changes > len(values) * 0.1)
     
     # 4. Saturation (std(last_20%) / mean < 5%)
     last_20pct = max(int(len(values) * 0.2), 1)
     final_segment = values[-last_20pct:]
-    saturation = (np.std(final_segment) / (np.abs(np.mean(final_segment)) + 1e-10)) < 0.05
+    saturation = bool((np.std(final_segment) / (np.abs(np.mean(final_segment)) + 1e-10)) < 0.05)
     
     # 5. Collapse (retour brutal à ~0)
     last_10 = values[-10:] if len(values) >= 10 else values
-    collapse = np.any(np.abs(last_10) < 1e-10) and np.max(np.abs(values)) > 1.0
+    collapse = bool(np.any(np.abs(last_10) < 1e-10) and np.max(np.abs(values)) > 1.0)
     
     return {
         'deviation_onset': deviation_onset,
@@ -145,7 +145,49 @@ def compute_event_sequence(
         'saturation_onset_estimated': saturation_estimated,
         'oscillatory_global': events['oscillatory']
     }
-
+def patch_execute_test_dynamic_events(
+    metric_buffers: Dict[str, List[float]],
+    n_iterations: int
+) -> Tuple[dict, dict]:
+    """
+    Calcule dynamic_events + timeseries pour tous metrics.
+    
+    À insérer dans TestEngine.execute_test() après boucle itérations.
+    
+    Args:
+        metric_buffers: {metric_name: [val_0, ..., val_N]}
+        n_iterations: Nombre total itérations (len(history))
+    
+    Returns:
+        (dynamic_events, timeseries)
+        - dynamic_events: {metric_name: {events + sequence}}
+        - timeseries: {metric_name: [val_0, ..., val_N]}
+    """
+    dynamic_events = {}
+    timeseries = {}
+    
+    for metric_name, values in metric_buffers.items():
+        # Stocker timeseries (optionnel, lourd)
+        timeseries[metric_name] = list(values)
+        
+        if len(values) < 2:
+            continue
+        
+        # Détecter événements
+        events = detect_dynamic_events(np.array(values))
+        
+        # Calculer séquence + onsets relatifs
+        seq_info = compute_event_sequence(events, n_iterations)
+        
+        # Fusionner
+        dynamic_events[metric_name] = {
+            **events,
+            **seq_info
+        }
+    
+    return dynamic_events, timeseries
+    
+    
 class TestEngine:
     """
     Moteur exécution tests PRC 5.4.
@@ -215,6 +257,9 @@ class TestEngine:
             if not computations:
                 result['status'] = 'ERROR'
                 result['message'] = 'Aucune spécification valide'
+                if result['status'] == 'ERROR':
+                    print(result.get('message'))
+                    print(result.get('traceback'))
                 return result
             
             # Buffers
@@ -247,35 +292,19 @@ class TestEngine:
                             'iteration': iteration,
                             'error': str(e)
                         })
-            
+             # NOUVEAU : Calculer événements dynamiques + séquence
+            n_iterations = len(history)           
             execution_time = time.time() - start_time
-            
-            # NOUVEAU : Calculer événements dynamiques + séquence
-            n_iterations = len(history)
             dynamic_events, timeseries = patch_execute_test_dynamic_events(
                 metric_buffers,
                 n_iterations
             )
+            
 
-            for metric_name, values in metric_buffers.items():
-                timeseries[metric_name] = list(values)  # Convertir np.array → list JSON
-                if len(values) >= 2:
-                    # Détecter événements
-                    events = detect_dynamic_events(np.array(values))
-                    
-                    # Calculer séquence
-                    seq_info = compute_event_sequence(events)
-                    
-                    # Fusionner
-                    dynamic_events[metric_name] = {
-                        **events,
-                        'sequence': seq_info['sequence'],
-                        'sequence_timing': seq_info['sequence_timing']
-                    }
             # Compiler résultats
             return self._compile_results(
                 result, metric_buffers, skipped_iterations,
-                computations, execution_time, common_params
+                computations, execution_time, common_params,
                 dynamic_events, timeseries  # ← AJOUTER
             )
             
@@ -284,19 +313,12 @@ class TestEngine:
             result['status'] = 'ERROR'
             result['message'] = f"Erreur: {str(e)}"
             result['traceback'] = traceback.format_exc()
-            return {
-                'run_metadata': {...},
-                'test_name': test_module.TEST_ID,
-                'status': 'SUCCESS',
-                
-                'statistics': statistics,
-                'evolution': evolution,
-                'dynamic_events': dynamic_events,  # ← NOUVEAU
-                'timeseries': timeseries,  # ← OPTIONNEL (lourd en stockage)
-                
-                'metadata': {...}
-            }
-    
+            if result['status'] == 'ERROR':
+                print(result.get('message'))
+                print(result.get('traceback'))
+            return result
+            
+            
     def _init_result(
         self,
         test_module,
@@ -325,6 +347,9 @@ class TestEngine:
             
             'statistics': {},
             'evolution': {},
+            'dynamic_events': {},
+            'timeseries': {},
+            
             
             'metadata': {
                 'engine_version': self.VERSION,
@@ -391,14 +416,6 @@ class TestEngine:
             # Evolution
             result['evolution'][metric_name] = self._analyze_evolution(values, params)
 
-            # Ajouter dynamic_events + timeseries
-            result['dynamic_events'] = dynamic_events
-            result['timeseries'] = timeseries  # Optionnel (lourd en stockage)
-            
-            # Ajouter n_iterations dans metadata
-            result['metadata']['n_iterations'] = len(next(iter(buffers.values()), []))
-
-    
             # Metadata
             result['metadata']['computations'][metric_name] = {
                 'registry_key': computations[metric_name]['registry_key'],
@@ -406,6 +423,10 @@ class TestEngine:
                 'has_post_process': computations[metric_name]['post_process'] is not None,
             }
         
+        # Ajouter dynamic_events + timeseries
+        result['dynamic_events'] = dynamic_events
+        result['timeseries'] = timeseries  # Optionnel (lourd en stockage)
+            
         result['metadata'].update({
             'execution_time_sec': exec_time,
             'num_iterations_processed': len(next(iter(buffers.values()), [])),

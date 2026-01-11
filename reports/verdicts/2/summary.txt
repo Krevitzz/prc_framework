@@ -1,0 +1,149 @@
+================================================================================
+VERDICT REPORT R0 - POSTURE NON GAMMA-CENTRIQUE
+2026-01-11T07:47:20.074623
+================================================================================
+
+ARCHITECTURE RAPPORT:
+  verdict_engine   : Analyses statistiques globales (variance, interactions)
+  gamma_profiling  : Profils comportementaux individuels (régimes, timelines)
+  verdict_reporter : Orchestration + génération rapports
+
+================================================================================
+DATA SUMMARY
+================================================================================
+Total observations    : 20280
+Valid observations    : 20280
+Rejected (artifacts)  : 0 (0.0%)
+Gammas analyzed       : 11
+Tests analyzed        : 9
+
+QUALITY FLAGS:
+  Dégénérescences détectées : 0 (0.0%)
+  Ruptures échelle          : 1082 (5.3%)
+
+================================================================================
+GAMMA PROFILES (régimes dominants par gamma)
+================================================================================
+
+GAM-001:
+  Régime dominant : CONSERVES_X
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_X': 5, 'MIXED::SATURATES_HIGH': 2, 'MIXED::CONSERVES_X': 2}
+
+GAM-002:
+  Régime dominant : CONSERVES_X
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_X': 3, 'OSCILLATORY_UNSTABLE': 1, 'MIXED::OSCILLATORY_UNSTABLE': 3, 'MIXED::DEGRADING': 1, 'MIXED::CONSERVES_X': 1}
+
+GAM-003:
+  Régime dominant : MIXED::UNCATEGORIZED
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_X': 2, 'MIXED::CONSERVES_X': 2, 'MIXED::UNCATEGORIZED': 4, 'UNCATEGORIZED': 1}
+
+GAM-004:
+  Régime dominant : TRIVIAL
+  Tests profilés  : 9
+  Distribution    : {'TRIVIAL': 7, 'CONSERVES_X': 1, 'MIXED::CONSERVES_X': 1}
+
+GAM-005:
+  Régime dominant : TRIVIAL
+  Tests profilés  : 9
+  Distribution    : {'TRIVIAL': 7, 'CONSERVES_X': 1, 'MIXED::OSCILLATORY_UNSTABLE': 1}
+
+GAM-006:
+  Régime dominant : MIXED::CONSERVES_X
+  Tests profilés  : 9
+  Distribution    : {'TRIVIAL': 1, 'OSCILLATORY_UNSTABLE': 1, 'MIXED::CONSERVES_X': 3, 'CONSERVES_X': 3, 'MIXED::OSCILLATORY_UNSTABLE': 1}
+
+GAM-007:
+  Régime dominant : CONSERVES_X
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_X': 4, 'OSCILLATORY_UNSTABLE': 1, 'MIXED::OSCILLATORY_UNSTABLE': 3, 'MIXED::DEGRADING': 1}
+
+GAM-008:
+  Régime dominant : CONSERVES_X
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_X': 5, 'MIXED::SATURATES_HIGH': 2, 'MIXED::CONSERVES_X': 2}
+
+GAM-009:
+  Régime dominant : OSCILLATORY_UNSTABLE
+  Tests profilés  : 9
+  Distribution    : {'OSCILLATORY_UNSTABLE': 9}
+
+GAM-010:
+  Régime dominant : OSCILLATORY_UNSTABLE
+  Tests profilés  : 9
+  Distribution    : {'OSCILLATORY_UNSTABLE': 7, 'MIXED::CONSERVES_X': 1, 'MIXED::OSCILLATORY_UNSTABLE': 1}
+
+GAM-012:
+  Régime dominant : CONSERVES_X
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_X': 6, 'MIXED::SATURATES_HIGH': 1, 'TRIVIAL': 1, 'MIXED::CONSERVES_X': 1}
+
+================================================================================
+COMPARISONS INTER-GAMMAS (top 5 tests)
+================================================================================
+
+1. GRA-001:
+   Meilleure conservation : GAM-001
+   Pire conservation      : GAM-010
+   Classement complet     : GAM-001, GAM-002, GAM-003, GAM-007, GAM-008...
+
+2. PAT-001:
+   Meilleure conservation : GAM-001
+   Pire conservation      : GAM-010
+   Classement complet     : GAM-001, GAM-003, GAM-004, GAM-005, GAM-008...
+
+3. SPA-001:
+   Meilleure conservation : GAM-002
+   Pire conservation      : GAM-012
+   Classement complet     : GAM-002, GAM-003, GAM-006, GAM-007, GAM-004...
+
+4. SPE-001:
+   Meilleure conservation : GAM-001
+   Pire conservation      : GAM-010
+   Classement complet     : GAM-001, GAM-006, GAM-008, GAM-012, GAM-004...
+
+5. SPE-002:
+   Meilleure conservation : GAM-001
+   Pire conservation      : GAM-010
+   Classement complet     : GAM-001, GAM-006, GAM-008, GAM-012, GAM-004...
+
+================================================================================
+STRUCTURAL PATTERNS (analyses globales stratifiées)
+================================================================================
+
+RÉGIME GLOBAL:
+  Observations : 20280
+  Status       : SUCCESS
+  Verdict      : WIP[R0-open]
+  Raison       : 1 factors dominants | 4 interactions vraies | 4 paires redondantes
+  Patterns détectés:
+    marginal_dominant: 1 occurrences
+    oriented_interactions: 4 occurrences
+    redundant: 1 occurrences
+
+RÉGIME STABLE:
+  Observations : 20280
+  Status       : SUCCESS
+  Verdict      : WIP[R0-open]
+  Raison       : 1 factors dominants | 4 interactions vraies | 4 paires redondantes
+  Patterns détectés:
+    marginal_dominant: 1 occurrences
+    oriented_interactions: 4 occurrences
+    redundant: 1 occurrences
+
+RÉGIME EXPLOSIF:
+  Observations : 0
+  Status       : INSUFFICIENT_DATA
+
+================================================================================
+CONSULTATION DÉTAILLÉE
+================================================================================
+gamma_profiles.json       : Profils complets tous gammas × tests
+gamma_profiles.csv        : Vue tabulaire pour analyse
+comparisons.json          : Classements inter-gammas
+structural_patterns.json  : Analyses globales (variance, interactions)
+diagnostics.json          : Diagnostics numériques détaillés
+marginal_variance_*.csv   : Données brutes analyses (3 strates)
+================================================================================

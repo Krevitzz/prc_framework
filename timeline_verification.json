@@ -1,0 +1,75 @@
+{
+  "module": "verify_timelines",
+  "scope": "R0 sanity-check",
+  "version": "1.1_corrected",
+  "checks": {
+    "dynamic_events": {
+      "status": "PASS",
+      "reason": "Dynamic events present",
+      "total_observations": 20760,
+      "observations_with_events": 20280,
+      "event_ratio": 0.976878612716763,
+      "observations_with_timeseries": 20760,
+      "timeseries_ratio": 1.0,
+      "fallback_likely": false
+    },
+    "timelines": {
+      "status": "PASS",
+      "reason": "Timelines generated correctly",
+      "total_timelines": 99,
+      "no_significant_dynamics_ratio": 0.0,
+      "timeline_distribution": {
+        "early_instability_to_saturation_complex": 47,
+        "late_saturation_only": 11,
+        "oscillatory_early_instability_then_saturation": 2,
+        "early_instability_then_deviation": 2,
+        "oscillatory_early_instability_to_saturation_complex": 10,
+        "early_deviation_then_instability": 5,
+        "mid_instability_to_saturation_complex": 1,
+        "early_instability_to_collapse_complex": 9,
+        "oscillatory_early_deviation_only": 6,
+        "oscillatory_early_deviation_then_saturation": 1,
+        "oscillatory_late_saturation_only": 1,
+        "oscillatory_late_deviation_then_saturation": 1,
+        "oscillatory_early_instability_then_deviation": 3
+      },
+      "compositionnal_examples": [
+        "early_instability_to_saturation_complex",
+        "late_saturation_only",
+        "oscillatory_early_instability_then_saturation",
+        "early_instability_then_deviation",
+        "oscillatory_early_instability_to_saturation_complex",
+        "early_deviation_then_instability",
+        "mid_instability_to_saturation_complex",
+        "early_instability_to_collapse_complex",
+        "oscillatory_early_deviation_only",
+        "oscillatory_early_deviation_then_saturation"
+      ]
+    },
+    "trivial_regimes": {
+      "status": "PASS",
+      "reason": "Regime distribution collected",
+      "total_profiles": 99,
+      "regime_distribution": {
+        "CONSERVES_X": 30,
+        "MIXED::SATURATES_HIGH": 5,
+        "MIXED::CONSERVES_X": 13,
+        "OSCILLATORY_UNSTABLE": 19,
+        "MIXED::OSCILLATORY_UNSTABLE": 9,
+        "MIXED::DEGRADING": 2,
+        "MIXED::UNCATEGORIZED": 4,
+        "UNCATEGORIZED": 1,
+        "TRIVIAL": 16
+      },
+      "trivial_ratio": 0.16161616161616163
+    },
+    "fallback_usage": {
+      "status": "PASS",
+      "reason": "Minimal fallback usage",
+      "total_profiles": 99,
+      "profiles_with_fallback": 0,
+      "fallback_ratio": 0.0
+    }
+  },
+  "global_status": "PASS"
+}

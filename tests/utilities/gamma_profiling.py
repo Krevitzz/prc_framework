@@ -184,7 +184,19 @@ def compute_timeline_descriptor(
     - 2+ événements → '{timing1}_{event1}_then_{event2}'
     - Oscillatoire global → préfixe 'oscillatory_'
     """
-    if not sequence:
+    # ⚠️ FIX : Vérifier cohérence listes
+    if not sequence or not sequence_timing_relative:
+        return {
+            'phases': [],
+            'timeline_compact': 'no_significant_dynamics',
+            'n_phases': 0,
+            'oscillatory_global': oscillatory_global
+        }
+    
+    # ⚠️ FIX : Vérifier longueurs égales
+    if len(sequence) != len(sequence_timing_relative):
+        # Logging pour debug (optionnel)
+        # print(f"⚠️ Warning: sequence length mismatch ({len(sequence)} vs {len(sequence_timing_relative)})")
         return {
             'phases': [],
             'timeline_compact': 'no_significant_dynamics',

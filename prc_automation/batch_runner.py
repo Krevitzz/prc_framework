@@ -173,13 +173,12 @@ def run_batch_verdict(args):
     """
     Génère verdicts exploratoires sur observations existantes.
     
-    Architecture 5.5:
-    - Charge TOUTES observations pour params_config_id
-    - Analyse globale + drill-down par gamma
-    - Génère rapports complets (metadata, summary, JSON, CSVs)
+    Architecture 5.5 (NOUVEAU):
+    - verdict_reporter orchestre verdict_engine + gamma_profiling
+    - Génération rapports structurés selon Charter R0
     """
     print(f"\n{'='*70}")
-    print("MODE VERDICT - Analyse exploratoire")
+    print("MODE VERDICT - Analyse exploratoire R0")
     print(f"{'='*70}\n")
     
     params_config_id = args.params
@@ -192,35 +191,39 @@ def run_batch_verdict(args):
     n_observations = count_observations(params_config_id)
     if n_observations == 0:
         print(f"❌ Aucune observation trouvée pour params={params_config_id}")
-        print(f"   Action: Exécuter --test d'abord")
+        print(f"   Action: Exécuter --mode test d'abord")
         sys.exit(1)
     
     print(f"✓ {n_observations} observations trouvées\n")
     
-    # Import verdict engine
+    # Import verdict_reporter (NOUVEAU)
     try:
-        from tests.utilities.verdict_engine import compute_verdict
+        from tests.utilities.verdict_reporter import generate_verdict_report
     except ImportError as e:
-        print(f"❌ Erreur import verdict_engine: {e}")
+        print(f"❌ Erreur import verdict_reporter: {e}")
         sys.exit(1)
     
-    # Exécution pipeline verdict
+    # Exécution pipeline (SIMPLIFIÉ)
     try:
-        compute_verdict(
+        results = generate_verdict_report(
             params_config_id=params_config_id,
             verdict_config_id=verdict_config_id
         )
+        
+        # Résumé rapide
+        print(f"\n{'='*70}")
+        print("✓ VERDICT TERMINÉ")
+        print(f"{'='*70}")
+        print(f"Gammas profilés : {results['metadata']['data_summary']['n_gammas']}")
+        print(f"Tests analysés  : {results['metadata']['data_summary']['n_tests']}")
+        print(f"Répertoire      : {Path(results['report_paths']['summary']).parent}")
+        print(f"{'='*70}\n")
+        
     except Exception as e:
-        print(f"\n❌ Erreur calcul verdict: {e}")
+        print(f"\n❌ Erreur génération verdict: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
-    
-    print(f"\n{'='*70}")
-    print("✓ VERDICT TERMINÉ")
-    print(f"{'='*70}")
-    print("Consulter reports/verdicts/<timestamp>_analysis_full/")
-    print(f"{'='*70}\n")
 
 
 # =============================================================================

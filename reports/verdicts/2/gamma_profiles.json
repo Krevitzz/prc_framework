@@ -1,0 +1,2130 @@
+{
+  "GAM-001": {
+    "tests": {
+      "GRA-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.785,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "PAT-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.8846153846153846,
+        "confidence": "low",
+        "n_runs": 260,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPA-001": {
+        "regime": "MIXED::SATURATES_HIGH",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.95,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "SPE-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.85,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-002": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.85,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SYM-001": {
+        "regime": "MIXED::SATURATES_HIGH",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.7,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "TOP-001": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "late_saturation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": true
+        }
+      },
+      "UNIV-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.95,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-002": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.48,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      }
+    },
+    "summary": {
+      "n_tests": 9,
+      "dominant_regime": "CONSERVES_X",
+      "regime_distribution": {
+        "CONSERVES_X": 5,
+        "MIXED::SATURATES_HIGH": 2,
+        "MIXED::CONSERVES_X": 2
+      }
+    }
+  },
+  "GAM-002": {
+    "tests": {
+      "GRA-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.835,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "PAT-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_instability_then_saturation",
+        "timeline_confidence": 0.595,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPA-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.83,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-001": {
+        "regime": "MIXED::OSCILLATORY_UNSTABLE",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.295,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "SPE-002": {
+        "regime": "MIXED::OSCILLATORY_UNSTABLE",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.295,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "SYM-001": {
+        "regime": "MIXED::DEGRADING",
+        "behavior": "mixed",
+        "timeline": "early_instability_then_deviation",
+        "timeline_confidence": 0.6,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "TOP-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.61,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": true,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-001": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.74,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-002": {
+        "regime": "MIXED::OSCILLATORY_UNSTABLE",
+        "behavior": "mixed",
+        "timeline": "oscillatory_early_instability_to_saturation_complex",
+        "timeline_confidence": 0.71,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      }
+    },
+    "summary": {
+      "n_tests": 9,
+      "dominant_regime": "CONSERVES_X",
+      "regime_distribution": {
+        "CONSERVES_X": 3,
+        "OSCILLATORY_UNSTABLE": 1,
+        "MIXED::OSCILLATORY_UNSTABLE": 3,
+        "MIXED::DEGRADING": 1,
+        "MIXED::CONSERVES_X": 1
+      }
+    }
+  },
+  "GAM-003": {
+    "tests": {
+      "GRA-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.785,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "PAT-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "late_saturation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 260,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": true
+        }
+      },
+      "SPA-001": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "late_saturation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": true
+        }
+      },
+      "SPE-001": {
+        "regime": "MIXED::UNCATEGORIZED",
+        "behavior": "mixed",
+        "timeline": "early_deviation_then_instability",
+        "timeline_confidence": 0.95,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "SPE-002": {
+        "regime": "MIXED::UNCATEGORIZED",
+        "behavior": "mixed",
+        "timeline": "early_deviation_then_instability",
+        "timeline_confidence": 0.95,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "SYM-001": {
+        "regime": "MIXED::UNCATEGORIZED",
+        "behavior": "mixed",
+        "timeline": "early_deviation_then_instability",
+        "timeline_confidence": 0.75,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "TOP-001": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "late_saturation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": true
+        }
+      },
+      "UNIV-001": {
+        "regime": "UNCATEGORIZED",
+        "behavior": "uncategorized",
+        "timeline": "early_deviation_then_instability",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-002": {
+        "regime": "MIXED::UNCATEGORIZED",
+        "behavior": "mixed",
+        "timeline": "early_deviation_then_instability",
+        "timeline_confidence": 0.9,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      }
+    },
+    "summary": {
+      "n_tests": 9,
+      "dominant_regime": "MIXED::UNCATEGORIZED",
+      "regime_distribution": {
+        "CONSERVES_X": 2,
+        "MIXED::CONSERVES_X": 2,
+        "MIXED::UNCATEGORIZED": 4,
+        "UNCATEGORIZED": 1
+      }
+    }
+  },
+  "GAM-004": {
+    "tests": {
+      "GRA-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.925,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "PAT-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "late_saturation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 260,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": true
+        }
+      },
+      "SPA-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "mid_instability_to_saturation_complex",
+        "timeline_confidence": 0.885,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_collapse_complex",
+        "timeline_confidence": 0.9,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": true,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-002": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_collapse_complex",
+        "timeline_confidence": 0.9,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": true,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SYM-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_collapse_complex",
+        "timeline_confidence": 0.7,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": true,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "TOP-001": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "late_saturation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": true
+        }
+      },
+      "UNIV-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_collapse_complex",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": true,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-002": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.84,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      }
+    },
+    "summary": {
+      "n_tests": 9,
+      "dominant_regime": "TRIVIAL",
+      "regime_distribution": {
+        "TRIVIAL": 7,
+        "CONSERVES_X": 1,
+        "MIXED::CONSERVES_X": 1
+      }
+    }
+  },
+  "GAM-005": {
+    "tests": {
+      "GRA-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.925,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "PAT-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "late_saturation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 260,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": true
+        }
+      },
+      "SPA-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_collapse_complex",
+        "timeline_confidence": 0.9,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": true,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-002": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_collapse_complex",
+        "timeline_confidence": 0.9,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": true,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SYM-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_collapse_complex",
+        "timeline_confidence": 0.7,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": true,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "TOP-001": {
+        "regime": "MIXED::OSCILLATORY_UNSTABLE",
+        "behavior": "mixed",
+        "timeline": "oscillatory_early_deviation_only",
+        "timeline_confidence": 0.605,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": true
+        }
+      },
+      "UNIV-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_collapse_complex",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": true,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-002": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.84,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      }
+    },
+    "summary": {
+      "n_tests": 9,
+      "dominant_regime": "TRIVIAL",
+      "regime_distribution": {
+        "TRIVIAL": 7,
+        "CONSERVES_X": 1,
+        "MIXED::OSCILLATORY_UNSTABLE": 1
+      }
+    }
+  },
+  "GAM-006": {
+    "tests": {
+      "GRA-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.925,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "PAT-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_instability_to_saturation_complex",
+        "timeline_confidence": 0.2923076923076923,
+        "confidence": "low",
+        "n_runs": 260,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPA-001": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.95,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "SPE-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.9,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-002": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.9,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SYM-001": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.6,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "TOP-001": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "late_saturation_only",
+        "timeline_confidence": 0.9,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-002": {
+        "regime": "MIXED::OSCILLATORY_UNSTABLE",
+        "behavior": "mixed",
+        "timeline": "oscillatory_early_instability_to_saturation_complex",
+        "timeline_confidence": 0.66,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      }
+    },
+    "summary": {
+      "n_tests": 9,
+      "dominant_regime": "MIXED::CONSERVES_X",
+      "regime_distribution": {
+        "TRIVIAL": 1,
+        "OSCILLATORY_UNSTABLE": 1,
+        "MIXED::CONSERVES_X": 3,
+        "CONSERVES_X": 3,
+        "MIXED::OSCILLATORY_UNSTABLE": 1
+      }
+    }
+  },
+  "GAM-007": {
+    "tests": {
+      "GRA-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.815,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "PAT-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_instability_then_saturation",
+        "timeline_confidence": 0.62,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPA-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.84,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-001": {
+        "regime": "MIXED::OSCILLATORY_UNSTABLE",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.32,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "SPE-002": {
+        "regime": "MIXED::OSCILLATORY_UNSTABLE",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.32,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "SYM-001": {
+        "regime": "MIXED::DEGRADING",
+        "behavior": "mixed",
+        "timeline": "early_instability_then_deviation",
+        "timeline_confidence": 0.6,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "TOP-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.645,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.705,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-002": {
+        "regime": "MIXED::OSCILLATORY_UNSTABLE",
+        "behavior": "mixed",
+        "timeline": "oscillatory_early_instability_to_saturation_complex",
+        "timeline_confidence": 0.72,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      }
+    },
+    "summary": {
+      "n_tests": 9,
+      "dominant_regime": "CONSERVES_X",
+      "regime_distribution": {
+        "CONSERVES_X": 4,
+        "OSCILLATORY_UNSTABLE": 1,
+        "MIXED::OSCILLATORY_UNSTABLE": 3,
+        "MIXED::DEGRADING": 1
+      }
+    }
+  },
+  "GAM-008": {
+    "tests": {
+      "GRA-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.785,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "PAT-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.8846153846153846,
+        "confidence": "low",
+        "n_runs": 260,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPA-001": {
+        "regime": "MIXED::SATURATES_HIGH",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.95,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "SPE-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.85,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-002": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.85,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SYM-001": {
+        "regime": "MIXED::SATURATES_HIGH",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.7,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "TOP-001": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "late_saturation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": true
+        }
+      },
+      "UNIV-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.95,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-002": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.48,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      }
+    },
+    "summary": {
+      "n_tests": 9,
+      "dominant_regime": "CONSERVES_X",
+      "regime_distribution": {
+        "CONSERVES_X": 5,
+        "MIXED::SATURATES_HIGH": 2,
+        "MIXED::CONSERVES_X": 2
+      }
+    }
+  },
+  "GAM-009": {
+    "tests": {
+      "GRA-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_deviation_then_saturation",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": true
+        }
+      },
+      "PAT-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_late_saturation_only",
+        "timeline_confidence": 0.49230769230769234,
+        "confidence": "low",
+        "n_runs": 260,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPA-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_deviation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": true
+        }
+      },
+      "SPE-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_instability_to_saturation_complex",
+        "timeline_confidence": 0.88,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-002": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_instability_to_saturation_complex",
+        "timeline_confidence": 0.88,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SYM-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_instability_to_saturation_complex",
+        "timeline_confidence": 0.7,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "TOP-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_deviation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": true
+        }
+      },
+      "UNIV-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_instability_to_saturation_complex",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-002": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_deviation_only",
+        "timeline_confidence": 0.56,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      }
+    },
+    "summary": {
+      "n_tests": 9,
+      "dominant_regime": "OSCILLATORY_UNSTABLE",
+      "regime_distribution": {
+        "OSCILLATORY_UNSTABLE": 9
+      }
+    }
+  },
+  "GAM-010": {
+    "tests": {
+      "GRA-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_deviation_only",
+        "timeline_confidence": 0.91,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "PAT-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_late_deviation_then_saturation",
+        "timeline_confidence": 0.5307692307692308,
+        "confidence": "low",
+        "n_runs": 260,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": true
+        }
+      },
+      "SPA-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_deviation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": true
+        }
+      },
+      "SPE-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_instability_then_deviation",
+        "timeline_confidence": 0.595,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-002": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_instability_then_deviation",
+        "timeline_confidence": 0.595,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SYM-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_instability_to_saturation_complex",
+        "timeline_confidence": 0.695,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "TOP-001": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "late_saturation_only",
+        "timeline_confidence": 1.0,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": true
+        }
+      },
+      "UNIV-001": {
+        "regime": "OSCILLATORY_UNSTABLE",
+        "behavior": "unstable",
+        "timeline": "oscillatory_early_instability_to_saturation_complex",
+        "timeline_confidence": 0.9,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-002": {
+        "regime": "MIXED::OSCILLATORY_UNSTABLE",
+        "behavior": "mixed",
+        "timeline": "oscillatory_early_instability_then_deviation",
+        "timeline_confidence": 0.515,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": true,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      }
+    },
+    "summary": {
+      "n_tests": 9,
+      "dominant_regime": "OSCILLATORY_UNSTABLE",
+      "regime_distribution": {
+        "OSCILLATORY_UNSTABLE": 7,
+        "MIXED::CONSERVES_X": 1,
+        "MIXED::OSCILLATORY_UNSTABLE": 1
+      }
+    }
+  },
+  "GAM-012": {
+    "tests": {
+      "GRA-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.905,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "PAT-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.9,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPA-001": {
+        "regime": "MIXED::SATURATES_HIGH",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.95,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      },
+      "SPE-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.85,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SPE-002": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.85,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "SYM-001": {
+        "regime": "TRIVIAL",
+        "behavior": "stable",
+        "timeline": "early_instability_to_collapse_complex",
+        "timeline_confidence": 0.7,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": true,
+          "trivial": true
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "TOP-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "late_saturation_only",
+        "timeline_confidence": 0.355,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-001": {
+        "regime": "CONSERVES_X",
+        "behavior": "stable",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.9,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": true,
+          "mixed_behavior": false,
+          "numerically_stable": false
+        }
+      },
+      "UNIV-002": {
+        "regime": "MIXED::CONSERVES_X",
+        "behavior": "mixed",
+        "timeline": "early_instability_to_saturation_complex",
+        "timeline_confidence": 0.48,
+        "confidence": "low",
+        "n_runs": 200,
+        "n_valid": 0,
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        }
+      }
+    },
+    "summary": {
+      "n_tests": 9,
+      "dominant_regime": "CONSERVES_X",
+      "regime_distribution": {
+        "CONSERVES_X": 6,
+        "MIXED::SATURATES_HIGH": 1,
+        "TRIVIAL": 1,
+        "MIXED::CONSERVES_X": 1
+      }
+    }
+  }
+}
