@@ -1,0 +1,250 @@
+# 🎯 Clarification Philosophique Acceptée
+
+**Merci pour cette précision fondamentale.** Je comprends maintenant la distinction épistémologique critique.
+
+---
+
+## ✅ REDÉFINITION CLAIRE
+
+### **R0 = Phase Épistémique, Pas Version**
+
+```
+R0 : Exploration espace primitives (briques de base)
+     ├─ Γ mécanismes (GAM-001 à GAM-XXX)
+     ├─ Encodings (rang 2, 3, 4, ...)
+     ├─ Modifiers (M0, M1, ...)
+     ├─ Tests observables (SYM-*, SPE-*, ...)
+     └─ Dynamiques élémentaires (événements, timelines)
+     
+     OBJECTIF : Cataloguer comportements briques isolées
+               Détecter pathologies, invariants, limites
+               SANS composer ni hiérarchiser
+
+R1 : Compositions hypothèses structurées
+     ├─ Combinaisons briques survivantes R0
+     ├─ Mécanismes composés (Γ₁ ∘ Γ₂)
+     ├─ Architectures optimales (encodings × modifiers)
+     └─ Prédictions testables
+     
+     OBJECTIF : Construire depuis primitives validées R0
+```
+
+### **Implications Pratiques**
+
+```
+✅ RESTE R0 :
+- Refactor tests rang 3+ (nouvelles briques primitives)
+- Ajout 20 gammas supplémentaires (expansion catalogue)
+- Nouveaux tests observables (nouveaux instruments)
+- 50 itérations code (raffinements techniques)
+- Variation rang tensoriel (nouvelle dimension primitive)
+
+❌ DEVIENT R1 :
+- "GAM-004 + modifier M3 conserve mieux que GAM-001 seul"
+- "Encodings ASY × GAM-009 → régime prédictible"
+- "Rang 3 requis SI test topologique ET gamma chaotique"
+- Hiérarchisation gammas (meilleur → pire)
+```
+
+---
+
+## 🔄 STRATÉGIE R0 RÉVISÉE (Philosophie Correcte)
+
+### **Phase Actuelle : R0-Rang2 (Briques Rang 2)**
+
+**Objectif** : Cataloguer comportements complets rang 2
+
+**Actions** :
+1. ✅ Profiling gamma (12 gammas × 9 tests) — FAIT
+2. 🔄 Analyse modifiers (catalogue effet M0-M3)
+3. 🔄 Analyse encodings (catalogue SYM vs ASY)
+4. 🔄 Test_profiling (catalogue discrimination tests)
+
+**Livrable** : **Catalogue Rang 2 Complet**
+
+---
+
+### **Phase Suivante : R0-Rang3 (Nouvelles Briques)**
+
+**Objectif** : Élargir catalogue rang 3 (pas comparer rang 2 vs 3)
+
+**Prérequis** :
+1. Refactor 7 tests pour rang 3+ (développement briques)
+2. Génération ~20 encodings rang 3 (expansion catalogue)
+3. Debug test bugué rang 3 (correction instrument)
+
+**Actions** :
+1. Adapter operators registries (support rank-agnostic)
+2. Modifier APPLICABILITY_SPEC tests (requires_rank: [2,3])
+3. Générer encodings R3-004 à R3-020
+4. Rerun complet **rang 2 + rang 3** (pas comparaison, catalogue unifié)
+
+**Livrable** : **Catalogue Rang 2+3 Unifié**
+
+**Posture** : 
+- ❌ "Rang 3 meilleur que rang 2" (comparaison R1)
+- ✅ "Rang 3 révèle pattern X absent rang 2" (catalogue)
+- ✅ "Test T instable rang 2 ET rang 3" (invariant)
+- ✅ "Gamma G trivial rang 2, oscillatoire rang 3" (phénomène nouveau)
+
+---
+
+### **Phase Future : R0-Rang4, R0-Modifiers+, etc.**
+
+**Expansion continue catalogue** jusqu'à saturation phénoménologique.
+
+**Critère Clôture R0** :
+```
+R0 terminé QUAND :
+- Espace primitives suffisamment échantillonné
+- Pathologies récurrentes identifiées
+- Invariants robustes catalogués
+- Limites cadre expérimental claires
+- Aucune nouvelle surprise fondamentale
+
+ALORS → R1 (compositions)
+```
+
+---
+
+## 🎯 PLAN R0 ACTUEL (Phases Parallèles)
+
+### **Branche A : R0-Rang2 (Complétion Catalogue Actuel)** 📊
+
+**Cette semaine** :
+
+1. **Modifiers** (Jour 1) — 2h
+   - Catalogue effet M0, M1, M2, M3
+   - Pas "meilleur modifier" mais "signature modifier"
+
+2. **Encodings** (Jour 1) — 4h
+   - Catalogue SYM vs ASY
+   - Patterns émergents (pas hiérarchie)
+
+3. **Test_profiling.py** (Jour 2-3) — 1 jour
+   - Catalogue discrimination tests
+   - Tests triviaux, informatifs, instables
+
+4. **Synthèse Rang 2** (Jour 4) — 2h
+   - Catalogue complet rang 2
+   - Invariants détectés
+   - Limites identifiées
+
+**Livrable** : **R0-Rang2 Catalogue Complet**
+
+---
+
+### **Branche B : R0-Rang3 (Expansion Catalogue)** 🔬
+
+**Semaine prochaine** (si GO après synthèse rang 2) :
+
+1. **Refactor Tests** (2-3 jours)
+   ```python
+   # Adapter 7 tests pour rank-agnostic
+   
+   # Avant
+   APPLICABILITY_SPEC = {"requires_rank": 2}
+   
+   # Après
+   APPLICABILITY_SPEC = {"requires_rank": [2, 3, 4]}
+   
+   # Adapter operators
+   def compute_asymmetry(state):
+       # Généraliser rang N
+       if state.ndim == 2:
+           return np.linalg.norm(state - state.T)
+       elif state.ndim == 3:
+           # Asymétrie tensorielle
+           return np.linalg.norm(state - np.transpose(state, (1,0,2)))
+   ```
+
+2. **Génération Encodings Rang 3** (1 jour)
+   ```python
+   # Créer R3-004 à R3-020
+   # Variété architecturale (symétries, couplages, aléatoires)
+   ```
+
+3. **Rerun Complet Rang 2+3** (2-3 jours)
+   ```bash
+   # Régénérer TOUT (rang 2 + rang 3 en parallèle)
+   python -m prc_automation.batch_runner --mode brut --all
+   python -m prc_automation.batch_runner --mode test --all
+   python -m prc_automation.batch_runner --mode verdict
+   ```
+
+4. **Catalogue Unifié** (1 jour)
+   ```python
+   # gamma_profiles.json contient rang 2 ET rang 3
+   # Pas de "comparaison" mais enrichissement catalogue
+   # Nouveaux patterns rang 3 documentés
+   ```
+
+**Livrable** : **R0-Rang2+3 Catalogue Unifié**
+
+---
+
+## 📋 CHECKLIST R0 COMPLET (Critère Clôture)
+
+### **Axe A : Γ (Mécanismes)**
+- [x] 12 gammas profilés rang 2
+- [ ] 12 gammas profilés rang 3 (futur)
+- [ ] Signatures comportementales cataloguées
+- [ ] Pathologies récurrentes identifiées
+
+### **Axe B : Représentation**
+- [ ] Modifiers catalogués (M0-M3 rang 2)
+- [ ] Encodings catalogués (SYM/ASY rang 2)
+- [ ] Rang 3 exploré (encodings + profils)
+- [ ] Limites ordre tensoriel documentées
+
+### **Axe C : Observables**
+- [ ] Tests profilés (discrimination, stabilité)
+- [ ] Tests triviaux identifiés
+- [ ] Tests informatifs catalogués
+- [ ] Tests rang 3-spécifiques ajoutés (futur)
+
+### **Synthèse R0**
+- [ ] Invariants robustes documentés
+- [ ] Pathologies systématiques listées
+- [ ] Limites cadre expérimental claires
+- [ ] Aucune surprise fondamentale restante
+
+**Alors → Transition R1** (compositions briques validées)
+
+---
+
+## ⚡ ACTION IMMÉDIATE
+
+**On commence Phase 1 : Analyse Modifiers** (R0-Rang2, Axe B)
+
+**Objectif** : Cataloguer signatures modifiers M0-M3
+
+**Livrable** : Rapport `modifier_catalog.md`
+
+**Format catalogue** (pas hiérarchie) :
+```markdown
+# CATALOGUE MODIFIERS R0-RANG2
+
+## M0 (Baseline)
+- Régimes dominants : CONSERVES_SYMMETRY (40%), TRIVIAL (30%)
+- Tests sensibles : Aucun (variance <0.1)
+- Signature : Neutre, référence
+
+## M1 (Perturbation locale)
+- Régimes dominants : MIXED::CONSERVES_NORM (35%), OSCILLATORY (25%)
+- Tests sensibles : TOP-001 (variance 0.45), SPE-002 (variance 0.38)
+- Signature : Amplifie instabilités topologiques
+
+## M2 (Couplage global)
+...
+
+## M3 (Asymétrie forcée)
+...
+
+## INVARIANTS MODIFIERS
+- M0 toujours stable (baseline validé)
+- M3 + tests symétrie → multimodalité systématique
+- Aucun modifier ne supprime TRIVIAL sur GAM-004
+```
+
+**Prêt à générer le script d'analyse ?** 🚀
