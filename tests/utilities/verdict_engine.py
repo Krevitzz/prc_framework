@@ -27,7 +27,19 @@ from datetime import datetime
 from pathlib import Path
 import warnings
 
+# Imports modules refactorés
 from .config_loader import get_loader
+from .data_loading import load_all_observations, observations_to_dataframe
+from .statistical_utils import (
+    compute_eta_squared,
+    filter_numeric_artifacts,
+    generate_degeneracy_report,
+    diagnose_scale_outliers,
+    print_degeneracy_report,
+    print_scale_outliers_report,
+    kruskal_wallis_test
+)
+from .regime_utils import stratify_by_regime
 
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 
