@@ -1,0 +1,642 @@
+# CHARTER PRC 6.0 - ÉTAT OPÉRATIONNEL
+
+> Document normatif unique décrivant l'architecture réelle du système PRC.  
+> Basé sur l'état fonctionnel documenté dans les catalogues.  
+> Version 6.0 prévaut sur toutes versions antérieures.
+
+---
+
+## SECTION 1 : FONDATIONS IMMUABLES
+
+### Axiomes (A1-A3)
+- **A1** : Dissymétrie informationnelle D irréductible
+- **A2** : Mécanisme Γ agissant sur D
+- **A3** : Aucun Γ stable ne peut annuler D complètement
+
+### Hiérarchie des niveaux
+```
+L0 = ontologique → L1 = épistémique → L2 = théorique → L3 = opérationnel → L4 = documentaire
+Règle : L(n) ne référence que L(≤n-1)
+Exception explicite :
+L3 peut consommer L4 à des fins descriptives ou déclaratives,
+mais ne peut pas en dériver de règles nouvelles.
+```
+
+### Core = 2 fonctions aveugles
+```python
+prepare_state(base, modifiers) → np.ndarray  # Composition aveugle
+run_kernel(state, gamma, ...) → Generator[iteration, state]  # Itération aveugle
+```
+
+**Règles K1-K5** : Le Core reste aveugle :
+- Pas de validation sémantique
+- Pas de classes State/Operator
+- Pas de branchement dépendant de D ou Γ
+
+---
+
+## SECTION 2 : ARCHITECTURE RÉELLE
+
+```
+prc_framework/
+├── core/                          # Exécution aveugle
+│   ├── kernel.py                  # run_kernel()
+│   ├── state_preparation.py       # prepare_state()
+│   └── core_catalog.md
+│
+├── operators/                     # Définitions Γ
+│   ├── gamma_hyp_*.py             # Classes gamma individuelles
+│   └── gamma_catalog.md
+│
+├── D_encodings/                   # Création D^(base)
+│   ├── rank2_symmetric.py         # SYM-001 à SYM-006
+│   ├── rank2_asymmetric.py        # ASY-001 à ASY-004
+│   ├── rank3_correlations.py      # R3-001 à R3-003
+│   └── d_encoding_catalog.md
+│
+├── modifiers/                     # Transformations D
+│   ├── noise.py                   # M1, M2 (bruit)
+│   ├── constraints/               # D^(topo)
+│   ├── plugins/                   # D^(plugin)
+│   ├── domains/                   # D^(domaine)
+│   └── modifier_catalog.md
+│
+├── prc_automation/                # Pipeline d'exécution
+│   ├── batch_runner.py            # Point d'entrée unique
+│   ├── init_databases.py
+│   └── prc_database/
+│       ├── prc_r0_raw.db          # Immuable, append-only
+│       └── prc_r0_results.db      # Rejouable
+│
+├── tests/                         # Tests d'observation
+│   ├── test_*.py                  # Modules de test (UNIV-001, SYM-001, etc.)
+│   ├── config/                    # Configurations YAML
+│   └── utilities/                 # Moteurs d'analyse
+│
+└── reports/                       # Rapports générés
+    └── verdicts/
+        └── {timestamp}_analysis_{scope}/
+```
+
+**Séparation stricte maintenue** :
+- `core/` : Exécution aveugle, zéro validation
+- `D_encodings/` : Création D avec validation dimensionnelle
+- `modifiers/` : Transformations D, passthrough
+- `operators/` : Définitions Γ, passthrough
+- `tests/` : Observation pure, pas de verdict
+- `utilities/` : Moteurs d'analyse, pas d'exécution
+- `prc_automation/` : point d'entrée
+
+---
+
+## SECTION 3 : PIPELINE OPÉRATIONNEL
+
+### Workflow complet
+```
+1. Formulation HYP → 2. Spécification D/Γ → 3. Création TM
+→ 4. Exécution kernel (db_raw) → 5. Tests observations (db_results)
+→ 6. Profiling gamma → 7. Détection patterns → 8. Génération rapports
+→ 9. Discussion → 10. Mise à jour STATUT
+→ 11. CON si pertinent → 12. Nouvelle HYP[R1] si pertinent
+
+Règle :
+Les étapes 9 à 12 sont hors périmètre logiciel.
+Aucun module PRC ne doit tenter de les automatiser.
+```
+
+### Commandes batch_runner
+```bash
+# Mode 1 : Collecte données
+batch_runner --brut --gamma GAM-001
+# → Exécute kernel, stocke dans db_raw (immuable)
+
+# Mode 2 : Application tests
+batch_runner --test --gamma GAM-001 --params default_v1
+# → Vérifie db_raw, auto-lance --brut si manquant
+# → Applique tests, stocke dans db_results
+
+# Mode 3 : Génération verdicts
+batch_runner --verdict --params default_v1 --verdict default_v1
+# → Vérifie db_results, auto-lance --test si manquant
+# → Analyse patterns, génère rapports
+
+# Raccourci complet
+batch_runner --all --gamma GAM-001 --params default_v1 --verdict default_v1
+```
+
+### Bases de données
+
+**prc_r0_raw.db** (immuable, append-only) :
+```sql
+Executions   -- Métadonnées runs (gamma_id, d_encoding_id, modifier_id, seed)
+Snapshots    -- États sauvegardés (compressed)
+Metrics      -- Métriques brutes par iteration
+```
+
+**prc_r0_results.db** (rejouable, versionné) :
+```sql
+TestObservations  -- Résultats tests (format dict v2)
+-- Colonnes : observation_id, exec_id, test_name, params_config_id,
+--            applicable, status, observation_data (JSON), computed_at
+```
+
+---
+
+## SECTION 4 : TESTS - FORMAT ACTUEL
+
+### Principe fondamental
+**R4-A** : Tests OBSERVENT (pas de jugement). Patterns détectés ultérieurement.
+
+### Structure d'un module test
+```python
+# tests/test_category_nnn.py
+"""
+[Titre descriptif]
+
+Objectif :
+- [Description phénomène mesuré]
+
+Métriques :
+- [nom_métrique_1] : [Pertinence]
+- [nom_métrique_2] : [Pertinence]
+
+Algorithmes utilisés :
+- [registry_key_1] : [Justification]
+
+Exclusions :
+- [Alternatives non retenues] : [Pourquoi]
+"""
+
+TEST_ID = "CAT-NNN"           # Format CAT-NNN (ex: UNIV-001)
+TEST_CATEGORY = "CAT"         # UNIV, SYM, SPE, etc.
+TEST_VERSION = "6.0"          # Doit être "6.0"
+TEST_WEIGHT = 1.0             # Obligatoire, importance épistémique
+
+APPLICABILITY_SPEC = {
+    "requires_rank": int | None,          # 2, 3, ou None (tout)
+    "requires_square": bool,              # Matrice carrée requise
+    "allowed_d_types": List[str],         # ["SYM", "ASY", "R3"]
+    "minimum_dimension": int | None,      # Dimension minimale
+    "requires_even_dimension": bool,      # Dimension paire requise
+}
+
+COMPUTATION_SPECS = {
+    'nom_metrique_1': {
+        'registry_key': 'registre.fonction',  # ex: 'algebra.matrix_norm'
+        'default_params': {
+            'param1': valeur1,
+            'param2': valeur2,
+        },
+        'post_process': 'round_4',  # Optionnel : identity, round_N, abs, log, etc.
+    },
+    # 1 à 5 métriques maximum
+}
+```
+
+### Format de retour (dict v2)
+```python
+{
+    # Traçabilité
+    'run_metadata': {
+        'gamma_id': str,
+        'd_encoding_id': str,      # PAS d_base_id
+        'modifier_id': str,
+        'seed': int,
+    },
+    
+    # Identification
+    'test_name': str,
+    'test_category': str,
+    'test_version': str,
+    'params_config_id': str,
+    
+    # Status (seulement 3 valeurs autorisées)
+    'status': 'SUCCESS' | 'ERROR' | 'NOT_APPLICABLE',
+    'message': str,  # Description si ERROR ou NOT_APPLICABLE
+    
+    # Résultats (dict de dicts)
+    'statistics': {
+        'metric_name': {
+            'initial': float,
+            'final': float,
+            'min': float,
+            'max': float,
+            'mean': float,
+            'std': float,
+            'median': float,
+            'q1': float,
+            'q3': float,
+            'n_valid': int,
+        },
+    },
+    
+    # Evolution (dict de dicts)
+    'evolution': {
+        'metric_name': {
+            'transition': str,      # "stable", "increasing", "explosive", "collapsing"
+            'trend': str,           # "monotonic", "oscillatory", "chaotic"
+            'slope': float,         # Coefficient de régression linéaire
+            'volatility': float,    # Écart-type des différences
+            'relative_change': float,  # (final - initial) / max(|initial|, 1e-10)
+        },
+    },
+    
+    # Événements dynamiques (optionnel)
+    'dynamic_events': {
+        'metric_name': {
+            'events': List[dict],      # [{type: str, iteration: int, magnitude: float}]
+            'sequence': List[str],     # ["deviation", "saturation", ...]
+        },
+    },
+    
+    # Métadonnées techniques
+    'metadata': {
+        'engine_version': '6.0',
+        'execution_time_sec': float,
+        'num_iterations_processed': int,
+        'total_metrics': int,
+        'successful_metrics': int,
+        'computations': {
+            'metric_name': {
+                'registry_key': str,
+                'params_used': dict,
+                'has_post_process': bool,
+            },
+        }
+    }
+}
+```
+
+### Status autorisés
+- `SUCCESS` : Test exécuté normalement
+- `ERROR` : Erreur technique → ARRÊT BATCH (bug code)
+- `NOT_APPLICABLE` : Test invalide pour contexte (non pénalisé)
+
+
+---
+
+## SECTION 5 : UTILITIES - ARCHITECTURE RÉELLE
+
+### Organisation actuelle
+```
+tests/utilities/
+├── 📦 STABLE (modules autonomes)
+│   ├── test_engine.py          # Exécution tests avec registries
+│   ├── applicability.py        # Validation applicabilité
+│   ├── config_loader.py        # Chargement configs YAML
+│   ├── discovery.py            # Découverte tests actifs
+│   └── registries/             # Fonctions de calcul
+│
+├── ⭐ HUB (orchestration)
+│   ├── verdict_engine.py       # Analyses statistiques globales
+│   ├── gamma_profiling.py      # Profiling comportemental gammas
+│   └── verdict_reporter.py     # Orchestration génération rapports
+│
+└── ✅ UTIL (modules spécialisés)
+    ├── aggregation_utils.py    # Agrégations statistiques inter-runs
+    ├── data_loading.py         # I/O observations depuis DBs
+    ├── regime_utils.py         # Stratification/classification régimes
+    ├── report_writers.py       # Formatage/écriture rapports
+    ├── statistical_utils.py    # Outils statistiques réutilisables
+    └── timeline_utils.py       # Construction timelines dynamiques
+```
+
+### Rôles des modules
+
+**📦 STABLE** : Modules fonctionnels complets
+- `test_engine.py` : Moteur d'exécution des tests avec détection d'événements dynamiques
+- `applicability.py` : Validation des contraintes techniques (rang, dimension, etc.)
+- `config_loader.py` : Singleton pour chargement configs (fusion global + spécifique)
+- `discovery.py` : Découverte et validation structurelle des tests
+- `registries/` : 7 registres de fonctions de calcul (algebra, graph, pattern, etc.)
+
+**⭐ HUB** : Modules d'orchestration 
+- `verdict_engine.py` : Analyses statistiques multi-facteurs, détection patterns
+- `gamma_profiling.py` : Profiling comportemental des gammas individuels
+- `verdict_reporter.py` : Orchestration complète génération rapports
+
+**✅ UTIL** : Modules spécialisés
+- `aggregation_utils.py` : Agrégations statistiques (`aggregate_summary_metrics`, `aggregate_run_dispersion`)
+- `data_loading.py` : Chargement observations (`load_all_observations`, `observations_to_dataframe`)
+- `regime_utils.py` : Classification régimes (`classify_regime`, `stratify_by_regime`, `extract_conserved_properties`)
+- `report_writers.py` : Formatage rapports (`write_json`, `write_regime_synthesis`, `write_dynamic_signatures`)
+- `statistical_utils.py` : Outils stats (`compute_eta_squared`, `filter_numeric_artifacts`, `diagnose_scale_outliers`)
+- `timeline_utils.py` : Construction timelines (`compute_timeline_descriptor`, `classify_timing`)
+
+---
+
+## SECTION 6 : PATTERNS ET RÉGIMES
+
+### Détection de patterns
+**R6-A** : Patterns détectés sur observations **brutes + normalisées localement**
+
+**Méthode de normalisation par défaut** :
+```python
+# Robust scaling (insensible aux valeurs extrêmes)
+normalized = (x - median) / IQR  # IQR = Q3 - Q1
+```
+La normalisation robuste n’existe que dans le cadre de la détection de patterns.
+Elle ne produit aucune donnée persistée.
+
+**Patterns détectés** :
+1. **NON_DISCRIMINANT** : Toutes observations normalisées < seuil
+2. **OVER_DISCRIMINANT** : Toutes observations normalisées > seuil  
+3. **D_CORRELATED** : Variance inter-d_encoding_id > seuil
+4. **MODIFIER_CORRELATED** : Variance inter-modifier_id > seuil
+5. **SEED_UNSTABLE** : Variance inter-seeds > seuil (à D/modifier fixés)
+6. **SYSTEMATIC_ANOMALY** : Fraction observations |normalized| > seuil dépasse ratio
+7. **CONTEXTUAL_BEHAVIOR** : Combinaison D_CORRELATED ou MODIFIER_CORRELATED
+
+### Classification des régimes
+**Taxonomie complète des régimes** :
+
+```python
+# Régimes de CONSERVATION (sains)
+CONSERVES_SYMMETRY    # Test SYM-*
+CONSERVES_NORM        # Test UNIV-*, SPE-*
+CONSERVES_PATTERN     # Test PAT-*
+CONSERVES_TOPOLOGY    # Test TOP-*
+CONSERVES_GRADIENT    # Test SPA-*
+CONSERVES_SPECTRUM    # Test GRA-*
+
+# RÉGIMES PATHOLOGIQUES
+NUMERIC_INSTABILITY   # Valeurs infinies/NaN
+OSCILLATORY_UNSTABLE  # Oscillations non amorties
+TRIVIAL               # Collapse vers zéro/constante
+DEGRADING             # Dégradation progressive
+
+# AUTRES RÉGIMES
+SATURATES_HIGH        # Saturation haute (tanh-like)
+SATURATES_LOW         # Saturation basse
+UNCATEGORIZED         # Non classifiable
+
+# QUALIFICATIF MULTIMODAL
+MIXED::{régime_base}  # Bimodalité détectée (ex: MIXED::CONSERVES_NORM)
+```
+
+**R6-B** : Régime déterminé par `regime_utils.classify_regime()` basé sur :
+- Métriques statistiques
+- Signature dynamique
+- Distribution timeline
+- Dispersion inter-runs
+- Type de test
+
+---
+
+## SECTION 7 : PROFILING GAMMA
+
+Toute fonction de classement est descriptive, jamais décisionnelle.
+
+### Module `gamma_profiling.py`
+**Responsabilité** : Profiling comportemental des gammas individuels
+
+**Fonctions principales** :
+```python
+# Profiling d'un gamma sur un test spécifique
+profile_test_for_gamma(observations, test_name, gamma_id) → dict
+
+# Profiling de tous les gammas
+profile_all_gammas(observations) → dict
+
+# Classement des gammas par test
+rank_gammas_by_test(profiles, test_name, criterion='conservation') → List[Tuple]
+
+# Comparaison synthétique
+compare_gammas_summary(profiles) → dict
+```
+
+**Structure d'un profil gamma** :
+```python
+{
+    'gamma_id': 'GAM-001',
+    'test_name': 'SYM-001',
+    'n_runs': 50,
+    'n_valid': 48,
+    'metrics': {
+        'asymmetry_norm': {
+            'final_value': {'median': 0.05, 'q1': 0.03, 'q3': 0.07, ...},
+            'initial_value': 0.01,
+            'mean_value': 0.04,
+            'cv': 0.25,
+        },
+    },
+    'dynamic_signatures': {
+        'asymmetry_norm': {
+            'phases': [
+                {'event': 'deviation', 'timing': 'early', 'onset_relative': 0.1},
+                {'event': 'saturation', 'timing': 'mid', 'onset_relative': 0.5},
+            ],
+            'timeline_compact': 'early_deviation_then_saturation',
+        },
+    },
+    'regime': 'CONSERVES_SYMMETRY',
+    'conserved_properties': ['symmetry'],
+    'dispersion': {
+        'final_value_iqr_ratio': 1.4,
+        'cv_across_runs': 0.3,
+        'bimodal_detected': False,
+    },
+}
+```
+
+---
+
+## SECTION 8 : GÉNÉRATION DE RAPPORTS
+
+### Module `verdict_reporter.py`
+**Responsabilité** : Orchestration complète génération rapports R0
+
+**Pipeline actuel** :
+```python
+generate_verdict_report(params_config_id, verdict_config_id, output_dir) → dict
+  │
+  ├─ 1. CHARGEMENT + DIAGNOSTICS
+  │    ↓ data_loading.load_all_observations()
+  │    ↓ statistical_utils.filter_numeric_artifacts()
+  │    ↓ statistical_utils.generate_degeneracy_report()
+  │
+  ├─ 2. ANALYSES GLOBALES STRATIFIÉES
+  │    ↓ regime_utils.stratify_by_regime()
+  │    ↓ verdict_engine.analyze_regime() × 3 (GLOBAL, STABLE, EXPLOSIF)
+  │
+  ├─ 3. PROFILING GAMMA
+  │    ↓ gamma_profiling.profile_all_gammas()
+  │    ↓ gamma_profiling.compare_gammas_summary()
+  │
+  ├─ 4. FUSION RÉSULTATS
+  │    ↓ _compile_metadata()
+  │    ↓ _format_gamma_profiles()
+  │    ↓ _compile_structural_patterns()
+  │
+  └─ 5. GÉNÉRATION RAPPORTS
+       ↓ report_writers.write_json()           # analysis_complete.json
+       ↓ report_writers.write_regime_synthesis() # summary.txt
+       ↓ report_writers.write_dynamic_signatures()
+       ↓ report_writers.write_comparisons_enriched()
+```
+
+### Formats de sortie
+**Structure des rapports** :
+```
+reports/verdicts/
+└── 20250115_1430_analysis_global/
+    ├── summary.txt                    # Synthèse lisible
+    ├── analysis_complete.json         # Données complètes (LLM/scripts)
+    ├── metadata.json                  # Configs utilisées
+    ├── gamma_profiles/               # Profils individuels
+    │   ├── GAM-001.json
+    │   └── GAM-002.json
+    ├── comparisons/                   # Comparaisons
+    │   ├── by_test.json
+    │   └── overall.json
+    └── diagnostics/                   # Diagnostics techniques
+        ├── degeneracy_report.json
+        └── scale_outliers.json
+```
+
+---
+
+## SECTION 9 : EXTENSION DU SYSTÈME
+
+### Principes d'extension
+**R9-A** : Tout nouveau module DOIT respecter les I/O des catalogues existants
+**R9-B** : Réutiliser les nomenclatures établies (IDs, catégories, paramètres)
+**R9-C** : Suivre les patterns d'organisation observés dans les catalogues
+**R9-D** (anti-hallucination): Si une information nécessaire à une implémentation n’est pas explicitement définie dans ce Charter,
+    le développeur ou LLM doit demander le fichier source concerné
+    (catalogue, module .py, config YAML).
+    Toute supposition est interdite.
+
+
+### Checklist de validation
+Avant d'ajouter un nouveau module :
+- [ ] IDs cohérents avec nomenclature existante
+- [ ] I/O compatibles avec consommateurs/dépendants
+- [ ] Aucun hardcoding (utiliser configs YAML)
+- [ ] Documenté dans catalogue approprié
+- [ ] Testé dans pipeline existant
+- [ ] Respecte séparation stricte des responsabilités
+
+---
+
+## SECTION 10 : NOMENCLATURE ACTUALISÉE
+
+### IDs et catégories
+```
+# Encodings D
+SYM-001 à SYM-006    # Symétrique rang 2
+ASY-001 à ASY-004    # Asymétrique rang 2  
+R3-001 à R3-003      # Rang 3
+
+# Modifiers
+M0                   # Baseline (aucune modification)
+M1                   # Bruit gaussien (sigma=0.05)
+M2                   # Bruit uniforme (amplitude=0.1)
+
+# Gammas
+GAM-001 à GAM-013    # Mécanismes Γ
+
+# Tests
+UNIV-001 à UNIV-002  # Universels
+SYM-001              # Symétrie
+SPE-001 à SPE-002    # Spectral
+PAT-001              # Pattern
+SPA-001              # Spatial
+GRA-001              # Graphe
+TOP-001              # Topologique
+```
+
+### Termes actualisés
+| Terme | Définition | Remplace |
+|-------|------------|----------|
+| **d_encoding_id** | Identifiant encodage D | d_base_id |
+| **régime** | Comportement global (CONSERVES_X, PATHOLOGY) | score, verdict |
+| **timeline** | Séquence événements dynamiques | history pattern |
+| **HUB** | Module d'orchestration (à refactoriser) | engine principal |
+| **UTIL** | Module utilitaire spécialisé | helper function |
+| **profil gamma** | Caractérisation comportementale Γ | gamma score |
+
+### Statuts autorisés
+```
+WIP[R0-open]         # Exploration en cours
+WIP[R0-closed]       # R0 terminé, ambigu → mise en attente  
+SURVIVES[R0]         # Non éliminé à R0
+REJECTED[R0]         # Éliminé comme autonome à R0
+REJECTED[GLOBAL]     # Éliminé définitif tous rangs
+```
+
+---
+
+## SECTION 11 : INTERDICTIONS CRITIQUES
+
+### Téléologie
+**R11-A** : TEST_WEIGHT ne doit jamais être :
+- Utilisé pour filtrer/prioriser exécution
+- Interprété comme "qualité" test
+
+### Métriques
+**R11-C** : Toute métrique `COMPUTATION_SPECS` **doit** être analysable par patterns
+**R11-D** : Aucun skip silencieux autorisé → ERROR fatal si applicable
+
+### Core
+**R11-E** : Core reste aveugle :
+- Aucune validation contenu (symétrie, bornes)
+- Aucune classe State, Operator
+- Aucun branchement dépendant de D ou Γ
+
+### Tests
+**R11-F** : Tests ne retournent jamais :
+- "PASS"/"FAIL", "bon"/"mauvais"
+- Classes/objets
+- Paramètres hardcodés
+- Jugements normatifs
+
+### Pipeline
+**R11-G** : Pipeline strictement séquentiel :
+- Interdit : reruns dans le but d’influencer rétroactivement un verdict existant.
+- Aucun mélange db_raw et db_results
+- Aucune modification rétroactive db_raw
+
+### Vocabulaire
+**R11-H** : Nomenclature stricte :
+- ❌ "matrice de corrélation" → ✅ "tenseur rang 2"
+- ❌ "graphe" → ✅ "patterns dans tenseur"
+- ❌ "position (i,j)" → ✅ "indice (i,j)"
+- ❌ "d_base_id" → ✅ "d_encoding_id"
+
+---
+
+## SECTION 12 : GLOSSAIRE ACTUALISÉ
+
+| Terme | Définition | Exemple |
+|-------|------------|---------|
+| **Registre** | Module fonctions réutilisables | `algebra_registry.py` |
+| **registry_key** | Identifiant unique fonction | `"algebra.matrix_norm"` |
+| **run_metadata** | Métadonnées exécution | `{gamma_id, d_encoding_id, modifier_id, seed}` |
+| **history** | Liste snapshots (~200) | `[state_0, ..., state_199]` |
+| **snapshot** | UN état à une itération | `np.ndarray (10, 10)` |
+| **post_processor** | Transformation post-calcul | `"round_4"`, `"abs"` |
+| **observation** | Dict retour test | `{'statistics': {...}, 'evolution': {...}}` |
+| **pattern** | Régularité détectée cross-runs | `"D_CORRELATED"`, `"SYSTEMATIC_ANOMALY"` |
+| **régime** | Comportement classifié | `"CONSERVES_SYMMETRY"`, `"NUMERIC_INSTABILITY"` |
+| **timeline** | Séquence événements dynamiques | `"early_deviation_then_saturation"` |
+| **profil gamma** | Caractérisation Γ | `{regime: "...", metrics: {...}, timeline: "..."}` |
+| **HUB** | Module orchestration | `verdict_engine.py`, `gamma_profiling.py` |
+| **UTIL** | Module utilitaire spécialisé | `aggregation_utils.py`, `timeline_utils.py` |
+| **normalisation robuste** | `(x - median) / IQR` | Méthode par défaut |
+| **IQR** | Écart interquartile | `Q3 - Q1` |
+| **bimodalité** | Distribution à deux modes | `IQR_ratio > 3.0` |
+| **timeline compacte** | Représentation textuelle timeline | `"early_deviation_then_saturation"` |
+
+---
+
+**FIN CHARTER PRC 6.0**
+
+**Version** : 6.0.0  
+**Date** : 2025-01-15  
+**Statut** : PRODUCTION  
+**Basé sur** : Catalogues opérationnels, état fonctionnel réel  
+
+Ce charter est la **référence opérationnelle unique** pour l'architecture PRC 6.0.  
+Il décrit l'état **réel** du système tel qu'implémenté et documenté dans les catalogues.  
+Toute extension DOIT se conformer strictement à ces spécifications.

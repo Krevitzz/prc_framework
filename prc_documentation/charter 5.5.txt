@@ -33,17 +33,21 @@ run_kernel(state, gamma, ...) → Generator[iteration, state]
 prc_framework/
 ├── core/
 │   ├── state_preparation.py     # prepare_state()
-│   └── kernel.py                # run_kernel()
+│   ├── kernel.py                # run_kernel()
+│   └── core_catalog.md          
 │
 ├── operators/
+│   ├── gamma_catalog.md
 │   └── gamma_hyp_XXX.py         # Définitions Γ
 │
 ├── D_encodings/
+│   ├── d_encoding_catalog.md
 │   ├── rank2_symmetric.py       # Créateurs D^(base) symétriques
 │   ├── rank2_asymmetric.py      # Créateurs D^(base) asymétriques
 │   └── rank3_correlations.py    # Créateurs D^(base) rang 3
 │
 ├── modifiers/
+│   ├── modifier_catalog.md
 │   ├── noise.py                 # D^(bruit)
 │   ├── constraints/             # D^(topo_x)
 │   ├── plugins/                 # D^(plugin)
@@ -59,6 +63,7 @@ prc_framework/
 │       └── schema_results.sql             
 │
 ├── tests/
+│   ├── tests_catalog.md
 │   ├── test_univ_001.py                   
 │   ├── test_sym_001.py
 │   ├── ... (autres tests)
@@ -76,15 +81,26 @@ prc_framework/
 │   │       └── ... (overrides spécifiques)
 │   │
 │   └── utilities/
+│       ├── utilities_catalog.md
 │       ├── __init__.py
 │       ├── discovery.py                   
 │       ├── applicability.py               
 │       ├── test_engine.py                 
 │       ├── verdict_engine.py              
-│       ├── config_loader.py               
-│       ├── validation_tests.py            # HORS PIPELINE
+│       ├── config_loader.py
+│       ├── verdict_engine.py       # ⭐ HUB analyses globales (à refactoriser Phase 2)
+│       ├── gamma_profiling.py      # ⭐ HUB profiling gammas (à refactoriser Phase 2)
+│       ├── verdict_reporter.py     # ⭐ HUB orchestration rapports (à refactoriser Phase 2)
+│       │
+│       ├── aggregation_utils.py    # ✅ Agrégations statistiques (nouveau)
+│       ├── data_loading.py         # ✅ I/O observations/DB (nouveau)
+│       ├── regime_utils.py         # ✅ Stratification/classification régimes (nouveau)
+│       ├── report_writers.py       # ✅ Formatage/écriture rapports (nouveau)
+│       ├── statistical_utils.py    # ✅ Outils statistiques réutilisables (nouveau)
+│       ├── timeline_utils.py       # ✅ Construction timelines (nouveau)               
 │       │ 
 │       └── registries/
+│           ├── registries_catalog.md
 │           ├── __init__.py
 │           ├── base_registry.py
 │           ├── registry_manager.py
