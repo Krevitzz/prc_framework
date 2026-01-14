@@ -241,11 +241,22 @@ COMPUTATION_SPECS = {
         },
     },
     
-    # Événements dynamiques (optionnel)
+    # Événements dynamiques 
     'dynamic_events': {
         'metric_name': {
-            'events': List[dict],      # [{type: str, iteration: int, magnitude: float}]
-            'sequence': List[str],     # ["deviation", "saturation", ...]
+            # Onsets (itération détection)
+            'deviation_onset': int | None,
+            'instability_onset': int | None,
+        
+            # Flags booléens
+            'oscillatory': bool,
+            'saturation': bool,
+            'collapse': bool,
+        
+            # Séquence ordonnée
+            'sequence': List[str],              # ["deviation", "saturation"]
+            'sequence_timing': List[int],       # [15, 87] (itérations absolues)
+            'sequence_timing_relative': List[float],  # [0.075, 0.435] (normalisé [0,1])
         },
     },
     
@@ -266,6 +277,10 @@ COMPUTATION_SPECS = {
     }
 }
 ```
+
+**Utilisation downstream** :
+- `gamma_profiling.aggregate_dynamic_signatures()` lit ce format
+- `timeline_utils.compute_timeline_descriptor()` génère timeline compacte
 
 ### Status autorisés
 - `SUCCESS` : Test exécuté normalement
@@ -381,7 +396,37 @@ MIXED::{régime_base}  # Bimodalité détectée (ex: MIXED::CONSERVES_NORM)
 - Dispersion inter-runs
 - Type de test
 
----
+## SECTION 6.1 : STRATIFICATION STABLE/EXPLOSIF
+
+**Critère** : Présence valeurs > threshold dans projections exploitées
+
+**Seuil par défaut** : `1e50` (5 décades au-dessus de P90 typique)
+
+**Configurable via verdict_config.yaml** :
+```yaml
+stratification:
+  explosion_threshold: 1.0e50  # Seuil détection explosions
+```
+
+**Projections inspectées** :
+- statistics : initial, final, mean, max
+- evolution : slope, relative_change
+
+## SECTION 6.2 : RELATION PATTERNS ↔ VERDICTS
+
+**R6.2-A** : Patterns = observations factuelles détectées
+**R6.2-B** : Verdicts = décisions humaines post-rapports (HORS périmètre logiciel)
+
+**Pipeline actuel** :
+1. VerdictEngine détecte PATTERNS (D_CORRELATED, etc.)
+2. VerdictReporter génère RAPPORTS (analysis_complete.json, summary.txt)
+3. HUMAIN lit rapports → décide VERDICT (SURVIVES[R0], WIP[R0-open])
+4. HUMAIN met à jour gamma_catalog.md avec STATUS
+
+**Clarification terminologique** :
+- Module nommé `verdict_engine` est legacy → devrait être `pattern_engine`
+- Flag `--verdict` signifie "génération rapports patterns" (pas verdict décisionnel)
+
 
 ## SECTION 7 : PROFILING GAMMA
 
@@ -517,9 +562,56 @@ Avant d'ajouter un nouveau module :
 - [ ] Testé dans pipeline existant
 - [ ] Respecte séparation stricte des responsabilités
 
+## SECTION 9.5 : STRUCTURE CONFIGS YAML
+
+### params_*.yaml (structure minimale)
+```yaml
+version: "1.0"           # OBLIGATOIRE
+config_id: "params_xxx"  # OBLIGATOIRE
+description: "..."       # OBLIGATOIRE
+
+test_parameters:         # OBLIGATOIRE (peut être vide {})
+  TEST-001:
+    param1: value1
+```
+
+### verdict_*.yaml (structure minimale)
+```yaml
+version: "1.0"                    # OBLIGATOIRE
+config_id: "verdict_xxx"          # OBLIGATOIRE
+description: "..."                # OBLIGATOIRE
+
+normalization:                    # OBLIGATOIRE
+  default_method: "robust"
+  scope: "per_test"
+
+patterns:                         # OBLIGATOIRE (au moins 1 pattern)
+  non_discriminant:
+    normalized_threshold: -2.0
+```
+
+**Validation ConfigLoader** :
+- Vérifie présence clés obligatoires
+- Log warning si metadata incohérente
+- Pas de validation contenu (délégué aux consommateurs)
+
+
+## SECTION 10 : TEST_WEIGHT (État R0)
+
+**R10-A** : Déclaration OBLIGATOIRE au niveau module
+**R10-B** : Valeur par défaut : 1.0
+**R10-C** : **Non exploité en R0** (réservé analyses R1+)
+
+**Usage futur anticipé (R1+)** :
+- Pondération patterns cross-tests
+- Méta-analyses multi-tests
+
+**Interdictions R0** :
+- Pas de filtrage exécution
+- Pas d'interprétation "qualité"
 ---
 
-## SECTION 10 : NOMENCLATURE ACTUALISÉE
+## SECTION 11 : NOMENCLATURE ACTUALISÉE
 
 ### IDs et catégories
 ```
@@ -564,10 +656,28 @@ SURVIVES[R0]         # Non éliminé à R0
 REJECTED[R0]         # Éliminé comme autonome à R0
 REJECTED[GLOBAL]     # Éliminé définitif tous rangs
 ```
+### SECTION 11.5 **Structure proposée** (optimisation tokens)
+```
+1. BIBLIOTHÈQUE PERMANENTE (contexte systématique toujours disponible)
+   ├── charter_6.0.md              # Cadre architectural + interdictions
+   ├── r0_status.md                # Travail en cours (ce qui change)
+   └── catalogs_index.md           # Index catalogues (pas contenu complet)
 
----
+2. CATALOGUES (injection à la demande)
+   ├── core_catalog.md
+   ├── operators/gamma_catalog.md
+   ├── D_encodings/d_encoding_catalog.md
+   ├── modifiers/modifier_catalog.md
+   ├── tests/tests_catalog.md
+   └── tests/utilities/utilities_catalog.md
 
-## SECTION 11 : INTERDICTIONS CRITIQUES
+3. SOURCES CODE (injection conversation si besoin)
+   ├── tests/utilities/*.py
+   ├── operators/gamma_hyp_*.py
+   └── ...
+```
+
+## SECTION 12 : INTERDICTIONS CRITIQUES
 
 ### Téléologie
 **R11-A** : TEST_WEIGHT ne doit jamais être :
@@ -606,7 +716,7 @@ REJECTED[GLOBAL]     # Éliminé définitif tous rangs
 
 ---
 
-## SECTION 12 : GLOSSAIRE ACTUALISÉ
+## SECTION 13 : GLOSSAIRE ACTUALISÉ
 
 | Terme | Définition | Exemple |
 |-------|------------|---------|
