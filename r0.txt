@@ -246,5 +246,3 @@ ALORS → R1 (compositions)
 - M3 + tests symétrie → multimodalité systématique
 - Aucun modifier ne supprime TRIVIAL sur GAM-004
 ```
-
-**Prêt à générer le script d'analyse ?** 🚀
