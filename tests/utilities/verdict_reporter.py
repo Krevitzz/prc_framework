@@ -2,17 +2,19 @@
 """
 Verdict Reporter - Orchestration génération rapports R0.
 
-ARCHITECTURE :
-- Orchestre verdict_engine (analyses globales) + gamma_profiling (profils individuels)
-- Génère rapports structurés selon Charter R0 Section 3.1
-- Séparation claire : analyses / profiling / reporting
+ARCHITECTURE REFACTORISÉE (Phase 2.3) :
+- Délégation I/O → data_loading.py
+- Délégation diagnostics → statistical_utils.py
+- Délégation stratification → regime_utils.py
+- Délégation formatage → report_writers.py
+- Cœur métier : orchestration pipeline + compilation résultats
 
-RESPONSABILITÉS :
-1. Charger observations (délégué verdict_engine)
-2. Exécuter analyses globales (variance, interactions)
-3. Exécuter profiling gamma (comportements individuels)
-4. Fusionner résultats
-5. Générer rapports multi-formats (JSON, TXT, CSV)
+RESPONSABILITÉS CONSERVÉES :
+- Orchestration pipeline complet (5 étapes)
+- Compilation métadata
+- Formatage structures gamma_profiles
+- Compilation structural_patterns
+- Coordination génération rapports
 """
 
 import json
@@ -22,15 +24,32 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from collections import defaultdict
 
-# Imports modules spécialisés
-from .verdict_engine import (
-    load_all_observations,
+# ============================================================================
+# IMPORTS MODULES REFACTORISÉS
+# ============================================================================
+
+# I/O et structuration données
+from .data_loading import (
+    load_all_observations
+)
+
+# Filtrage et diagnostics numériques
+from .statistical_utils import (
     filter_numeric_artifacts,
-    generate_degeneracy_report,  # ⚠️ FIX : Pas diagnose_numeric_degeneracy
+    generate_degeneracy_report,
     diagnose_scale_outliers,
     print_degeneracy_report,
-    print_scale_outliers_report,
+    print_scale_outliers_report
+)
+
+# Stratification régimes
+from .regime_utils import (
     stratify_by_regime,
+    extract_conserved_properties
+)
+
+# Analyses verdict et profiling
+from .verdict_engine import (
     analyze_regime,
     FACTORS,
     PROJECTIONS,
@@ -45,6 +64,17 @@ from .gamma_profiling import (
     compare_gammas_summary
 )
 
+# Formatage et écriture rapports
+from .report_writers import (
+    write_json,
+    write_header,
+    write_regime_synthesis,
+    write_dynamic_signatures,
+    write_comparisons_enriched,
+    write_consultation_footer
+)
+
+# Configuration
 from .config_loader import get_loader
 
 
@@ -60,13 +90,12 @@ def generate_verdict_report(
     """
     Pipeline complet génération rapport verdict R0.
     
-    ARCHITECTURE :
-    1. Chargement observations (verdict_engine)
-    2. Diagnostics numériques (verdict_engine)
+    ARCHITECTURE REFACTORISÉE :
+    1. Chargement observations (data_loading)
+    2. Diagnostics numériques (statistical_utils)
     3. Analyses globales stratifiées (verdict_engine)
     4. Profiling gamma (gamma_profiling)
-    5. Fusion résultats
-    6. Génération rapports multi-formats
+    5. Fusion résultats + génération rapports (report_writers)
     
     Args:
         params_config_id: Config params utilisée (ex: 'params_default_v1')
@@ -84,21 +113,23 @@ def generate_verdict_report(
         }
     """
     print(f"\n{'='*70}")
-    print(f"VERDICT REPORTER R0 - GÉNÉRATION RAPPORTS")
+    print(f"VERDICT REPORTER R0 - GÉNÉRATION RAPPORTS (REFACTORISÉ)")
     print(f"{'='*70}\n")
     
     print(f"Params config:  {params_config_id}")
     print(f"Verdict config: {verdict_config_id}\n")
     
     # =========================================================================
-    # ÉTAPE 1 : CHARGEMENT + DIAGNOSTICS
+    # ÉTAPE 1 : CHARGEMENT + DIAGNOSTICS (DÉLÉGUÉ)
     # =========================================================================
     
     print("1. Chargement observations...")
+    # ✅ DÉLÉGUÉ → data_loading
     observations = load_all_observations(params_config_id)
     print(f"   ✓ {len(observations)} observations chargées")
     
     # Filtrage artefacts numériques
+    # ✅ DÉLÉGUÉ → statistical_utils
     observations, rejection_stats = filter_numeric_artifacts(observations)
     
     if rejection_stats['rejected_observations'] > 0:
@@ -110,8 +141,7 @@ def generate_verdict_report(
     
     # Diagnostics (informatifs uniquement)
     print("2. Diagnostics numériques...")
-    # ⚠️ FIX : Ces fonctions prennent la liste complète, pas dict individuel
-    from .verdict_engine import generate_degeneracy_report, diagnose_scale_outliers
+    # ✅ DÉLÉGUÉ → statistical_utils
     degeneracy_report = generate_degeneracy_report(observations)
     scale_report = diagnose_scale_outliers(observations)
     print(f"   ✓ Dégénérescences : {degeneracy_report['observations_with_flags']} observations")
@@ -119,25 +149,26 @@ def generate_verdict_report(
     print()
     
     # =========================================================================
-    # ÉTAPE 2 : ANALYSES GLOBALES STRATIFIÉES (verdict_engine)
+    # ÉTAPE 2 : ANALYSES GLOBALES STRATIFIÉES (DÉLÉGUÉ verdict_engine)
     # =========================================================================
     
     print("3. Analyses globales stratifiées...")
     
     # Stratification régimes
+    # ✅ DÉLÉGUÉ → regime_utils
     obs_stable, obs_explosif = stratify_by_regime(observations)
     print(f"   Régime STABLE   : {len(obs_stable)} observations ({len(obs_stable)/len(observations)*100:.1f}%)")
     print(f"   Régime EXPLOSIF : {len(obs_explosif)} observations ({len(obs_explosif)/len(observations)*100:.1f}%)")
     
     # Analyses parallèles (3 strates)
     print("\n   Analyse GLOBAL...")
+    # ✅ DÉLÉGUÉ → verdict_engine
     results_global = analyze_regime(
         observations, 'GLOBAL',
         params_config_id, verdict_config_id
     )
     
     print("   Analyse STABLE...")
-    # ⚠️ FIX : Vérifier que strate non vide
     if len(obs_stable) > 0:
         results_stable = analyze_regime(
             obs_stable, 'STABLE',
@@ -152,7 +183,6 @@ def generate_verdict_report(
         }
     
     print("   Analyse EXPLOSIF...")
-    # ⚠️ FIX : Vérifier que strate non vide
     if len(obs_explosif) > 0:
         results_explosif = analyze_regime(
             obs_explosif, 'EXPLOSIF',
@@ -168,10 +198,11 @@ def generate_verdict_report(
     print()
     
     # =========================================================================
-    # ÉTAPE 3 : PROFILING GAMMA (gamma_profiling)
+    # ÉTAPE 3 : PROFILING GAMMA (DÉLÉGUÉ gamma_profiling)
     # =========================================================================
     
     print("4. Profiling gamma (comportements individuels)...")
+    # ✅ DÉLÉGUÉ → gamma_profiling
     gamma_profiles = profile_all_gammas(observations)
     print(f"   ✓ {len(gamma_profiles)} gammas profilés")
     
@@ -181,7 +212,7 @@ def generate_verdict_report(
     print()
     
     # =========================================================================
-    # ÉTAPE 4 : FUSION RÉSULTATS
+    # ÉTAPE 4 : FUSION RÉSULTATS (LOCAL - orchestration)
     # =========================================================================
     
     print("5. Fusion résultats...")
@@ -218,7 +249,7 @@ def generate_verdict_report(
     print()
     
     # =========================================================================
-    # ÉTAPE 5 : GÉNÉRATION RAPPORTS
+    # ÉTAPE 5 : GÉNÉRATION RAPPORTS (DÉLÉGUÉ report_writers)
     # =========================================================================
     
     print("6. Génération rapports multi-formats...")
@@ -230,7 +261,8 @@ def generate_verdict_report(
     report_paths = {}
     
     # 6a. Metadata
-    _write_metadata(report_dir, final_results['metadata'])
+    # ✅ DÉLÉGUÉ → report_writers
+    write_json(final_results['metadata'], report_dir / 'metadata.json')
     report_paths['metadata'] = str(report_dir / 'metadata.json')
     
     # 6b. Rapport humain principal
@@ -243,15 +275,18 @@ def generate_verdict_report(
     report_paths['gamma_profiles_csv'] = str(report_dir / 'gamma_profiles.csv')
     
     # 6d. Comparaisons inter-gammas
-    _write_comparisons(report_dir, final_results['comparisons'])
+    # ✅ DÉLÉGUÉ → report_writers
+    write_json(final_results['comparisons'], report_dir / 'comparisons.json')
     report_paths['comparisons'] = str(report_dir / 'comparisons.json')
     
     # 6e. Structural patterns (analyses globales)
-    _write_structural_patterns(report_dir, final_results['structural_patterns'])
+    # ✅ DÉLÉGUÉ → report_writers
+    write_json(final_results['structural_patterns'], report_dir / 'structural_patterns.json')
     report_paths['structural_patterns'] = str(report_dir / 'structural_patterns.json')
     
     # 6f. Diagnostics détaillés
-    _write_diagnostics(report_dir, final_results['diagnostics'])
+    # ✅ DÉLÉGUÉ → report_writers
+    write_json(final_results['diagnostics'], report_dir / 'diagnostics.json')
     report_paths['diagnostics'] = str(report_dir / 'diagnostics.json')
     
     # 6g. Analyses stratifiées (CSVs)
@@ -284,7 +319,7 @@ def generate_verdict_report(
     # =========================================================================
     
     print("="*70)
-    print("RAPPORT VERDICT R0 GÉNÉRÉ")
+    print("RAPPORT VERDICT R0 GÉNÉRÉ (REFACTORISÉ)")
     print("="*70)
     print(f"Répertoire : {report_dir}")
     print(f"Gammas     : {len(gamma_profiles)}")
@@ -297,7 +332,7 @@ def generate_verdict_report(
 
 
 # =============================================================================
-# COMPILATION METADATA
+# COMPILATION METADATA (LOCAL - orchestration)
 # =============================================================================
 
 def _compile_metadata(
@@ -317,7 +352,7 @@ def _compile_metadata(
     return {
         'generated_at': datetime.now().isoformat(),
         'engine_version': '5.5',
-        'architecture': 'verdict_reporter_r0',
+        'architecture': 'verdict_reporter_r0_refactored',
         'configs_used': {
             'params': params_config_id,
             'verdict': verdict_config_id
@@ -351,7 +386,7 @@ def _compile_metadata(
 
 
 # =============================================================================
-# FORMATAGE GAMMA PROFILES
+# FORMATAGE GAMMA PROFILES (LOCAL - spécifique verdict)
 # =============================================================================
 
 def _format_gamma_profiles(gamma_profiles: dict) -> dict:
@@ -413,7 +448,7 @@ def _format_gamma_profiles(gamma_profiles: dict) -> dict:
 
 
 # =============================================================================
-# COMPILATION STRUCTURAL PATTERNS
+# COMPILATION STRUCTURAL PATTERNS (LOCAL - spécifique verdict)
 # =============================================================================
 
 def _compile_structural_patterns(
@@ -451,17 +486,15 @@ def _compile_structural_patterns(
 
 
 # =============================================================================
-# GÉNÉRATION FICHIERS RAPPORTS
+# GÉNÉRATION FICHIERS RAPPORTS (PARTIELLEMENT DÉLÉGUÉ)
 # =============================================================================
 
-def _write_metadata(report_dir: Path, metadata: dict):
-    """Écrit metadata.json."""
-    with open(report_dir / 'metadata.json', 'w', encoding='utf-8') as f:
-        json.dump(metadata, f, indent=2)
-
-
 def _write_summary_report(report_dir: Path, results: dict):
-    """Écrit rapport humain principal (ENRICHI R0+)."""
+    """
+    Écrit rapport humain principal (ENRICHI R0+).
+    
+    ⚠️ PARTIELLEMENT DÉLÉGUÉ : Utilise report_writers pour sections
+    """
     
     metadata = results['metadata']
     gamma_profiles = results['gamma_profiles']
@@ -469,15 +502,16 @@ def _write_summary_report(report_dir: Path, results: dict):
     comparisons = results['comparisons']
     
     with open(report_dir / 'summary.txt', 'w', encoding='utf-8') as f:
-        f.write("="*80 + "\n")
-        f.write("VERDICT REPORT R0+ - POSTURE NON GAMMA-CENTRIQUE\n")
-        f.write(f"{metadata['generated_at']}\n")
-        f.write("="*80 + "\n\n")
+        # ✅ DÉLÉGUÉ → report_writers
+        write_header(f, "VERDICT REPORT R0+ - POSTURE NON GAMMA-CENTRIQUE (REFACTORISÉ)")
+        
+        f.write(f"{metadata['generated_at']}\n\n")
         
         f.write("ARCHITECTURE RAPPORT:\n")
         f.write("  verdict_engine   : Analyses statistiques globales (variance, interactions)\n")
         f.write("  gamma_profiling  : Profils comportementaux individuels (régimes, timelines)\n")
-        f.write("  verdict_reporter : Orchestration + génération rapports\n\n")
+        f.write("  verdict_reporter : Orchestration + génération rapports (REFACTORISÉ)\n")
+        f.write("  report_writers   : Formatage sections standardisées\n\n")
         
         # DATA SUMMARY
         f.write("="*80 + "\n")
@@ -496,18 +530,12 @@ def _write_summary_report(report_dir: Path, results: dict):
         f.write(f"  Dégénérescences détectées : {quality['observations_with_degeneracy']} ({quality['degeneracy_rate']*100:.1f}%)\n")
         f.write(f"  Ruptures échelle          : {quality['observations_with_scale_outliers']} ({quality['scale_outlier_rate']*100:.1f}%)\n\n")
         
-        # NOUVEAU : SYNTHÈSE RÉGIMES GLOBALE
-        f.write("="*80 + "\n")
-        f.write("SYNTHÈSE RÉGIMES (vue transversale)\n")
-        f.write("="*80 + "\n")
-        _write_regime_synthesis(f, gamma_profiles)
+        # ✅ DÉLÉGUÉ → report_writers
+        write_regime_synthesis(f, gamma_profiles)
         f.write("\n")
         
-        # NOUVEAU : SIGNATURES DYNAMIQUES
-        f.write("="*80 + "\n")
-        f.write("SIGNATURES DYNAMIQUES PAR GAMMA\n")
-        f.write("="*80 + "\n")
-        _write_dynamic_signatures(f, gamma_profiles)
+        # ✅ DÉLÉGUÉ → report_writers
+        write_dynamic_signatures(f, gamma_profiles)
         f.write("\n")
         
         # GAMMA PROFILES (résumé par gamma)
@@ -523,18 +551,15 @@ def _write_summary_report(report_dir: Path, results: dict):
             f.write(f"  Tests profilés  : {summary['n_tests']}\n")
             f.write(f"  Distribution    : {summary['regime_distribution']}\n")
             
-            # NOUVEAU : Propriétés conservées
-            conserved = _extract_conserved_properties(profile)
+            # ✅ DÉLÉGUÉ → regime_utils
+            conserved = extract_conserved_properties(profile)
             if conserved:
                 f.write(f"  Propriétés conservées : {', '.join(conserved)}\n")
         
         f.write("\n")
         
-        # COMPARISONS (enrichi avec contexte)
-        f.write("="*80 + "\n")
-        f.write("COMPARISONS INTER-GAMMAS (par propriété)\n")
-        f.write("="*80 + "\n")
-        _write_comparisons_enriched(f, comparisons, gamma_profiles)
+        # ✅ DÉLÉGUÉ → report_writers
+        write_comparisons_enriched(f, comparisons, gamma_profiles)
         f.write("\n")
         
         # STRUCTURAL PATTERNS (analyses globales)
@@ -560,25 +585,16 @@ def _write_summary_report(report_dir: Path, results: dict):
         
         f.write("\n")
         
-        # FOOTER
-        f.write("="*80 + "\n")
-        f.write("CONSULTATION DÉTAILLÉE\n")
-        f.write("="*80 + "\n")
-        f.write("gamma_profiles.json       : Profils complets tous gammas × tests\n")
-        f.write("gamma_profiles.csv        : Vue tabulaire pour analyse\n")
-        f.write("comparisons.json          : Classements inter-gammas\n")
-        f.write("structural_patterns.json  : Analyses globales (variance, interactions)\n")
-        f.write("diagnostics.json          : Diagnostics numériques détaillés\n")
-        f.write("marginal_variance_*.csv   : Données brutes analyses (3 strates)\n")
-        f.write("="*80 + "\n")
+        # ✅ DÉLÉGUÉ → report_writers
+        write_consultation_footer(f)
 
 
 def _write_gamma_profiles(report_dir: Path, gamma_profiles: dict):
     """Écrit gamma_profiles.json + CSV."""
     
     # JSON complet
-    with open(report_dir / 'gamma_profiles.json', 'w', encoding='utf-8') as f:
-        json.dump(gamma_profiles, f, indent=2)
+    # ✅ DÉLÉGUÉ → report_writers
+    write_json(gamma_profiles, report_dir / 'gamma_profiles.json')
     
     # CSV (vue tabulaire)
     rows = []
@@ -605,183 +621,3 @@ def _write_gamma_profiles(report_dir: Path, gamma_profiles: dict):
     
     df = pd.DataFrame(rows)
     df.to_csv(report_dir / 'gamma_profiles.csv', index=False)
-
-
-def _write_comparisons(report_dir: Path, comparisons: dict):
-    """Écrit comparisons.json."""
-    with open(report_dir / 'comparisons.json', 'w', encoding='utf-8') as f:
-        json.dump(comparisons, f, indent=2)
-
-
-def _write_structural_patterns(report_dir: Path, structural: dict):
-    """Écrit structural_patterns.json."""
-    with open(report_dir / 'structural_patterns.json', 'w', encoding='utf-8') as f:
-        json.dump(structural, f, indent=2)
-
-
-def _write_diagnostics(report_dir: Path, diagnostics: dict):
-    """Écrit diagnostics.json."""
-    
-    # ⚠️ FIX : Convertir clés tuple → string pour JSON
-    diagnostics_serializable = _make_json_serializable(diagnostics)
-    
-    with open(report_dir / 'diagnostics.json', 'w', encoding='utf-8') as f:
-        json.dump(diagnostics_serializable, f, indent=2)
-
-
-def _make_json_serializable(obj):
-    """
-    Convertit récursivement tuples en strings pour sérialisation JSON.
-    
-    Problème : diagnose_scale_outliers() utilise des clés tuple
-    (test_name, metric_name, proj_name) qui ne sont pas JSON-serializable.
-    
-    Solution : Convertir tuples → "test|metric|proj" strings.
-    """
-    if isinstance(obj, dict):
-        return {
-            (str(k) if isinstance(k, tuple) else k): _make_json_serializable(v)
-            for k, v in obj.items()
-        }
-    elif isinstance(obj, list):
-        return [_make_json_serializable(item) for item in obj]
-    elif isinstance(obj, tuple):
-        # Convertir tuples en strings lisibles
-        return "|".join(str(x) for x in obj)
-    else:
-        return obj
-
-
-# =============================================================================
-# HELPERS SUMMARY ENRICHI
-# =============================================================================
-
-def _write_regime_synthesis(f, gamma_profiles: dict):
-    """Écrit synthèse régimes transversale."""
-    
-    # Compter régimes globalement
-    regime_counter = defaultdict(int)
-    for gamma_data in gamma_profiles.values():
-        for test_data in gamma_data['tests'].values():
-            regime = test_data['regime']
-            regime_counter[regime] += 1
-    
-    total = sum(regime_counter.values())
-    
-    f.write(f"Total profils : {total}\n\n")
-    
-    # Grouper par famille
-    conservation = {k: v for k, v in regime_counter.items() if 'CONSERVES_' in k}
-    pathologies = {k: v for k, v in regime_counter.items() if k in ['NUMERIC_INSTABILITY', 'OSCILLATORY_UNSTABLE', 'TRIVIAL', 'DEGRADING']}
-    mixed = {k: v for k, v in regime_counter.items() if k.startswith('MIXED::')}
-    other = {k: v for k, v in regime_counter.items() if k not in conservation and k not in pathologies and k not in mixed}
-    
-    if conservation:
-        f.write("CONSERVATION (régimes sains):\n")
-        for regime, count in sorted(conservation.items(), key=lambda x: -x[1]):
-            pct = count / total * 100
-            f.write(f"  {regime:30s} : {count:3d} ({pct:5.1f}%)\n")
-        f.write(f"  Total conservation : {sum(conservation.values())} ({sum(conservation.values())/total*100:.1f}%)\n\n")
-    
-    if pathologies:
-        f.write("PATHOLOGIES:\n")
-        for regime, count in sorted(pathologies.items(), key=lambda x: -x[1]):
-            pct = count / total * 100
-            f.write(f"  {regime:30s} : {count:3d} ({pct:5.1f}%)\n")
-        f.write(f"  Total pathologies : {sum(pathologies.values())} ({sum(pathologies.values())/total*100:.1f}%)\n\n")
-    
-    if mixed:
-        f.write("MULTIMODALITÉ (MIXED::X):\n")
-        for regime, count in sorted(mixed.items(), key=lambda x: -x[1])[:5]:
-            pct = count / total * 100
-            f.write(f"  {regime:30s} : {count:3d} ({pct:5.1f}%)\n")
-        f.write(f"  Total multimodal : {sum(mixed.values())} ({sum(mixed.values())/total*100:.1f}%)\n\n")
-    
-    if other:
-        f.write("AUTRES (SATURATES, UNCATEGORIZED):\n")
-        for regime, count in sorted(other.items(), key=lambda x: -x[1]):
-            pct = count / total * 100
-            f.write(f"  {regime:30s} : {count:3d} ({pct:5.1f}%)\n")
-
-
-def _write_dynamic_signatures(f, gamma_profiles: dict):
-    """Écrit signatures dynamiques par gamma."""
-    
-    for gamma_id in sorted(gamma_profiles.keys()):
-        gamma_data = gamma_profiles[gamma_id]
-        
-        # Compter timelines dominantes
-        timeline_counter = defaultdict(int)
-        for test_data in gamma_data['tests'].values():
-            timeline = test_data['timeline']
-            timeline_counter[timeline] += 1
-        
-        # Timeline dominante
-        if timeline_counter:
-            dominant_timeline, count = max(timeline_counter.items(), key=lambda x: x[1])
-            confidence = count / len(gamma_data['tests'])
-            
-            f.write(f"\n{gamma_id}:\n")
-            f.write(f"  Timeline dominante : {dominant_timeline} ({confidence*100:.0f}% tests)\n")
-            
-            # Diversité timelines
-            if len(timeline_counter) > 1:
-                f.write(f"  Variantes ({len(timeline_counter)} timelines distinctes):\n")
-                for tl, cnt in sorted(timeline_counter.items(), key=lambda x: -x[1])[:3]:
-                    if tl != dominant_timeline:
-                        f.write(f"    - {tl} ({cnt} tests)\n")
-
-
-def _extract_conserved_properties(profile: dict) -> list:
-    """Extrait propriétés conservées depuis profil gamma."""
-    
-    properties = set()
-    
-    for test_data in profile['tests'].values():
-        regime = test_data['regime']
-        
-        if 'CONSERVES_SYMMETRY' in regime:
-            properties.add('Symétrie')
-        elif 'CONSERVES_NORM' in regime:
-            properties.add('Norme')
-        elif 'CONSERVES_PATTERN' in regime:
-            properties.add('Pattern')
-        elif 'CONSERVES_TOPOLOGY' in regime:
-            properties.add('Topologie')
-        elif 'CONSERVES_GRADIENT' in regime:
-            properties.add('Gradient')
-        elif 'CONSERVES_SPECTRUM' in regime:
-            properties.add('Spectre')
-    
-    return sorted(properties)
-
-
-def _write_comparisons_enriched(f, comparisons: dict, gamma_profiles: dict):
-    """Écrit comparaisons enrichies avec contexte propriétés."""
-    
-    # Grouper tests par propriété
-    tests_by_property = {
-        'Symétrie': ['SYM-001'],
-        'Norme': ['SPE-001', 'SPE-002', 'UNIV-001', 'UNIV-002'],
-        'Pattern': ['PAT-001'],
-        'Topologie': ['TOP-001'],
-        'Gradient': ['GRA-001'],
-        'Spectre': ['SPA-001']
-    }
-    
-    by_test = comparisons['by_test']
-    
-    for property_name, test_list in tests_by_property.items():
-        tests_in_data = [t for t in test_list if t in by_test]
-        
-        if not tests_in_data:
-            continue
-        
-        f.write(f"\n{property_name.upper()}:\n")
-        
-        for test_name in tests_in_data:
-            comp = by_test[test_name]
-            f.write(f"\n  {test_name}:\n")
-            f.write(f"    Meilleur : {comp['best_conservation']}\n")
-            f.write(f"    Pire     : {comp['worst_conservation']}\n")
-            f.write(f"    Classement : {', '.join(comp['ranking'][:5])}...\n")

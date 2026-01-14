@@ -2,10 +2,18 @@
 """
 Gamma Profiling Module - Charter R0 avec Timelines Compositionnels.
 
-ARCHITECTURE TIMELINES :
-- Seuils globaux relatifs (early/mid/late)
-- Composition automatique événements
-- Structure intermédiaire exploitable
+ARCHITECTURE REFACTORISÉE (Phase 2.2) :
+- Délégation timelines → timeline_utils.py
+- Délégation agrégations → aggregation_utils.py
+- Délégation régimes → regime_utils.py
+- Cœur métier : profiling comportemental gammas individuels
+
+RESPONSABILITÉS CONSERVÉES :
+- Agrégation signatures dynamiques (spécifique profiling)
+- Calcul profil PRC complet
+- Profiling tous gammas × tests
+- Comparaisons inter-gammas
+- Rankings
 """
 
 import numpy as np
@@ -13,322 +21,35 @@ import pandas as pd
 from typing import List, Dict, Tuple, Optional
 from collections import Counter, defaultdict
 
+# ============================================================================
+# IMPORTS MODULES REFACTORISÉS
+# ============================================================================
 
-# =============================================================================
-# CONFIGURATION TIMELINES (globale, unique, documentée)
-# =============================================================================
+# Timelines et événements dynamiques
+from .timeline_utils import (
+    TIMELINE_THRESHOLDS,
+    classify_timing,
+    compute_timeline_descriptor,
+    extract_dynamic_events,
+    extract_metric_timeseries
+)
 
-TIMELINE_THRESHOLDS = {
-    'early': 0.20,  # onset < 20% durée
-    'mid':   0.60,  # 20% ≤ onset ≤ 60%
-    'late':  0.60   # onset > 60%
-}
+# Agrégations statistiques
+from .aggregation_utils import (
+    aggregate_summary_metrics,
+    aggregate_run_dispersion
+)
 
-"""
-PRINCIPE TIMELINES R0 :
-- Toute notion temporelle est RELATIVE (jamais absolue)
-- Seuils globaux uniques (pas de variation par test)
-- Composition automatique : {timing}_{event}_then_{event}
-- Descriptif pas causal ("then" pas "causes")
-
-Exemples :
-- early_instability_then_collapse
-- mid_deviation_then_saturation
-- late_instability_then_plateau
-
-Structure intermédiaire disponible pour exploitation :
-{
-    'phases': [
-        {'event': 'instability', 'timing': 'early', 'onset_relative': 0.05},
-        {'event': 'collapse', 'timing': 'late', 'onset_relative': 0.85}
-    ],
-    'timeline_compact': 'early_instability_then_collapse',
-    'n_phases': 2
-}
-"""
+# Classification régimes
+from .regime_utils import (
+    classify_regime,
+    extract_conserved_properties
+)
 
 
 # =============================================================================
-# CHARGEMENT DONNÉES (depuis observations enrichies)
+# AGRÉGATION SIGNATURES DYNAMIQUES (LOCAL - spécifique profiling)
 # =============================================================================
-
-def extract_metric_timeseries(observation: dict, metric_name: str) -> Tuple[Optional[np.ndarray], bool]:
-    """
-    Extrait série temporelle avec marqueur fallback.
-    
-    Returns:
-        (values, is_fallback)
-        - values: array ou None
-        - is_fallback: True si proxy linéaire utilisé
-    """
-    obs_data = observation.get('observation_data', {})
-    timeseries = obs_data.get('timeseries', {})
-    
-    values = timeseries.get(metric_name)
-    
-    if values is not None:
-        return np.array(values), False
-    
-    # Fallback : proxy linéaire depuis statistics
-    stats = obs_data.get('statistics', {}).get(metric_name, {})
-    initial = stats.get('initial')
-    final = stats.get('final')
-    
-    if initial is not None and final is not None:
-        n_iterations = obs_data.get('metadata', {}).get('n_iterations', 200)
-        return np.linspace(initial, final, n_iterations), True
-    
-    return None, True
-
-
-def extract_dynamic_events(observation: dict, metric_name: str) -> dict:
-    """
-    Extrait événements dynamiques depuis observation.
-    
-    Lit depuis observation_data['dynamic_events'][metric_name].
-    
-    Returns:
-        {
-            'deviation_onset': int | None,
-            'instability_onset': int | None,
-            'oscillatory': bool,
-            'saturation': bool,
-            'collapse': bool,
-            'sequence': [...],
-            'sequence_timing': [...],
-            'sequence_timing_relative': [...]
-        }
-    """
-    obs_data = observation.get('observation_data', {})
-    dynamic_events = obs_data.get('dynamic_events', {})
-    
-    events = dynamic_events.get(metric_name, {})
-    
-    # Valeurs par défaut si absentes
-    return {
-        'deviation_onset': events.get('deviation_onset'),
-        'instability_onset': events.get('instability_onset'),
-        'oscillatory': events.get('oscillatory', False),
-        'saturation': events.get('saturation', False),
-        'collapse': events.get('collapse', False),
-        'sequence': events.get('sequence', []),
-        'sequence_timing': events.get('sequence_timing', []),
-        'sequence_timing_relative': events.get('sequence_timing_relative', []),
-        'saturation_onset_estimated': events.get('saturation_onset_estimated', False),
-        'oscillatory_global': events.get('oscillatory_global', False)
-    }
-
-
-# =============================================================================
-# TIMELINES COMPOSITIONNELS (réécrit complet)
-# =============================================================================
-
-def classify_timing(onset_relative: float) -> str:
-    """
-    Classifie timing selon seuils globaux.
-    
-    Args:
-        onset_relative: Onset normalisé [0, 1]
-    
-    Returns:
-        'early' | 'mid' | 'late'
-    
-    Examples:
-        >>> classify_timing(0.05)
-        'early'
-        >>> classify_timing(0.45)
-        'mid'
-        >>> classify_timing(0.85)
-        'late'
-    """
-    if onset_relative < TIMELINE_THRESHOLDS['early']:
-        return 'early'
-    elif onset_relative <= TIMELINE_THRESHOLDS['mid']:
-        return 'mid'
-    else:
-        return 'late'
-
-
-def compute_timeline_descriptor(
-    sequence: list,
-    sequence_timing_relative: list,
-    oscillatory_global: bool = False
-) -> dict:
-    """
-    Génère descriptor timeline compositionnel.
-    
-    PRINCIPE :
-    - Composition automatique : {timing}_{event}_then_{event}
-    - Pas de patterns hardcodés
-    - Structure intermédiaire pour exploitation
-    
-    Args:
-        sequence: ['deviation', 'saturation']
-        sequence_timing_relative: [0.05, 0.80]
-        oscillatory_global: Comportement oscillatoire global
-    
-    Returns:
-        {
-            'phases': [
-                {'event': 'deviation', 'timing': 'early', 'onset_relative': 0.05},
-                {'event': 'saturation', 'timing': 'late', 'onset_relative': 0.80}
-            ],
-            'timeline_compact': 'early_deviation_then_saturation',
-            'n_phases': 2,
-            'oscillatory_global': False
-        }
-    
-    Cas spéciaux :
-    - Aucun événement → 'no_significant_dynamics'
-    - 1 événement → '{timing}_{event}_only'
-    - 2+ événements → '{timing1}_{event1}_then_{event2}'
-    - Oscillatoire global → préfixe 'oscillatory_'
-    """
-    # ⚠️ FIX : Vérifier cohérence listes
-    if not sequence or not sequence_timing_relative:
-        return {
-            'phases': [],
-            'timeline_compact': 'no_significant_dynamics',
-            'n_phases': 0,
-            'oscillatory_global': oscillatory_global
-        }
-    
-    # ⚠️ FIX : Vérifier longueurs égales
-    if len(sequence) != len(sequence_timing_relative):
-        # Logging pour debug (optionnel)
-        # print(f"⚠️ Warning: sequence length mismatch ({len(sequence)} vs {len(sequence_timing_relative)})")
-        return {
-            'phases': [],
-            'timeline_compact': 'no_significant_dynamics',
-            'n_phases': 0,
-            'oscillatory_global': oscillatory_global
-        }
-    
-    # Construire phases structurées
-    phases = []
-    for event, onset_rel in zip(sequence, sequence_timing_relative):
-        timing = classify_timing(onset_rel)
-        phases.append({
-            'event': event,
-            'timing': timing,
-            'onset_relative': float(onset_rel)
-        })
-    
-    # Composition timeline_compact
-    if len(phases) == 1:
-        # Format : {timing}_{event}_only
-        p = phases[0]
-        compact = f"{p['timing']}_{p['event']}_only"
-    
-    elif len(phases) == 2:
-        # Format : {timing1}_{event1}_then_{event2}
-        p1, p2 = phases[0], phases[1]
-        compact = f"{p1['timing']}_{p1['event']}_then_{p2['event']}"
-    
-    else:
-        # 3+ phases : simplifier
-        p1 = phases[0]
-        pN = phases[-1]
-        compact = f"{p1['timing']}_{p1['event']}_to_{pN['event']}_complex"
-    
-    # Préfixe oscillatoire si global
-    if oscillatory_global:
-        compact = f"oscillatory_{compact}"
-    
-    return {
-        'phases': phases,
-        'timeline_compact': compact,
-        'n_phases': len(phases),
-        'oscillatory_global': oscillatory_global
-    }
-
-
-# =============================================================================
-# AGRÉGATION INTER-RUNS
-# =============================================================================
-
-def aggregate_summary_metrics(observations: List[dict], metric_name: str) -> dict:
-    """Agrège métriques statistiques (inchangé)."""
-    final_values = []
-    initial_values = []
-    mean_values = []
-    
-    for obs in observations:
-        obs_data = obs.get('observation_data', {})
-        stats = obs_data.get('statistics', {}).get(metric_name, {})
-        
-        final = stats.get('final')
-        initial = stats.get('initial')
-        mean = stats.get('mean')
-        
-        if final is not None:
-            final_values.append(final)
-        if initial is not None:
-            initial_values.append(initial)
-        if mean is not None:
-            mean_values.append(mean)
-    
-    if not final_values:
-        return {}
-    
-    final_values = np.array(final_values)
-    
-    final_stats = {
-        'median': float(np.median(final_values)),
-        'q1': float(np.percentile(final_values, 25)),
-        'q3': float(np.percentile(final_values, 75)),
-        'mean': float(np.mean(final_values)),
-        'std': float(np.std(final_values))
-    }
-    
-    initial_value = float(np.median(initial_values)) if initial_values else 0.0
-    mean_value = float(np.mean(mean_values)) if mean_values else 0.0
-    
-    cv = float(np.std(final_values) / (np.abs(np.mean(final_values)) + 1e-10))
-    
-    return {
-        'final_value': final_stats,
-        'initial_value': initial_value,
-        'mean_value': mean_value,
-        'cv': cv
-    }
-
-
-def aggregate_run_dispersion(observations: List[dict], metric_name: str) -> dict:
-    """Calcule indicateurs multimodalité (inchangé)."""
-    final_values = []
-    
-    for obs in observations:
-        obs_data = obs.get('observation_data', {})
-        stats = obs_data.get('statistics', {}).get(metric_name, {})
-        final = stats.get('final')
-        
-        if final is not None:
-            final_values.append(final)
-    
-    if len(final_values) < 2:
-        return {
-            'final_value_iqr_ratio': 0.0,
-            'cv_across_runs': 0.0,
-            'bimodal_detected': False
-        }
-    
-    final_values = np.array(final_values)
-    
-    q1 = np.percentile(final_values, 25)
-    q3 = np.percentile(final_values, 75)
-    iqr_ratio = q3 / max(q1, 1e-10)
-    
-    cv = np.std(final_values) / (np.abs(np.mean(final_values)) + 1e-10)
-    
-    bimodal = iqr_ratio > 3.0
-    
-    return {
-        'final_value_iqr_ratio': float(iqr_ratio),
-        'cv_across_runs': float(cv),
-        'bimodal_detected': bool(bimodal)
-    }
-
 
 def aggregate_dynamic_signatures(observations: List[dict], metric_name: str) -> dict:
     """
@@ -336,6 +57,8 @@ def aggregate_dynamic_signatures(observations: List[dict], metric_name: str) -> 
     
     Utilise compute_timeline_descriptor() pour chaque run,
     puis agrège par Counter.
+    
+    ⚠️ RESTE LOCAL : Spécifique au profiling gamma (composition timeline + événements)
     
     Returns:
         {
@@ -421,109 +144,7 @@ def aggregate_dynamic_signatures(observations: List[dict], metric_name: str) -> 
 
 
 # =============================================================================
-# CLASSIFICATION RÉGIME (Patch #2 : MIXED comme qualificatif + Régimes spécifiques)
-# =============================================================================
-
-def classify_regime(
-    metrics: dict,
-    dynamic_sig: dict,
-    timeline_dist: dict,
-    dispersion: dict,
-    test_name: str  # ← NOUVEAU : Pour déterminer propriété conservée
-) -> str:
-    """
-    Classification régime R0 avec régimes SPÉCIFIQUES.
-    
-    Au lieu de CONSERVES_X générique, on détecte :
-    - CONSERVES_SYMMETRY (SYM-*)
-    - CONSERVES_NORM (SPE-*, UNIV-*)
-    - CONSERVES_PATTERN (PAT-*)
-    - CONSERVES_TOPOLOGY (TOP-*)
-    - CONSERVES_GRADIENT (GRA-*)
-    - CONSERVES_SPECTRUM (SPA-*)
-    
-    Régimes pathologiques :
-    - NUMERIC_INSTABILITY, OSCILLATORY_UNSTABLE, TRIVIAL, 
-      DEGRADING, SATURATES_HIGH, UNCATEGORIZED
-    
-    Si bimodal détecté → MIXED::{régime_base}
-    
-    Args:
-        test_name: Nom du test (pour déduire propriété)
-    """
-    if not metrics:
-        return "NO_DATA"
-    
-    final = metrics['final_value']['median']
-    initial = metrics['initial_value']
-    cv = metrics['cv']
-    
-    # Classifier régime de base d'abord
-    instability_onset = dynamic_sig.get('instability_onset_median')
-    
-    # PATHOLOGIES (prioritaires)
-    if instability_onset is not None and instability_onset < 20 and final > 1e20:
-        base_regime = "NUMERIC_INSTABILITY"
-    elif dynamic_sig['oscillatory_fraction'] > 0.3:
-        base_regime = "OSCILLATORY_UNSTABLE"
-    elif cv < 0.01:
-        base_regime = "TRIVIAL"
-    
-    # CONSERVATION (dépend du test)
-    elif final < 2 * initial and cv < 0.1:
-        # Détecter propriété conservée selon préfixe test
-        if test_name.startswith('SYM-'):
-            base_regime = "CONSERVES_SYMMETRY"
-        elif test_name.startswith('SPE-') or test_name.startswith('UNIV-'):
-            base_regime = "CONSERVES_NORM"
-        elif test_name.startswith('PAT-'):
-            base_regime = "CONSERVES_PATTERN"
-        elif test_name.startswith('TOP-'):
-            base_regime = "CONSERVES_TOPOLOGY"
-        elif test_name.startswith('GRA-'):
-            base_regime = "CONSERVES_GRADIENT"
-        elif test_name.startswith('SPA-'):
-            base_regime = "CONSERVES_SPECTRUM"
-        else:
-            base_regime = "CONSERVES_PROPERTY"  # Fallback générique
-    
-    # SATURATION
-    elif 'saturation' in timeline_dist.get('dominant_timeline', '') and dynamic_sig['saturation_fraction'] > 0.7:
-        if final > 10 * initial:
-            base_regime = "SATURATES_HIGH"
-        else:
-            # Saturation mais pas croissance → Conservation
-            if test_name.startswith('SYM-'):
-                base_regime = "CONSERVES_SYMMETRY"
-            elif test_name.startswith('SPE-') or test_name.startswith('UNIV-'):
-                base_regime = "CONSERVES_NORM"
-            elif test_name.startswith('PAT-'):
-                base_regime = "CONSERVES_PATTERN"
-            elif test_name.startswith('TOP-'):
-                base_regime = "CONSERVES_TOPOLOGY"
-            elif test_name.startswith('GRA-'):
-                base_regime = "CONSERVES_GRADIENT"
-            elif test_name.startswith('SPA-'):
-                base_regime = "CONSERVES_SPECTRUM"
-            else:
-                base_regime = "CONSERVES_PROPERTY"
-    
-    # DEGRADING
-    elif final < 0.5 * initial and dynamic_sig['collapse_fraction'] < 0.1:
-        base_regime = "DEGRADING"
-    
-    else:
-        base_regime = "UNCATEGORIZED"
-    
-    # Qualificatif multimodalité (Patch #2)
-    if dispersion['bimodal_detected']:
-        return f"MIXED::{base_regime}"
-    
-    return base_regime
-
-
-# =============================================================================
-# PROFIL PRC (Patch #4 : Confidence metadata)
+# PROFIL PRC (LOCAL - cœur métier profiling)
 # =============================================================================
 
 def compute_prc_profile(
@@ -533,10 +154,12 @@ def compute_prc_profile(
     dispersion: dict,
     n_runs: int,
     n_valid: int,
-    test_name: str  # ← NOUVEAU
+    test_name: str
 ) -> dict:
     """
     Génère profil PRC avec confidence heuristique documentée.
+    
+    ⚠️ RESTE LOCAL : Cœur métier spécifique gamma profiling
     
     Patch #4 appliqué : Confidence metadata exposée.
     """
@@ -591,7 +214,7 @@ def compute_prc_profile(
         'oscillatory': dynamic_sig['oscillatory_fraction'] > 0.3,
         'collapse': dynamic_sig['collapse_fraction'] > 0.1,
         'trivial': base_regime == 'TRIVIAL',
-        'degrading': base_regime == 'DEGRADING'  # ← AJOUT
+        'degrading': base_regime == 'DEGRADING'
     }
     
     # Confidence heuristique (Patch #4)
@@ -648,6 +271,8 @@ def profile_test_for_gamma(
     Profil UN test sous UN gamma.
     
     Patch #1 appliqué : Fallback timeseries marqué dans instrumentation.
+    
+    ⚠️ REFACTORISÉ : Utilise aggregation_utils, timeline_utils, regime_utils
     """
     if not observations:
         return {
@@ -679,6 +304,7 @@ def profile_test_for_gamma(
     timeseries_present = 'timeseries' in obs_data
     
     # NIVEAU 3 : Instrumentation (Patch #1)
+    # ✅ DÉLÉGUÉ → aggregation_utils
     summary_metrics = aggregate_summary_metrics(observations, metric_name)
     
     instrumentation = {
@@ -698,7 +324,9 @@ def profile_test_for_gamma(
     }
     
     # NIVEAU 2 : Diagnostic signature
+    # ✅ DÉLÉGUÉ → aggregation_utils
     run_dispersion = aggregate_run_dispersion(observations, metric_name)
+    # ⚠️ LOCAL : Spécifique profiling
     event_aggregates = aggregate_dynamic_signatures(observations, metric_name)
     
     diagnostic_signature = {
@@ -717,6 +345,7 @@ def profile_test_for_gamma(
     }
     
     # NIVEAU 1 : PRC Profile
+    # ⚠️ LOCAL : Cœur métier profiling (utilise regime_utils.classify_regime)
     prc_profile = compute_prc_profile(
         summary_metrics,
         event_aggregates['dynamic_signature'],
@@ -724,7 +353,7 @@ def profile_test_for_gamma(
         run_dispersion,
         n_runs,
         n_valid,
-        test_name  # ← AJOUTER
+        test_name
     )
     
     return {
@@ -737,7 +366,7 @@ def profile_test_for_gamma(
 
 
 # =============================================================================
-# PROFILING COMPLET + COMPARAISONS (inchangé)
+# PROFILING COMPLET + COMPARAISONS
 # =============================================================================
 
 def profile_all_gammas(observations: List[dict]) -> dict:
@@ -789,7 +418,7 @@ def rank_gammas_by_test(
         
         if criterion == 'conservation':
             regime = prc['regime'].split('::')[-1]  # Strip MIXED::
-            if regime == 'CONSERVES_X':
+            if regime.startswith('CONSERVES_'):
                 score = 1.0
             elif regime == 'TRIVIAL':
                 score = 0.5
@@ -817,7 +446,11 @@ def rank_gammas_by_test(
 
 
 def compare_gammas_summary(profiles: dict) -> dict:
-    """Synthèse comparative gammas."""
+    """
+    Synthèse comparative gammas.
+    
+    ⚠️ REFACTORISÉ : Utilise regime_utils.extract_conserved_properties
+    """
     by_regime = defaultdict(list)
     
     for gamma_id, gamma_data in profiles.items():
