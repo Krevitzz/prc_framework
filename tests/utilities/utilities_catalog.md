@@ -4,35 +4,6 @@
 
 Modules de support pour l'exécution et l'analyse des tests PRC Charter 5.5.
 
-**Architecture Globale Refactorisée (Phase 2 Complète)** :
-```
-tests/utilities/
-├── test_engine.py          # 📦 Exécution tests (stable)
-├── applicability.py        # 📦 Validation applicabilité (stable)
-├── config_loader.py        # 📦 Chargement configs YAML (stable)
-├── discovery.py            # 📦 Discovery tests actifs (stable)
-│
-├── verdict_engine.py       # ✅ HUB analyses globales (REFACTORISÉ Phase 2.1)
-├── gamma_profiling.py      # ✅ HUB profiling gammas (REFACTORISÉ Phase 2.2)
-├── verdict_reporter.py     # ✅ HUB orchestration rapports (REFACTORISÉ Phase 2.3)
-│
-├── aggregation_utils.py    # 🆕 Agrégations statistiques
-├── data_loading.py         # 🆕 I/O observations/DB
-├── regime_utils.py         # 🆕 Stratification/classification régimes
-├── report_writers.py       # 🆕 Formatage/écriture rapports
-├── statistical_utils.py    # 🆕 Outils statistiques réutilisables
-├── timeline_utils.py       # 🆕 Construction timelines
-│
-└── registries/             # 📦 Fonctions calcul métriques (stable)
-    ├── registry_manager.py
-    ├── algebra.py
-    ├── graph.py
-    ├── pattern.py
-    ├── spatial.py
-    ├── spectral.py
-    ├── statistical.py
-    └── topological.py
-```
 
 **LÉGENDE** :
 - 📦 **STABLE** : Module stable (pas de changement Phase 2)

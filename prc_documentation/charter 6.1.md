@@ -70,6 +70,7 @@ prc_framework/
 │
 ├── tests/                         # Tests d'observation
 │   ├── test_*.py                  # Modules de test (UNIV-001, SYM-001, etc.)
+│   ├── tests_catalog.md            
 │   ├── config/                    # Configurations YAML
 │   └── utilities/                 # Moteurs d'analyse
 │
@@ -295,50 +296,229 @@ COMPUTATION_SPECS = {
 ### Organisation actuelle
 ```
 tests/utilities/
-├── 📦 STABLE (modules autonomes)
-│   ├── test_engine.py          # Exécution tests avec registries
-│   ├── applicability.py        # Validation applicabilité
-│   ├── config_loader.py        # Chargement configs YAML
-│   ├── discovery.py            # Découverte tests actifs
-│   └── registries/             # Fonctions de calcul
+├── 📦 registries
+│   ├── registries_catalog.md
+│   ├── base_registry.py
+│   ├── registry_manager.py
+│   ├── post_processors.py
+│   ├── algebra_registry.py
+│   ├── spectral_registry.py
+│   ├── statistical_registry.py
+│   ├── spatial_registry.py
+│   ├── pattern_registry.py
+│   ├── topological_registry.py
+│   └── graph_registry.py
 │
-├── ⭐ HUB (orchestration)
-│   ├── verdict_engine.py       # Analyses statistiques globales
-│   ├── gamma_profiling.py      # Profiling comportemental gammas
-│   └── verdict_reporter.py     # Orchestration génération rapports
+├── ⭐ HUB (orchestration niveau système)
+│   ├── HUB_catalog.md
+│   ├── test_engine.py
+│   ├── profiling_runner.py       # Orchestration profiling
+│   ├── verdict_reporter.py       # Compilation + écriture
+│   └── verdict_engine.py         # CONSERVÉ - Analyses globales   
 │
-└── ✅ UTIL (modules spécialisés)
-    ├── aggregation_utils.py    # Agrégations statistiques inter-runs
-    ├── data_loading.py         # I/O observations depuis DBs
-    ├── regime_utils.py         # Stratification/classification régimes
-    ├── report_writers.py       # Formatage/écriture rapports
-    ├── statistical_utils.py    # Outils statistiques réutilisables
-    └── timeline_utils.py       # Construction timelines dynamiques
+└── ✅ UTIL (modules spécialisés) 
+    ├── util_catalog.md
+    ├── applicability.py
+    ├── config_loader.py
+    ├── discovery.py
+    ├── registries/
+    ├── aggregation_utils.py
+    ├── data_loading.py
+    ├── regime_utils.py
+    ├── report_writers.py
+    ├── statistical_utils.py
+    ├── timeline_utils.py
+    ├── profiling_common.py       # Moteur générique + API publique
+    └── cross_profiling.py        
+
 ```
 
 ### Rôles des modules
 
-**📦 STABLE** : Modules fonctionnels complets
+**📦 registries** :registres de fonctions de calcul (algebra, graph, pattern, etc.)
+
+**⭐ HUB** : Modules d'orchestration 
+
 - `test_engine.py` : Moteur d'exécution des tests avec détection d'événements dynamiques
+- `verdict_engine.py` : Analyses statistiques multi-facteurs, détection patterns
+- `verdict_reporter.py` : Orchestration complète génération rapports
+- `profiling_runner.py` : Orchestration profiling multi-axes avec découverte automatique
+
+**✅ UTIL** : Modules spécialisés
 - `applicability.py` : Validation des contraintes techniques (rang, dimension, etc.)
 - `config_loader.py` : Singleton pour chargement configs (fusion global + spécifique)
 - `discovery.py` : Découverte et validation structurelle des tests
-- `registries/` : 7 registres de fonctions de calcul (algebra, graph, pattern, etc.)
-
-**⭐ HUB** : Modules d'orchestration 
-- `verdict_engine.py` : Analyses statistiques multi-facteurs, détection patterns
-- `gamma_profiling.py` : Profiling comportemental des gammas individuels
-- `verdict_reporter.py` : Orchestration complète génération rapports
-
-**✅ UTIL** : Modules spécialisés
 - `aggregation_utils.py` : Agrégations statistiques (`aggregate_summary_metrics`, `aggregate_run_dispersion`)
 - `data_loading.py` : Chargement observations (`load_all_observations`, `observations_to_dataframe`)
 - `regime_utils.py` : Classification régimes (`classify_regime`, `stratify_by_regime`, `extract_conserved_properties`)
 - `report_writers.py` : Formatage rapports (`write_json`, `write_regime_synthesis`, `write_dynamic_signatures`)
 - `statistical_utils.py` : Outils stats (`compute_eta_squared`, `filter_numeric_artifacts`, `diagnose_scale_outliers`)
 - `timeline_utils.py` : Construction timelines (`compute_timeline_descriptor`, `classify_timing`)
+- `profiling_common.py` : Moteur générique profiling + API publique conventionnelle (profile_all_, compare__summary)
+- `cross_profiling.py` : Rankings multi-dimensionnels + analyses interactions + détection signatures globales
 
 ---
+**R5-A** (Source de vérité)
+Le catalogue définit ce qui est théoriquement disponible.
+La base de données définit ce qui a été effectivement exécuté.
+Le profiling ne travaille que sur les entités présentes dans les observations.
+
+**R5-B** (Interdiction)
+Aucun module ne doit :
+    -hardcoder une liste d’IDs,
+    -supposer l’exhaustivité des catalogues,
+    -inférer l’existence d’une entité non observée.
+    
+**R5-C** (Principe fondateur)
+Le pipeline PRC a été initialement développé autour du gamma profiling.
+Toute extension (modifier, encoding, test) doit :
+    -réutiliser les abstractions existantes,
+    -ne jamais spécialiser le cœur,
+    -étendre uniquement par registres, hooks ou extensions déclarées.
+    
+## SECTION 5.1 : PROFILING RUNNER
+
+### Responsabilité
+Orchestration exécution profiling multi-axes avec découverte automatique.
+
+### Architecture découverte automatique
+```python
+# Découverte modules profiling disponibles
+PROFILING_AXES = discover_profiling_modules()
+# Retourne : {'gamma': module, 'modifier': module, ...}
+
+# Exécution dynamique
+run_all_profiling(observations, axes=['gamma', 'modifier'])
+# Appelle automatiquement :
+#   - gamma_profiling.profile_all_gammas()
+#   - modifier_profiling.profile_all_modifiers()
+```
+
+### Format retour UNIFIÉ (règle stricte)
+
+**R5.1-A** : Tous axes profiling DOIVENT retourner structure :
+```python
+{
+    'profiles': dict,      # Profils individuels entités
+    'summary': dict,       # Comparaisons cross-entités
+    'metadata': dict,      # Infos exécution
+    # Extensions spécifiques axe (optionnel, voir R5.1-B)
+}
+```
+
+**R5.1-B** : Règles découverte modules
+- Modules profiling nommés : `*_profiling.py`
+- Doivent exposer fonctions conventionnelles :
+  - `profile_all_{axis}(observations) → dict`
+  - `compare_{axis}_summary(profiles) → dict`
+- Extensions détectées via introspection module
+
+**R5.1-D **: Ordre découverte axes
+```python
+PROFILING_AXES = {
+    'test': {...},      # Ordre déclaré explicite (dict standard Python 3.7+)
+    'gamma': {...},
+    'modifier': {...},
+    'encoding': {...}
+}
+```
+Rationale ordre :
+    -test : Axe observation privilégié (lisibilité, comparabilité)
+    -gamma, modifier, encoding : Axes causaux
+    -⚠️ Axe test non structurellement dominant : présent par défaut mais pas obligatoire
+
+
+**R5.1-E **: Tous axes garantis présents
+    -Observations proviennent toujours de db_results
+    -Chaque observation contient : test_name, gamma_id, modifier_id, d_encoding_id
+    -Aucun axe ne peut être "manquant" (tous axes profiling exécutables)
+    -Différence possible : nombre entités par axe (ex: 13 gammas, 3 modifiers)
+
+
+## SECTION 5.2 : PROFILING COMMON
+
+### Responsabilité
+Fonctions réutilisables tous modules profiling. Évite duplication code.
+
+### Règles utilisation
+
+**R5.2-A** : Moteur générique interne
+```python
+_profile_entity_axis(observations, axis, entity_key) → dict
+# Moteur interne privé, logique partagée tous axes
+```
+
+**R5.2-B** : API publique conventionnelle
+```python
+# Fonctions découvrables automatiquement (naming convention stricte)
+profile_all_tests(observations) → dict
+profile_all_gammas(observations) → dict
+profile_all_modifiers(observations) → dict
+profile_all_encodings(observations) → dict
+
+compare_tests_summary(profiles) → dict
+compare_gammas_summary(profiles) → dict
+compare_modifiers_summary(profiles) → dict
+compare_encodings_summary(profiles) → dict
+```
+**R5.2-C ***: Mapping entity keys
+```python
+# Normalisation sur noms colonnes DB (pas d'alias)
+ENTITY_KEY_MAP = {
+    'test': 'test_name',
+    'gamma': 'gamma_id',
+    'modifier': 'modifier_id',
+    'encoding': 'd_encoding_id'
+}
+```
+
+**R5.2-D **: Axe test enrichi discriminant power
+```python
+# Structure identique autres axes + métrique additionnelle
+profiles['UNIV-001'] = {
+    'entities': {...},           # Standard (comme gamma/modifier/encoding)
+    'discriminant_power': {      # AJOUT spécifique test
+        'inter_entity_variance': float,
+        'effect_size': float,
+        'ranking_consistency': float
+    },
+    'n_entities': int,
+    'n_total_runs': int
+}
+```
+
+## SECTION 5.3 : CROSS PROFILING 
+
+### Responsabilité
+Analyse interactions entre axes profiling.
+
+**Exemples cas d'usage** :
+- Interaction gamma × modifier (GAM-004 × M1 → OSCILLATORY systématique)
+- Interaction encoding × test (SYM vs ASY sous SYM-001)
+- Interaction gamma × encoding × modifier (3-way)
+
+**Emplacement** : `tests/utilities/PROFILING/cross_profiling.py`
+
+**R5.3-A **: Rankings multi-dimensionnels
+```python
+rank_entities_by_metric(
+    profiles: dict,
+    grouping_dimension: str,   # 'test', 'encoding', 'modifier'
+    metric_key: str,           # 'SYM-001', 'M1', 'GAM-004'
+    criterion: str | callable
+) → dict
+
+# Remplace rank_gammas_by_test() (rétrocompatibilité via même logique)
+```
+
+**R5.3-B **: Interactions (placeholders R0)
+```python
+analyze_pairwise_interactions(profiles_a, profiles_b) → dict
+analyze_multiway_interactions(all_profiles) → dict
+detect_global_signatures(all_profiles) → dict
+
+# R0 : Docstrings + structure retour définies, implémentation différée
+```
 
 ## SECTION 6 : PATTERNS ET RÉGIMES
 
@@ -428,68 +608,39 @@ stratification:
 - Flag `--verdict` signifie "génération rapports patterns" (pas verdict décisionnel)
 
 
-## SECTION 7 : PROFILING GAMMA
+## SECTION 7 : PROFILING 
 
 Toute fonction de classement est descriptive, jamais décisionnelle.
 
-### Module `gamma_profiling.py`
-**Responsabilité** : Profiling comportemental des gammas individuels
+### Module `profiling_common.py`
+**Responsabilité** : Profiling comportemental tous axes (gamma, modifier, encoding, test)
+
+**Emplacement** : `tests/utilities/UTIL/profiling_common.py`  
+
+**Dépendances** :
+- `timeline_utils` : Événements dynamiques
+- `aggregation_utils` : Agrégations statistiques
+- `regime_utils` : Classification régimes
 
 **Fonctions principales** :
 ```python
-# Profiling d'un gamma sur un test spécifique
-profile_test_for_gamma(observations, test_name, gamma_id) → dict
-
-# Profiling de tous les gammas
 profile_all_gammas(observations) → dict
-
-# Classement des gammas par test
-rank_gammas_by_test(profiles, test_name, criterion='conservation') → List[Tuple]
-
-# Comparaison synthétique
 compare_gammas_summary(profiles) → dict
 ```
 
-**Structure d'un profil gamma** :
-```python
-{
-    'gamma_id': 'GAM-001',
-    'test_name': 'SYM-001',
-    'n_runs': 50,
-    'n_valid': 48,
-    'metrics': {
-        'asymmetry_norm': {
-            'final_value': {'median': 0.05, 'q1': 0.03, 'q3': 0.07, ...},
-            'initial_value': 0.01,
-            'mean_value': 0.04,
-            'cv': 0.25,
-        },
-    },
-    'dynamic_signatures': {
-        'asymmetry_norm': {
-            'phases': [
-                {'event': 'deviation', 'timing': 'early', 'onset_relative': 0.1},
-                {'event': 'saturation', 'timing': 'mid', 'onset_relative': 0.5},
-            ],
-            'timeline_compact': 'early_deviation_then_saturation',
-        },
-    },
-    'regime': 'CONSERVES_SYMMETRY',
-    'conserved_properties': ['symmetry'],
-    'dispersion': {
-        'final_value_iqr_ratio': 1.4,
-        'cv_across_runs': 0.3,
-        'bimodal_detected': False,
-    },
-}
-```
+**Format retour** : Conforme R5.1-A (structure unifiée)  
 
----
+**R7-A**
+Aucun module de profiling n’a le droit d’implémenter :
+    -un calcul de signature dynamique,
+    -un calcul PRC,
+    -un ranking cross-tests
+sans passer par profiling_common.py.
 
 ## SECTION 8 : GÉNÉRATION DE RAPPORTS
 
 ### Module `verdict_reporter.py`
-**Responsabilité** : Orchestration complète génération rapports R0
+**Responsabilité** : Compilation résultats + génération rapports (simplifié)
 
 **Pipeline actuel** :
 ```python
@@ -497,49 +648,146 @@ generate_verdict_report(params_config_id, verdict_config_id, output_dir) → dic
   │
   ├─ 1. CHARGEMENT + DIAGNOSTICS
   │    ↓ data_loading.load_all_observations()
-  │    ↓ statistical_utils.filter_numeric_artifacts()
-  │    ↓ statistical_utils.generate_degeneracy_report()
   │
   ├─ 2. ANALYSES GLOBALES STRATIFIÉES
-  │    ↓ regime_utils.stratify_by_regime()
   │    ↓ verdict_engine.analyze_regime() × 3 (GLOBAL, STABLE, EXPLOSIF)
   │
-  ├─ 3. PROFILING GAMMA
-  │    ↓ gamma_profiling.profile_all_gammas()
-  │    ↓ gamma_profiling.compare_gammas_summary()
+  ├─ 3. PROFILING MULTI-AXES (NOUVEAU)
+  │    ↓ profiling_runner.run_all_profiling(observations, axes=['gamma', 'modifier'])
+  │    Returns: {'gamma': {...}, 'modifier': {...}}
   │
   ├─ 4. FUSION RÉSULTATS
-  │    ↓ _compile_metadata()
-  │    ↓ _format_gamma_profiles()
-  │    ↓ _compile_structural_patterns()
+  │    ↓ _compile_all_analyses(global_patterns, all_profiling)
   │
   └─ 5. GÉNÉRATION RAPPORTS
-       ↓ report_writers.write_json()           # analysis_complete.json
-       ↓ report_writers.write_regime_synthesis() # summary.txt
-       ↓ report_writers.write_dynamic_signatures()
-       ↓ report_writers.write_comparisons_enriched()
+       ↓ report_writers.write_summary_global(...)       # NOUVEAU
+       ↓ report_writers.write_summary_gamma(...)        # NOUVEAU (split existant)
+       ↓ report_writers.write_summary_modifier(...)     # NOUVEAU
+       ↓ report_writers.write_profiling_reports(...)    # NOUVEAU (générique)
+       ↓ report_writers.write_json(...)                 # CONSERVÉ
 ```
+
+**Simplification** : Délégation orchestration profiling à `profiling_runner`
 
 ### Formats de sortie
-**Structure des rapports** :
+
+**Structure rapports** :
 ```
-reports/verdicts/
-└── 20250115_1430_analysis_global/
-    ├── summary.txt                    # Synthèse lisible
-    ├── analysis_complete.json         # Données complètes (LLM/scripts)
-    ├── metadata.json                  # Configs utilisées
-    ├── gamma_profiles/               # Profils individuels
-    │   ├── GAM-001.json
-    │   └── GAM-002.json
-    ├── comparisons/                   # Comparaisons
-    │   ├── by_test.json
-    │   └── overall.json
-    └── diagnostics/                   # Diagnostics techniques
-        ├── degeneracy_report.json
-        └── scale_outliers.json
+reports/verdicts/TIMESTAMP_analysis_global/
+├── summary_global.txt              # NOUVEAU - Synthèse unifiée
+│
+├── summaries/                      # NOUVEAU - Synthèses par axe
+│   ├── summary_gamma.txt
+│   ├── summary_modifier.txt
+│   ├── summary_encoding.txt        # Futur
+│   └── summary_tests.txt           # Futur
+│
+├── analysis_complete.json          # CONSERVÉ - Données complètes
+│
+├── profiles/                       # NOUVEAU - Profils par axe/entité
+│   ├── gamma/
+│   │   ├── GAM-001.json
+│   │   └── ...
+│   ├── modifier/
+│   │   ├── M0.json
+│   │   ├── M1.json
+│   │   └── M2.json
+│   └── encoding/                   # Futur
+│
+├── comparisons/                    # ÉTENDU
+│   ├── gamma_by_test.json
+│   ├── modifier_by_test.json       # NOUVEAU
+│   ├── modifier_signatures.json    # NOUVEAU
+│   └── cross_analysis.json         # Futur
+│
+└── diagnostics/                    # CONSERVÉ
+    ├── degeneracy_report.json
+    └── scale_outliers.json
 ```
 
----
+### Structure `summary_global.txt` (nouveau)
+
+Template synthèse unifiée :
+```markdown
+# SYNTHÈSE GLOBALE R0
+
+## CONFIGURATION
+- Params: {params_config_id}
+- Verdict: {verdict_config_id}
+- Scope: {n_gammas} gammas × {n_modifiers} modifiers × {n_encodings} encodings × {n_tests} tests
+
+## GAMMAS - ÉLÉMENTS CLÉS
+- [Top 3 conservation]
+- [Top 3 pathologiques]
+- [Timeline dominante]
+
+## MODIFIERS - ÉLÉMENTS CLÉS
+- [Baseline validé]
+- [Modifiers perturbateurs]
+- [Sensibilités contextuelles]
+
+## TESTS - ÉLÉMENTS CLÉS
+- [Tests discriminants]
+- [Tests non-discriminants]
+- [Tests instables]
+
+## PATTERNS STRUCTURELS
+- [D_CORRELATED]
+- [MODIFIER_CORRELATED]
+- [CONTEXTUAL]
+
+## RECOMMANDATIONS R0
+- [Liste actions suggérées humain]
+```
+
+**R8-A** : `summary_global.txt` ne doit contenir QUE éléments clés
+- Maximum 30 lignes
+- Références détails → `summaries/{axe}.txt`
+
+**R8-B** : `summary_{axe}.txt` format libre
+- Chaque axe profiling peut définir structure
+- Généré par `report_writers.write_summary_{axe}()`
+
+### Templates Jinja2
+
+**R8-C** : Templates génériques
+```
+templates/
+├── summary_global.md.j2       # Synthèse multi-axes
+├── summary_axis.md.j2         # Générique tous axes (sections conditionnelles)
+└── profile_entity.json.j2     # Générique toute entité
+```
+
+**R8-D **: Sections conditionnelles autorisées
+``` Jinja2
+{% if discriminant_powers %}
+## POUVOIR DISCRIMINANT
+...
+{% endif %}
+```
+
+Permet flexibilité axe test (discriminant_power) sans dupliquer templates
+
+### Structure rapports (vérification)
+
+**VÉRIFIER** structure actuelle conforme :
+```
+reports/verdicts/TIMESTAMP_analysis_global/
+├── summary_global.txt
+├── summaries/
+│   ├── summary_test.txt        # Ordre : test en premier
+│   ├── summary_gamma.txt
+│   ├── summary_modifier.txt
+│   └── summary_encoding.txt
+├── profiles/
+│   ├── test/
+│   ├── gamma/
+│   ├── modifier/
+│   └── encoding/
+└── comparisons/
+    ├── rankings_*.json         # Tous rankings cross_profiling
+    └── interactions_*.json     # Placeholders R0
+```
 
 ## SECTION 9 : EXTENSION DU SYSTÈME
 
@@ -551,7 +799,6 @@ reports/verdicts/
     le développeur ou LLM doit demander le fichier source concerné
     (catalogue, module .py, config YAML).
     Toute supposition est interdite.
-
 
 ### Checklist de validation
 Avant d'ajouter un nouveau module :
@@ -647,6 +894,10 @@ TOP-001              # Topologique
 | **HUB** | Module d'orchestration (à refactoriser) | engine principal |
 | **UTIL** | Module utilitaire spécialisé | helper function |
 | **profil gamma** | Caractérisation comportementale Γ | gamma score |
+| **profiling axis** | Dimension analyse (gamma, modifier, etc.) | - |
+| **profiling runner** | Orchestrateur profiling multi-axes | - |
+| **unified format** | Structure retour standard profiling | - |
+
 
 ### Statuts autorisés
 ```
@@ -669,7 +920,7 @@ REJECTED[GLOBAL]     # Éliminé définitif tous rangs
    ├── D_encodings/d_encoding_catalog.md
    ├── modifiers/modifier_catalog.md
    ├── tests/tests_catalog.md
-   └── tests/utilities/utilities_catalog.md
+   └── tests/utilities/HUB_catalog.md, util_catalog.md, registries_catalog.md
 
 3. SOURCES CODE (injection conversation si besoin)
    ├── tests/utilities/*.py
@@ -714,7 +965,38 @@ REJECTED[GLOBAL]     # Éliminé définitif tous rangs
 - ❌ "position (i,j)" → ✅ "indice (i,j)"
 - ❌ "d_base_id" → ✅ "d_encoding_id"
 
----
+### Profiling
+
+**R12-I** : Modules profiling DOIVENT :
+    -Implémenter API conventionnelle profile_all_{axis}() et compare_{axis}_summary()
+    -Utiliser moteur générique _profile_entity_axis() (pas réimplémenter)
+    -Respecter format retour unifié (R5.1-A) strictement
+    -Utiliser ENTITY_KEY_MAP pour normalisation noms colonnes DB
+
+**R12-J** : Modules profiling NE DOIVENT PAS :
+- Dupliquer code `profiling_common` (extraction obligatoire)
+- Hardcoder listes entités (découverte dynamique depuis observations)
+- Retourner formats hétérogènes (validation stricte)
+- Implémenter verdicts décisionnels (rankings descriptifs uniquement)
+
+### Orchestration
+
+**R12-K** : `profiling_runner` NE DOIT PAS :
+- Hardcoder liste axes disponibles (découverte automatique)
+- Modifier données profiling (passthrough strict)
+- Implémenter logique profiling (délégation totale modules)
+
+**R12-L** : `verdict_reporter` NE DOIT PAS :
+- Appeler directement modules profiling (passer par `profiling_runner`)
+- Implémenter logique analytique (compilation + écriture uniquement)
+
+**R12-M **: Architecture unifiée - Interdictions
+
+    -❌ Créer modules {axe}_profiling.py séparés (tout dans profiling_common.py)
+    -❌ Dupliquer logique profiling (un seul moteur _profile_entity_axis)
+    -❌ Alias entity keys (utiliser exactement noms DB : d_encoding_id pas encoding_id)
+    -❌ Extensions format retour hors discriminant_power pour tests (tout autre enrichissement → cross_profiling)
+
 
 ## SECTION 13 : GLOSSAIRE ACTUALISÉ
 
@@ -737,16 +1019,19 @@ REJECTED[GLOBAL]     # Éliminé définitif tous rangs
 | **IQR** | Écart interquartile | `Q3 - Q1` |
 | **bimodalité** | Distribution à deux modes | `IQR_ratio > 3.0` |
 | **timeline compacte** | Représentation textuelle timeline | `"early_deviation_then_saturation"` |
-
+| **profiling axis** | Dimension analyse (test, gamma, modifier, encoding) |- |
+| **entity key** | Nom colonne DB identifiant entité axe | 'gamma_id', 'd_encoding_id' |
+| **discriminant power** | Pouvoir discriminant test cross-entities | variance inter-gammas | 
+| **grouping dimension** | Axe regroupement pour ranking | 'test' dans rank gamma par test |
 ---
 
-**FIN CHARTER PRC 6.0**
+**FIN CHARTER PRC 6.1**
 
-**Version** : 6.0.0  
+**Version** : 6.1.0  
 **Date** : 2025-01-15  
 **Statut** : PRODUCTION  
 **Basé sur** : Catalogues opérationnels, état fonctionnel réel  
 
-Ce charter est la **référence opérationnelle unique** pour l'architecture PRC 6.0.  
+Ce charter est la **référence opérationnelle unique** pour l'architecture PRC 6.1.  
 Il décrit l'état **réel** du système tel qu'implémenté et documenté dans les catalogues.  
 Toute extension DOIT se conformer strictement à ces spécifications.
