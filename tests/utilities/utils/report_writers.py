@@ -326,45 +326,6 @@ def write_comparisons_enriched(
 
 
 # =============================================================================
-# PROPRIÉTÉS CONSERVÉES
-# =============================================================================
-
-def extract_conserved_properties_display(profile: Dict) -> List[str]:
-    """
-    Extrait propriétés conservées (pour affichage).
-    
-    Args:
-        profile: Profil gamma
-    
-    Returns:
-        list[str]: Propriétés conservées
-    
-    Examples:
-        >>> extract_conserved_properties_display(gamma_profile)
-        ['Symétrie', 'Norme', 'Pattern']
-    """
-    properties = set()
-    
-    for test_data in profile.get('tests', {}).values():
-        regime = test_data.get('regime', '')
-        
-        if 'CONSERVES_SYMMETRY' in regime:
-            properties.add('Symétrie')
-        elif 'CONSERVES_NORM' in regime:
-            properties.add('Norme')
-        elif 'CONSERVES_PATTERN' in regime:
-            properties.add('Pattern')
-        elif 'CONSERVES_TOPOLOGY' in regime:
-            properties.add('Topologie')
-        elif 'CONSERVES_GRADIENT' in regime:
-            properties.add('Gradient')
-        elif 'CONSERVES_SPECTRUM' in regime:
-            properties.add('Spectre')
-    
-    return sorted(properties)
-
-
-# =============================================================================
 # FOOTER CONSULTATION
 # =============================================================================
 

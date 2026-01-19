@@ -15,6 +15,10 @@ RESPONSABILITÉS CONSERVÉES :
 - Comparaisons inter-gammas
 - Rankings
 """
+# NOTE : Ce module est un TEMPLATE LEGACY gamma-centrique.
+# Il sera SUPPRIMÉ après validation complète de profiling_runner.py.
+# NE PAS développer de nouvelles fonctionnalités ici.
+# Utiliser profiling_common.py pour tout nouveau profiling.
 
 import numpy as np
 import pandas as pd
@@ -28,10 +32,8 @@ from collections import Counter, defaultdict
 # Timelines et événements dynamiques
 from .timeline_utils import (
     TIMELINE_THRESHOLDS,
-    classify_timing,
     compute_timeline_descriptor,
     extract_dynamic_events,
-    extract_metric_timeseries
 )
 
 # Agrégations statistiques
@@ -43,7 +45,6 @@ from .aggregation_utils import (
 # Classification régimes
 from .regime_utils import (
     classify_regime,
-    extract_conserved_properties
 )
 
 

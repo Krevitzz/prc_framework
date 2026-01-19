@@ -1,8 +1,8 @@
-# CHARTER PRC 6.0 - ÉTAT OPÉRATIONNEL
+# CHARTER PRC 6.1 - ÉTAT OPÉRATIONNEL
 
 > Document normatif unique décrivant l'architecture réelle du système PRC.  
 > Basé sur l'état fonctionnel documenté dans les catalogues.  
-> Version 6.0 prévaut sur toutes versions antérieures.
+> Version 6.1 prévaut sur toutes versions antérieures.
 
 ---
 
@@ -105,199 +105,531 @@ Les étapes 9 à 12 sont hors périmètre logiciel.
 Aucun module PRC ne doit tenter de les automatiser.
 ```
 
-### Commandes batch_runner
-```bash
-# Mode 1 : Collecte données
-batch_runner --brut --gamma GAM-001
-# → Exécute kernel, stocke dans db_raw (immuable)
-
-# Mode 2 : Application tests
-batch_runner --test --gamma GAM-001 --params default_v1
-# → Vérifie db_raw, auto-lance --brut si manquant
-# → Applique tests, stocke dans db_results
-
-# Mode 3 : Génération verdicts
-batch_runner --verdict --params default_v1 --verdict default_v1
-# → Vérifie db_results, auto-lance --test si manquant
-# → Analyse patterns, génère rapports
-
-# Raccourci complet
-batch_runner --all --gamma GAM-001 --params default_v1 --verdict default_v1
-```
-
 ### Bases de données
 
-**prc_r0_raw.db** (immuable, append-only) :
-```sql
-Executions   -- Métadonnées runs (gamma_id, d_encoding_id, modifier_id, seed)
-Snapshots    -- États sauvegardés (compressed)
-Metrics      -- Métriques brutes par iteration
+**prc_r0_raw.db** (immuable, append-only)
+
+**prc_r0_results.db** (rejouable, versionné) 
+
+---
+
+## SECTION 4 : assistance coding
+
+### **Mémoire LLMs** 
+```
+1. BIBLIOTHÈQUE PERMANENTE (contexte systématique toujours disponible)
+   ├── charter_*.md                # Cadre architectural + interdictions
+   ├── r0_status.md                # Travail en cours (ce qui change)
+   └── functions_index.md          # liste de toutes les fonctionalités existantes
+
+2. CATALOGUES (injection à la demande)
+   ├── core_catalog.md
+   ├── operators/gamma_catalog.md
+   ├── D_encodings/d_encoding_catalog.md
+   ├── modifiers/modifier_catalog.md
+   ├── tests/tests_catalog.md
+   └── tests/utilities/HUB_catalog.md, util_catalog.md, registries_catalog.md, PATTERNS.md
+
+3. SOURCES CODE (injection conversation si besoin)
+   ├── tests/utilities/*.py
+   ├── operators/gamma_hyp_*.py
+   └── ...
 ```
 
-**prc_r0_results.db** (rejouable, versionné) :
-```sql
-TestObservations  -- Résultats tests (format dict v2)
--- Colonnes : observation_id, exec_id, test_name, params_config_id,
---            applicable, status, observation_data (JSON), computed_at
+### Règles Directionnelles (Architecture)
+
+#### Dépendances autorisées
+
+```
+core → operators, encodings, modifiers
+prc_automation → core, tests, HUB
+HUB → UTIL
+UTIL → registries
+registries → (rien)
+```
+
+#### Interdictions strictes
+
+```
+❌ UTIL → HUB
+❌ HUB → core
+❌ Toute dépendance circulaire
 ```
 
 ---
 
-## SECTION 4 : TESTS - FORMAT ACTUEL
+### Principes par Couche
 
-### Principe fondamental
-**R4-A** : Tests OBSERVENT (pas de jugement). Patterns détectés ultérieurement.
+#### HUB (Orchestration)
+- **Rôle** : Orchestration, délégation stricte
+- **Responsabilité** : Appeler UTIL/PROFILING, jamais réimplémenter
+- **Exemples** : test_engine.py, verdict_reporter.py, profiling_runner.py
 
-### Structure d'un module test
+#### UTIL (Calculs spécialisés)
+- **Rôle** : Fonctions stateless, réutilisables
+- **Responsabilité** : Aucune orchestration, aucun I/O global
+- **Exemples** : regime_utils.py, aggregation_utils.py, statistical_utils.py
+
+#### registries (Fonctions mathématiques)
+- **Rôle** : Fonctions pures (state → float)
+- **Responsabilité** : Calculs atomiques, zéro dépendance interne
+- **Exemples** : algebra_registry.py, spectral_registry.py
+
+---
+
+### Vérification Avant Merge
+
+**Checklist obligatoire** :
+
+- [ ] Pas de `from HUB import` dans UTIL
+- [ ] Pas de duplication fonction (vérifier tables "AVANT DE CODER")
+- [ ] Imports circulaires détectés : `python -m pycircular tests/`
+
+---
+
+### Exemples Violations Courantes
+
+#### ❌ VIOLATION : UTIL importe HUB
 ```python
-# tests/test_category_nnn.py
-"""
-[Titre descriptif]
+# Dans aggregation_utils.py (UTIL)
+from ..HUB.verdict_engine import analyze_regime  # ❌ INTERDIT
+```
 
-Objectif :
-- [Description phénomène mesuré]
+**Correction** : HUB appelle UTIL, jamais l'inverse
+```python
+# Dans verdict_engine.py (HUB)
+from .aggregation_utils import aggregate_summary_metrics  # ✅ OK
+```
 
-Métriques :
-- [nom_métrique_1] : [Pertinence]
-- [nom_métrique_2] : [Pertinence]
+#### ❌ VIOLATION : Duplication fonction
+```python
+# Dans report_writers.py (UTIL)
+def extract_conserved_properties(...):  # ❌ EXISTE DÉJÀ
+    # Même code que regime_utils.py
+```
 
-Algorithmes utilisés :
-- [registry_key_1] : [Justification]
+**Correction** : Importer au lieu de dupliquer
+```python
+# Dans report_writers.py (UTIL)
+from .regime_utils import extract_conserved_properties  # ✅ OK
+```
 
+---
+
+### Ressources
+
+**Avant de coder** : Consulter tables "AVANT DE CODER" dans :
+- HUB_catalog.md
+- UTIL_catalog.md (si créé)
+
+**Registres disponibles** : `registries/README.md`
+
+## SECTION 4.5 : Méthodologie Développement PRC Framework
+
+TL;DR METHODOLOGY
+- Pas de code sans objectif écrit
+- Pas de code sans organigramme validé
+- Interfaces avant implémentation
+- Zéro duplication tolérée
+- HUB orchestre, UTIL calcule, registries mesurent
+
+
+### Principe Fondamental
+
+**Ordre développement obligatoire** :
+
+```
+1. MÉTIER (objectif, contraintes)
+     ↓
+2. ORGANIGRAMME (architecture, dépendances)
+     ↓
+3. STRUCTURE (interfaces, formats)
+     ↓
+4. CODE (implémentation, tests)
+```
+
+**Validation** : Chaque étape complète avant suivante
+
+---
+
+### ÉTAPE 1 : MÉTIER
+
+#### Objectif
+
+Définir **QUOI** et **POURQUOI** avant **COMMENT**.
+
+#### Livrables
+
+**Pour un test** :
+- Objectif clair (1-2 phrases)
+- Métriques mesurées (liste justifiée)
+- Algorithmes utilisés (registry_key précis)
+- **Exclusions** (alternatives non retenues + pourquoi)
+
+**Exemple test** :
+```
+Objectif : Mesurer stabilité globale tenseur sous Γ
+Métriques : frobenius_norm (discrimine explosions/effondrements)
+Algorithmes : algebra.matrix_norm (standard, robuste, O(n²))
 Exclusions :
-- [Alternatives non retenues] : [Pourquoi]
-"""
-
-TEST_ID = "CAT-NNN"           # Format CAT-NNN (ex: UNIV-001)
-TEST_CATEGORY = "CAT"         # UNIV, SYM, SPE, etc.
-TEST_VERSION = "6.0"          # Doit être "6.0"
-TEST_WEIGHT = 1.0             # Obligatoire, importance épistémique
-
-APPLICABILITY_SPEC = {
-    "requires_rank": int | None,          # 2, 3, ou None (tout)
-    "requires_square": bool,              # Matrice carrée requise
-    "allowed_d_types": List[str],         # ["SYM", "ASY", "R3"]
-    "minimum_dimension": int | None,      # Dimension minimale
-    "requires_even_dimension": bool,      # Dimension paire requise
-}
-
-COMPUTATION_SPECS = {
-    'nom_metrique_1': {
-        'registry_key': 'registre.fonction',  # ex: 'algebra.matrix_norm'
-        'default_params': {
-            'param1': valeur1,
-            'param2': valeur2,
-        },
-        'post_process': 'round_4',  # Optionnel : identity, round_N, abs, log, etc.
-    },
-    # 1 à 5 métriques maximum
-}
+  - Norme spectrale : Trop coûteuse (SVD), peu discriminante ici
+  - Norme nucléaire : Redondante avec Frobenius pour explosions
 ```
 
-### Format de retour (dict v2)
-```python
-{
-    # Traçabilité
-    'run_metadata': {
-        'gamma_id': str,
-        'd_encoding_id': str,      # PAS d_base_id
-        'modifier_id': str,
-        'seed': int,
-    },
-    
-    # Identification
-    'test_name': str,
-    'test_category': str,
-    'test_version': str,
-    'params_config_id': str,
-    
-    # Status (seulement 3 valeurs autorisées)
-    'status': 'SUCCESS' | 'ERROR' | 'NOT_APPLICABLE',
-    'message': str,  # Description si ERROR ou NOT_APPLICABLE
-    
-    # Résultats (dict de dicts)
-    'statistics': {
-        'metric_name': {
-            'initial': float,
-            'final': float,
-            'min': float,
-            'max': float,
-            'mean': float,
-            'std': float,
-            'median': float,
-            'q1': float,
-            'q3': float,
-            'n_valid': int,
-        },
-    },
-    
-    # Evolution (dict de dicts)
-    'evolution': {
-        'metric_name': {
-            'transition': str,      # "stable", "increasing", "explosive", "collapsing"
-            'trend': str,           # "monotonic", "oscillatory", "chaotic"
-            'slope': float,         # Coefficient de régression linéaire
-            'volatility': float,    # Écart-type des différences
-            'relative_change': float,  # (final - initial) / max(|initial|, 1e-10)
-        },
-    },
-    
-    # Événements dynamiques 
-    'dynamic_events': {
-        'metric_name': {
-            # Onsets (itération détection)
-            'deviation_onset': int | None,
-            'instability_onset': int | None,
-        
-            # Flags booléens
-            'oscillatory': bool,
-            'saturation': bool,
-            'collapse': bool,
-        
-            # Séquence ordonnée
-            'sequence': List[str],              # ["deviation", "saturation"]
-            'sequence_timing': List[int],       # [15, 87] (itérations absolues)
-            'sequence_timing_relative': List[float],  # [0.075, 0.435] (normalisé [0,1])
-        },
-    },
-    
-    # Métadonnées techniques
-    'metadata': {
-        'engine_version': '6.0',
-        'execution_time_sec': float,
-        'num_iterations_processed': int,
-        'total_metrics': int,
-        'successful_metrics': int,
-        'computations': {
-            'metric_name': {
-                'registry_key': str,
-                'params_used': dict,
-                'has_post_process': bool,
-            },
-        }
-    }
-}
+**Pour un gamma** :
+- Mécanisme physique/mathématique
+- Comportement attendu (convergence, stabilité, trivialité)
+- Famille (markovian, non_markovian, stochastic, structural)
+- Applicabilité D (SYM, ASY, R3)
+
+**Exemple gamma** :
+```
+Mécanisme : Diffusion pure via Laplacien discret
+Comportement attendu :
+  - Convergence : Rapide (<500 iterations)
+  - Stabilité : Von Neumann α < 0.25
+  - Trivialité : Homogénéisation totale (attracteur uniforme)
+Famille : markovian
+Applicabilité : SYM, ASY (rang 2 uniquement)
 ```
 
-**Utilisation downstream** :
-- `gamma_profiling.aggregate_dynamic_signatures()` lit ce format
-- `timeline_utils.compute_timeline_descriptor()` génère timeline compacte
+#### Validation Étape 1
 
-### Status autorisés
-- `SUCCESS` : Test exécuté normalement
-- `ERROR` : Erreur technique → ARRÊT BATCH (bug code)
-- `NOT_APPLICABLE` : Test invalide pour contexte (non pénalisé)
-
+- [ ] Objectif consensuel (équipe)
+- [ ] Métriques justifiées (pas arbitraires)
+- [ ] Exclusions documentées (alternatives considérées)
+- [ ] Revue par pair complète
 
 ---
 
-## SECTION 5 : UTILITIES - ARCHITECTURE RÉELLE
+### ÉTAPE 2 : ORGANIGRAMME
 
-### Organisation actuelle
+#### Objectif
+
+Définir **ARCHITECTURE** avant code.
+
+#### Livrables
+
+**Diagramme modules** :
+```
+HUB (orchestration)
+  ↓
+PROFILING (analyses cross-entités)
+  ↓
+UTIL (calculs spécialisés)
+  ↓
+registries (fonctions pures)
+```
+
+**Graphe dépendances** :
+- Acyclique obligatoire
+- Respecter PRC_DEPENDENCY_RULES.md
+
+**Flux données** :
+```
+observations (DB)
+  ↓
+data_loading.load_all_observations()
+  ↓
+profiling_runner.run_all_profiling()
+  ↓
+verdict_reporter.generate_verdict_report()
+  ↓
+rapports (JSON, TXT, CSV)
+```
+
+#### Validation Étape 2
+
+- [ ] Zéro dépendance circulaire (vérifier `pycircular`)
+- [ ] Modules UTIL purs (zéro dépendance interne PRC)
+- [ ] HUB délègue strictement (pas de calcul inline)
+- [ ] Conforme PRC_DEPENDENCY_RULES.md
+
+---
+
+### ÉTAPE 3 : STRUCTURE
+
+#### Objectif
+
+Définir **INTERFACES** avant implémentation.
+
+#### Livrables
+
+**Signatures fonctions** :
+```python
+def profile_all_gammas(observations: List[dict]) -> dict:
+    """
+    Profil comportemental tous gammas.
+    
+    Args:
+        observations: Liste observations SUCCESS
+    
+    Returns:
+        {
+            'GAM-001': {
+                'tests': {...},
+                'n_tests': int,
+                'n_total_runs': int
+            },
+            ...
+        }
+    """
+    pass
+```
+
+**Formats retour** :
+- Structure dict normalisée
+- Clés standardisées (test_name, gamma_id, etc.)
+- Types annotations complètes
+
+**Conventions nommage** :
+- Tests : `TEST_ID = "CAT-NNN"`
+- Gammas : `GAM-NNN`
+- Encodings : `SYM-NNN`, `ASY-NNN`, `R3-NNN`
+- Registries : `registry.function_name`
+
+#### Validation Étape 3
+
+- [ ] Signatures types annotations complètes
+- [ ] Format retour documenté (docstring)
+- [ ] Respect conventions Charter
+- [ ] Compatibilité backwards (si refactor)
+
+---
+
+### ÉTAPE 4 : CODE
+
+#### Objectif
+
+Implémenter **PROPREMENT** avec documentation.
+
+#### Livrables
+
+**Code source** :
+```python
+class SomeGamma:
+    """
+    Description mécanisme.
+    
+    ATTENDU:
+    - Comportement convergence
+    - Propriétés conservation
+    
+    AVEUGLEMENT:
+    - Ne connaît pas dimension état
+    - Ne connaît pas interprétation
+    """
+    
+    def __init__(self, param: float):
+        """
+        Args:
+            param: Description + contraintes
+        
+        Raises:
+            AssertionError: Si param invalide
+        """
+        assert param > 0, "param doit être > 0"
+        self.param = param
+    
+    def __call__(self, state: np.ndarray) -> np.ndarray:
+        """
+        Applique transformation Γ.
+        
+        Args:
+            state: Tenseur état
+        
+        Returns:
+            État transformé
+        
+        Raises:
+            ValueError: Si contraintes non respectées
+        """
+        # Validation
+        if state.ndim != 2:
+            raise ValueError(f"Rang 2 requis, reçu {state.ndim}")
+        
+        # Algorithme
+        result = ...
+        
+        return result
+    
+    def __repr__(self):
+        return f"SomeGamma(param={self.param})"
+```
+
+**Docstrings obligatoires** :
+- Module (header)
+- Classe
+- Méthodes publiques
+- Exemples usage (si pertinent)
+
+**Tests unitaires** :
+```python
+def test_some_gamma():
+    """Test GAM-NNN comportement nominal."""
+    
+    # État test
+    state = np.random.rand(10, 10)
+    
+    # Gamma
+    gamma = SomeGamma(param=1.0)
+    
+    # Application
+    result = gamma(state)
+    
+    # Assertions
+    assert result.shape == state.shape
+    assert np.all(np.isfinite(result))
+    
+    # Cas limites
+    with pytest.raises(ValueError):
+        gamma(np.random.rand(2, 2, 2))  # Rang 3
+```
+
+#### Validation Étape 4
+
+- [ ] Docstrings complètes (module, classe, méthodes)
+- [ ] Tests unitaires passent
+- [ ] Validation contraintes (assertions)
+- [ ] Exemples usage fonctionnels
+- [ ] Revue code (pair)
+
+---
+
+### Règles Anti-Duplication (CRITIQUES)
+
+#### Avant TOUTE Nouvelle Fonction
+
+**Checklist obligatoire** :
+
+1. ✅ Consulter table "⚠️ AVANT DE CODER" du catalogue concerné
+2. ✅ Vérifier PRC_DEPENDENCY_RULES.md (dépendances autorisées)
+3. ✅ Chercher dans `registries/README.md` (si calcul mathématique)
+4. ✅ Chercher dans `UTIL_catalog.md` (si agrégation/stats)
+5. ✅ Chercher dans `PROFILING_catalog.md` (si profiling)
+
+#### Si Fonction EXISTE Déjà
+
+**INTERDICTION ABSOLUE de la recréer**
+
+```python
+# ❌ INTERDIT
+def extract_conserved_properties(...):
+    # Duplication regime_utils.py
+    pass
+
+# ✅ OBLIGATOIRE
+from .regime_utils import extract_conserved_properties
+```
+
+#### Si Fonction N'EXISTE PAS
+
+**Créer dans le bon module** (selon PRC_DEPENDENCY_RULES.md) :
+
+```python
+# ✅ Calcul mathématique → registries
+# algebra_registry.py
+def compute_metric(state, ...) -> float:
+    pass
+
+# ✅ Agrégation statistique → UTIL/aggregation_utils
+# aggregation_utils.py
+def aggregate_metric(observations, ...) -> dict:
+    pass
+
+# ✅ Profiling → PROFILING/profiling_common
+# profiling_common.py
+def profile_entity(observations, ...) -> dict:
+    pass
+```
+
+**Puis ajouter à table "⚠️ AVANT DE CODER" appropriée**
+
+---
+
+### Anti-Patterns (À Éviter)
+
+#### ❌ Coder avant architecture
+
+**Symptôme** : Code puis découverte duplication/incohérence
+
+**Correction** : Étapes 1-2 obligatoires avant code
+
+---
+
+#### ❌ Dupliquer docstrings catalogue ↔ source
+
+**Symptôme** : Même texte catalogue et source
+
+**Correction** :
+- Source = documentation primaire (docstring complète)
+- Catalogue = synthèse/index (référence source)
+
+---
+
+#### ❌ Hardcoder listes entités
+
+**Symptôme** : `GAMMA_IDS = ['GAM-001', 'GAM-002', ...]`
+
+**Correction** : Découverte dynamique
+```python
+# ✅ Correct
+from .discovery import discover_active_tests
+tests = discover_active_tests()  # Découverte filesystem
+```
+
+---
+
+#### ❌ Mélanger HUB/UTIL responsabilités
+
+**Symptôme** : HUB fait calculs, UTIL fait orchestration
+
+**Correction** :
+- HUB = appelle UTIL/PROFILING
+- UTIL = calcule, retourne
+- PROFILING = profile, compare
+
+---
+
+#### ❌ Imports circulaires
+
+**Symptôme** : A importe B, B importe A
+
+**Correction** : Revoir architecture (Étape 2)
+
+---
+
+### Checklist Validation Globale
+
+**Avant merge** :
+
+- [ ] Étapes 1-4 complètes
+- [ ] Docstrings sources complètes
+- [ ] Tests unitaires passent
+- [ ] Zéro duplication code (vérifier tables)
+- [ ] Zéro dépendance circulaire (pycircular)
+- [ ] Respect Charter strict
+- [ ] PRC_DEPENDENCY_RULES.md respecté
+- [ ] Catalogues mis à jour (si nécessaire)
+
+---
+
+### Ressources
+
+**Avant de coder** :
+- Tables "⚠️ AVANT DE CODER" (HUB)
+- registries/README.md (fonctions disponibles)
+- registries/PATTERNS.md (best practices)
+
+
+## SECTION 5 : UTILITIES - ORGANISATION
+
+### 5.1 Organisation actuelle
 ```
 tests/utilities/
-├── 📦 registries
-│   ├── registries_catalog.md
+├── 📦 registries              # Fonctions pures (state → float)
+│   ├── registries_catalog.md  # Liste l'existant
+│   ├── PATTERNS.md             # Best practices, infos générales
 │   ├── base_registry.py
 │   ├── registry_manager.py
 │   ├── post_processors.py
@@ -337,14 +669,14 @@ tests/utilities/
 
 **📦 registries** :registres de fonctions de calcul (algebra, graph, pattern, etc.)
 
-**⭐ HUB** : Modules d'orchestration 
+**⭐ HUB** : Modules d'orchestration Orchestration, délégation stricte (pas de calcul inline)
 
 - `test_engine.py` : Moteur d'exécution des tests avec détection d'événements dynamiques
 - `verdict_engine.py` : Analyses statistiques multi-facteurs, détection patterns
 - `verdict_reporter.py` : Orchestration complète génération rapports
 - `profiling_runner.py` : Orchestration profiling multi-axes avec découverte automatique
 
-**✅ UTIL** : Modules spécialisés
+**✅ UTIL** : Modules spécialisés (agrégations, classification, I/O)
 - `applicability.py` : Validation des contraintes techniques (rang, dimension, etc.)
 - `config_loader.py` : Singleton pour chargement configs (fusion global + spécifique)
 - `discovery.py` : Découverte et validation structurelle des tests
@@ -356,64 +688,239 @@ tests/utilities/
 - `timeline_utils.py` : Construction timelines (`compute_timeline_descriptor`, `classify_timing`)
 - `profiling_common.py` : Moteur générique profiling + API publique conventionnelle (profile_all_, compare__summary)
 - `cross_profiling.py` : Rankings multi-dimensionnels + analyses interactions + détection signatures globales
+    
+### 5.2 Hiérarchie logique UTIL
 
----
-**R5-A** (Source de vérité)
+**Organisation par niveaux de dépendance** (ordre logique, pas contrainte stricte) :
+
+```
+NIVEAU 1 (Données brutes)
+├── data_loading.py           # DB → observations list
+├── discovery.py              # Filesystem → test modules
+└── config_loader.py          # YAML → config dict
+
+NIVEAU 2 (Validation)
+└── applicability.py          # Contraintes techniques
+
+NIVEAU 3 (Transformations)
+├── aggregation_utils.py      # Observations → métriques agrégées
+├── timeline_utils.py         # Events → timeline descriptors
+└── statistical_utils.py      # Observations → diagnostics
+
+NIVEAU 4 (Classification)
+├── regime_utils.py           # Métriques → régimes
+├── profiling_common.py       # Observations → profils entités
+└── cross_profiling.py        # Profils → analyses croisées
+
+NIVEAU 5 (Output)
+└── report_writers.py         # Données → fichiers formatés
+```
+
+**Principe** : Impossible générer rapport sans traiter données, impossible traiter sans charger.
+
+### 5.3 Catégories FUNCTIONS_INDEX.md
+
+**Pour orientation rapide avant coding** :
+
+| Catégorie | Contenu | Fichiers typiques |
+|-----------|---------|------------------|
+| **Chargement données** | DB, filesystem, configs | data_loading, discovery, config_loader |
+| **Validation** | Applicabilité, contraintes | applicability |
+| **Transformations** | Agrégations, timelines, stats | aggregation_utils, timeline_utils, statistical_utils |
+| **Classification** | Régimes, profiling | regime_utils, profiling_common, cross_profiling |
+| **Output** | Writers, formatage | report_writers |
+| **Registries** | Calculs purs (algebra, spectral, etc.) | *_registry.py |
+| **Orchestration** | Moteurs exécution | HUB/* |
+
+**Usage** :
+1. Identifier catégorie pertinente (ex: besoin agrégation → "Transformations")
+2. Consulter FUNCTIONS_INDEX.md section correspondante
+3. Si fonction existe → utiliser
+4. Si fonction absente → créer dans fichier approprié
+
+### 5.4 Règles architecturales
+
+**R5-A** (Source de vérité) :
 Le catalogue définit ce qui est théoriquement disponible.
 La base de données définit ce qui a été effectivement exécuté.
 Le profiling ne travaille que sur les entités présentes dans les observations.
 
-**R5-B** (Interdiction)
+**R5-B** (Interdiction) :
 Aucun module ne doit :
-    -hardcoder une liste d’IDs,
-    -supposer l’exhaustivité des catalogues,
-    -inférer l’existence d’une entité non observée.
-    
-**R5-C** (Principe fondateur)
+- Hardcoder une liste d'IDs
+- Supposer l'exhaustivité des catalogues
+- Inférer l'existence d'une entité non observée
+
+**R5-C** (Principe fondateur) :
 Le pipeline PRC a été initialement développé autour du gamma profiling.
 Toute extension (modifier, encoding, test) doit :
-    -réutiliser les abstractions existantes,
-    -ne jamais spécialiser le cœur,
-    -étendre uniquement par registres, hooks ou extensions déclarées.
-    
-## SECTION 5.1 : PROFILING RUNNER
+- Réutiliser les abstractions existantes
+- Ne jamais spécialiser le cœur
+- Étendre uniquement par registres, hooks ou extensions déclarées
 
-### Responsabilité
-Orchestration exécution profiling multi-axes avec découverte automatique.
+**R5-D** (Fonction privée → publique) :
+Si une fonction privée (préfixe `_`) doit être réutilisée dans un autre module :
+1. La rendre publique (supprimer `_`)
+2. L'appeler depuis l'ancien ET le nouveau fichier
+3. Mettre à jour FUNCTIONS_INDEX.md
+4. **Ne jamais dupliquer** le code
 
-### Architecture découverte automatique
-```python
-# Découverte modules profiling disponibles
-PROFILING_AXES = discover_profiling_modules()
-# Retourne : {'gamma': module, 'modifier': module, ...}
+### 5.5 Graphe dépendances
 
-# Exécution dynamique
-run_all_profiling(observations, axes=['gamma', 'modifier'])
-# Appelle automatiquement :
-#   - gamma_profiling.profile_all_gammas()
-#   - modifier_profiling.profile_all_modifiers()
+**Dépendances autorisées** :
+```
+HUB → UTIL, registries
+UTIL (niveau N) → UTIL (niveau < N), registries
+registries → (rien, fonctions pures)
 ```
 
-### Format retour UNIFIÉ (règle stricte)
+**Interdictions strictes** :
+```
+❌ UTIL → HUB
+❌ HUB → HUB (entre modules)
+❌ registries → UTIL ou HUB
+❌ Toute dépendance circulaire
+```
 
-**R5.1-A** : Tous axes profiling DOIVENT retourner structure :
+*NOTE*: Sections 6–8 : Cartographie conceptuelle transversale (non implémentation)
+Ces sections décrivent :
+    -les formes des objets manipulés
+    -les axes analytiques existants
+    -les structures conceptuelles attendues
+
+Elles ne constituent pas une source d’implémentation.
+Toute implémentation doit :
+    -Consulter functions_index.md
+    -Consulter les catalogues pertinents
+    -Réutiliser l’existant avant toute création
+    
+## SECTION 6 : INVARIANTS NORMATIFS
+
+### Détection de patterns
+**R6-A** : Patterns détectés sur observations **brutes + normalisées localement**
+
+**Patterns détectés** :
+1. **NON_DISCRIMINANT** : Toutes observations normalisées < seuil
+2. **OVER_DISCRIMINANT** : Toutes observations normalisées > seuil  
+3. **D_CORRELATED** : Variance inter-d_encoding_id > seuil
+4. **MODIFIER_CORRELATED** : Variance inter-modifier_id > seuil
+5. **SEED_UNSTABLE** : Variance inter-seeds > seuil (à D/modifier fixés)
+6. **SYSTEMATIC_ANOMALY** : Fraction observations |normalized| > seuil dépasse ratio
+7. **CONTEXTUAL_BEHAVIOR** : Combinaison D_CORRELATED ou MODIFIER_CORRELATED
+
+### 6.1 Taxonomie régimes
+
+**Régimes de conservation (sains)** :
+```python
+CONSERVES_SYMMETRY    # Test SYM-*
+CONSERVES_NORM        # Test UNIV-*, SPE-*
+CONSERVES_PATTERN     # Test PAT-*
+CONSERVES_TOPOLOGY    # Test TOP-*
+CONSERVES_GRADIENT    # Test SPA-*
+CONSERVES_SPECTRUM    # Test GRA-*
+```
+
+**Régimes pathologiques** :
+```python
+NUMERIC_INSTABILITY   # Valeurs infinies/NaN
+OSCILLATORY_UNSTABLE  # Oscillations non amorties
+TRIVIAL               # Collapse vers zéro/constante
+DEGRADING             # Dégradation progressive
+```
+
+**Autres régimes** :
+```python
+SATURATES_HIGH        # Saturation haute (tanh-like)
+SATURATES_LOW         # Saturation basse
+UNCATEGORIZED         # Non classifiable
+```
+
+**Qualificatif multimodal** :
+```python
+MIXED::{régime_base}  # Bimodalité détectée (ex: MIXED::CONSERVES_NORM)
+```
+
+**R6-B** : Régime déterminé par `regime_utils.classify_regime()` basé sur :
+- Métriques statistiques
+- Signature dynamique
+- Distribution timeline
+- Dispersion inter-runs
+- Type de test
+
+### 6.2 Normalisation robuste
+
+**Méthode par défaut** (détection patterns) :
+```python
+normalized = (x - median) / IQR  # IQR = Q3 - Q1
+```
+
+**Propriétés** :
+- Insensible valeurs extrêmes
+- N'existe QUE dans cadre détection patterns
+- Aucune donnée persistée normalisée
+
+**Seuils typiques** (configurables via `verdict_config.yaml`) :
+```yaml
+patterns:
+  non_discriminant:
+    normalized_threshold: -2.0
+  over_discriminant:
+    normalized_threshold: 2.0
+  seed_unstable:
+    variance_threshold: 3.0
+```
+
+### 6.3 Stratification stable/explosif
+
+**Critère** : Présence valeurs > threshold dans projections exploitées
+
+**Seuil par défaut** : `1e50` (5 décades au-dessus P90 typique)
+
+**Configurable via** :
+```yaml
+stratification:
+  explosion_threshold: 1.0e50
+```
+
+**Projections inspectées** :
+- `statistics` : initial, final, mean, max
+- `evolution` : slope, relative_change
+
+**Usage** : Analyses séparées GLOBAL / STABLE / EXPLOSIF pour isolation effets.
+
+###  6.4 : RELATION PATTERNS ↔ VERDICTS
+
+**R6.4-A** : Patterns = observations factuelles détectées
+**R6.4-B** : Verdicts = décisions humaines post-rapports (HORS périmètre logiciel)
+
+**Pipeline actuel** :
+1. VerdictEngine détecte PATTERNS (D_CORRELATED, etc.)
+2. VerdictReporter génère RAPPORTS (analysis_complete.json, summary.txt)
+3. HUMAIN lit rapports → décide VERDICT (SURVIVES[R0], WIP[R0-open])
+4. HUMAIN met à jour gamma_catalog.md avec STATUS
+
+## SECTION 7 : PROFILING - PRINCIPES
+
+### 7.1 Format retour unifié
+
+**Règle R7.1-A** : Tous axes profiling DOIVENT retourner structure :
 ```python
 {
     'profiles': dict,      # Profils individuels entités
     'summary': dict,       # Comparaisons cross-entités
     'metadata': dict,      # Infos exécution
-    # Extensions spécifiques axe (optionnel, voir R5.1-B)
+    # Extensions spécifiques axe (optionnel)
 }
 ```
 
-**R5.1-B** : Règles découverte modules
+**R7.1-B** : Règles découverte modules
 - Modules profiling nommés : `*_profiling.py`
 - Doivent exposer fonctions conventionnelles :
   - `profile_all_{axis}(observations) → dict`
   - `compare_{axis}_summary(profiles) → dict`
 - Extensions détectées via introspection module
 
-**R5.1-D **: Ordre découverte axes
+**R7.1-C **: Ordre découverte axes
 ```python
 PROFILING_AXES = {
     'test': {...},      # Ordre déclaré explicite (dict standard Python 3.7+)
@@ -428,42 +935,31 @@ Rationale ordre :
     -⚠️ Axe test non structurellement dominant : présent par défaut mais pas obligatoire
 
 
-**R5.1-E **: Tous axes garantis présents
+**R5.1-D **: Tous axes garantis présents
     -Observations proviennent toujours de db_results
     -Chaque observation contient : test_name, gamma_id, modifier_id, d_encoding_id
     -Aucun axe ne peut être "manquant" (tous axes profiling exécutables)
     -Différence possible : nombre entités par axe (ex: 13 gammas, 3 modifiers)
+  
+### 7.2 Conventions nommage
 
-
-## SECTION 5.2 : PROFILING COMMON
-
-### Responsabilité
-Fonctions réutilisables tous modules profiling. Évite duplication code.
-
-### Règles utilisation
-
-**R5.2-A** : Moteur générique interne
+**API publique conventionnelle** (détection automatique) :
 ```python
-_profile_entity_axis(observations, axis, entity_key) → dict
-# Moteur interne privé, logique partagée tous axes
-```
-
-**R5.2-B** : API publique conventionnelle
-```python
-# Fonctions découvrables automatiquement (naming convention stricte)
+# Profiling individuel
 profile_all_tests(observations) → dict
 profile_all_gammas(observations) → dict
 profile_all_modifiers(observations) → dict
 profile_all_encodings(observations) → dict
 
+# Comparaisons
 compare_tests_summary(profiles) → dict
 compare_gammas_summary(profiles) → dict
 compare_modifiers_summary(profiles) → dict
 compare_encodings_summary(profiles) → dict
 ```
-**R5.2-C ***: Mapping entity keys
+
+**Mapping entity keys** (normalisation colonnes DB) :
 ```python
-# Normalisation sur noms colonnes DB (pas d'alias)
 ENTITY_KEY_MAP = {
     'test': 'test_name',
     'gamma': 'gamma_id',
@@ -472,281 +968,66 @@ ENTITY_KEY_MAP = {
 }
 ```
 
-**R5.2-D **: Axe test enrichi discriminant power
+### 7.3 Délégation stricte
+
+**Règle R7.3-A** : Modules profiling DOIVENT utiliser moteur générique :
 ```python
-# Structure identique autres axes + métrique additionnelle
-profiles['UNIV-001'] = {
-    'entities': {...},           # Standard (comme gamma/modifier/encoding)
-    'discriminant_power': {      # AJOUT spécifique test
-        'inter_entity_variance': float,
-        'effect_size': float,
-        'ranking_consistency': float
-    },
-    'n_entities': int,
-    'n_total_runs': int
-}
+# Dans profiling_common.py
+_profile_entity_axis(observations, axis, entity_key) → dict
 ```
 
-## SECTION 5.3 : CROSS PROFILING 
-
-### Responsabilité
-Analyse interactions entre axes profiling.
-
-**Exemples cas d'usage** :
-- Interaction gamma × modifier (GAM-004 × M1 → OSCILLATORY systématique)
-- Interaction encoding × test (SYM vs ASY sous SYM-001)
-- Interaction gamma × encoding × modifier (3-way)
-
-**Emplacement** : `tests/utilities/PROFILING/cross_profiling.py`
-
-**R5.3-A **: Rankings multi-dimensionnels
+**Règle R7.3-B** : HUB ne doit PAS implémenter profiling inline :
 ```python
-rank_entities_by_metric(
-    profiles: dict,
-    grouping_dimension: str,   # 'test', 'encoding', 'modifier'
-    metric_key: str,           # 'SYM-001', 'M1', 'GAM-004'
-    criterion: str | callable
-) → dict
+# ❌ INTERDIT dans HUB
+for gamma in gammas:
+    regime = classify_regime(...)  # Réimplémentation
 
-# Remplace rank_gammas_by_test() (rétrocompatibilité via même logique)
+# ✅ CORRECT
+results = profile_all_gammas(observations)
 ```
 
-**R5.3-B **: Interactions (placeholders R0)
-```python
-analyze_pairwise_interactions(profiles_a, profiles_b) → dict
-analyze_multiway_interactions(all_profiles) → dict
-detect_global_signatures(all_profiles) → dict
+**Règle R7.3-C** : Aucun module ne doit duplicer code `profiling_common`.
 
-# R0 : Docstrings + structure retour définies, implémentation différée
-```
-
-## SECTION 6 : PATTERNS ET RÉGIMES
-
-### Détection de patterns
-**R6-A** : Patterns détectés sur observations **brutes + normalisées localement**
-
-**Méthode de normalisation par défaut** :
-```python
-# Robust scaling (insensible aux valeurs extrêmes)
-normalized = (x - median) / IQR  # IQR = Q3 - Q1
-```
-La normalisation robuste n’existe que dans le cadre de la détection de patterns.
-Elle ne produit aucune donnée persistée.
-
-**Patterns détectés** :
-1. **NON_DISCRIMINANT** : Toutes observations normalisées < seuil
-2. **OVER_DISCRIMINANT** : Toutes observations normalisées > seuil  
-3. **D_CORRELATED** : Variance inter-d_encoding_id > seuil
-4. **MODIFIER_CORRELATED** : Variance inter-modifier_id > seuil
-5. **SEED_UNSTABLE** : Variance inter-seeds > seuil (à D/modifier fixés)
-6. **SYSTEMATIC_ANOMALY** : Fraction observations |normalized| > seuil dépasse ratio
-7. **CONTEXTUAL_BEHAVIOR** : Combinaison D_CORRELATED ou MODIFIER_CORRELATED
-
-### Classification des régimes
-**Taxonomie complète des régimes** :
-
-```python
-# Régimes de CONSERVATION (sains)
-CONSERVES_SYMMETRY    # Test SYM-*
-CONSERVES_NORM        # Test UNIV-*, SPE-*
-CONSERVES_PATTERN     # Test PAT-*
-CONSERVES_TOPOLOGY    # Test TOP-*
-CONSERVES_GRADIENT    # Test SPA-*
-CONSERVES_SPECTRUM    # Test GRA-*
-
-# RÉGIMES PATHOLOGIQUES
-NUMERIC_INSTABILITY   # Valeurs infinies/NaN
-OSCILLATORY_UNSTABLE  # Oscillations non amorties
-TRIVIAL               # Collapse vers zéro/constante
-DEGRADING             # Dégradation progressive
-
-# AUTRES RÉGIMES
-SATURATES_HIGH        # Saturation haute (tanh-like)
-SATURATES_LOW         # Saturation basse
-UNCATEGORIZED         # Non classifiable
-
-# QUALIFICATIF MULTIMODAL
-MIXED::{régime_base}  # Bimodalité détectée (ex: MIXED::CONSERVES_NORM)
-```
-
-**R6-B** : Régime déterminé par `regime_utils.classify_regime()` basé sur :
-- Métriques statistiques
-- Signature dynamique
-- Distribution timeline
-- Dispersion inter-runs
-- Type de test
-
-## SECTION 6.1 : STRATIFICATION STABLE/EXPLOSIF
-
-**Critère** : Présence valeurs > threshold dans projections exploitées
-
-**Seuil par défaut** : `1e50` (5 décades au-dessus de P90 typique)
-
-**Configurable via verdict_config.yaml** :
-```yaml
-stratification:
-  explosion_threshold: 1.0e50  # Seuil détection explosions
-```
-
-**Projections inspectées** :
-- statistics : initial, final, mean, max
-- evolution : slope, relative_change
-
-## SECTION 6.2 : RELATION PATTERNS ↔ VERDICTS
-
-**R6.2-A** : Patterns = observations factuelles détectées
-**R6.2-B** : Verdicts = décisions humaines post-rapports (HORS périmètre logiciel)
-
-**Pipeline actuel** :
-1. VerdictEngine détecte PATTERNS (D_CORRELATED, etc.)
-2. VerdictReporter génère RAPPORTS (analysis_complete.json, summary.txt)
-3. HUMAIN lit rapports → décide VERDICT (SURVIVES[R0], WIP[R0-open])
-4. HUMAIN met à jour gamma_catalog.md avec STATUS
-
-**Clarification terminologique** :
-- Module nommé `verdict_engine` est legacy → devrait être `pattern_engine`
-- Flag `--verdict` signifie "génération rapports patterns" (pas verdict décisionnel)
-
-
-## SECTION 7 : PROFILING 
-
-Toute fonction de classement est descriptive, jamais décisionnelle.
-
-### Module `profiling_common.py`
-**Responsabilité** : Profiling comportemental tous axes (gamma, modifier, encoding, test)
-
-**Emplacement** : `tests/utilities/UTIL/profiling_common.py`  
-
-**Dépendances** :
-- `timeline_utils` : Événements dynamiques
-- `aggregation_utils` : Agrégations statistiques
-- `regime_utils` : Classification régimes
-
-**Fonctions principales** :
-```python
-profile_all_gammas(observations) → dict
-compare_gammas_summary(profiles) → dict
-```
-
-**Format retour** : Conforme R5.1-A (structure unifiée)  
-
-**R7-A**
-Aucun module de profiling n’a le droit d’implémenter :
-    -un calcul de signature dynamique,
-    -un calcul PRC,
-    -un ranking cross-tests
-sans passer par profiling_common.py.
-
-## SECTION 8 : GÉNÉRATION DE RAPPORTS
-
-### Module `verdict_reporter.py`
-**Responsabilité** : Compilation résultats + génération rapports (simplifié)
-
-**Pipeline actuel** :
-```python
-generate_verdict_report(params_config_id, verdict_config_id, output_dir) → dict
-  │
-  ├─ 1. CHARGEMENT + DIAGNOSTICS
-  │    ↓ data_loading.load_all_observations()
-  │
-  ├─ 2. ANALYSES GLOBALES STRATIFIÉES
-  │    ↓ verdict_engine.analyze_regime() × 3 (GLOBAL, STABLE, EXPLOSIF)
-  │
-  ├─ 3. PROFILING MULTI-AXES (NOUVEAU)
-  │    ↓ profiling_runner.run_all_profiling(observations, axes=['gamma', 'modifier'])
-  │    Returns: {'gamma': {...}, 'modifier': {...}}
-  │
-  ├─ 4. FUSION RÉSULTATS
-  │    ↓ _compile_all_analyses(global_patterns, all_profiling)
-  │
-  └─ 5. GÉNÉRATION RAPPORTS
-       ↓ report_writers.write_summary_global(...)       # NOUVEAU
-       ↓ report_writers.write_summary_gamma(...)        # NOUVEAU (split existant)
-       ↓ report_writers.write_summary_modifier(...)     # NOUVEAU
-       ↓ report_writers.write_profiling_reports(...)    # NOUVEAU (générique)
-       ↓ report_writers.write_json(...)                 # CONSERVÉ
-```
-
-**Simplification** : Délégation orchestration profiling à `profiling_runner`
-
-### Formats de sortie
-
-**Structure rapports** :
+### 8.1 Structure arbre (normative)
 ```
 reports/verdicts/TIMESTAMP_analysis_global/
-├── summary_global.txt              # NOUVEAU - Synthèse unifiée
+├── summary_global.txt              # Synthèse unifiée 
 │
-├── summaries/                      # NOUVEAU - Synthèses par axe
+├── summaries/                      # Synthèses par axe
+│   ├── summary_test.txt
 │   ├── summary_gamma.txt
 │   ├── summary_modifier.txt
-│   ├── summary_encoding.txt        # Futur
-│   └── summary_tests.txt           # Futur
+│   └── summary_encoding.txt
 │
-├── analysis_complete.json          # CONSERVÉ - Données complètes
+├── analysis_complete.json          # Données complètes structurées
 │
-├── profiles/                       # NOUVEAU - Profils par axe/entité
+├── profiles/                       # Profils par axe/entité
+│   ├── test/
+│   │   └── {TEST-ID}.json
 │   ├── gamma/
-│   │   ├── GAM-001.json
-│   │   └── ...
+│   │   └── {GAM-ID}.json
 │   ├── modifier/
-│   │   ├── M0.json
-│   │   ├── M1.json
-│   │   └── M2.json
-│   └── encoding/                   # Futur
+│   │   └── {M-ID}.json
+│   └── encoding/
+│       └── {ENC-ID}.json
 │
-├── comparisons/                    # ÉTENDU
-│   ├── gamma_by_test.json
-│   ├── modifier_by_test.json       # NOUVEAU
-│   ├── modifier_signatures.json    # NOUVEAU
-│   └── cross_analysis.json         # Futur
+├── comparisons/                    # Rankings/interactions
+│   ├── rankings_*.json
+│   └── interactions_*.json         # Placeholders R0
 │
-└── diagnostics/                    # CONSERVÉ
+└── diagnostics/                    # Diagnostics techniques
     ├── degeneracy_report.json
     └── scale_outliers.json
 ```
 
-### Structure `summary_global.txt` (nouveau)
+### 8.3 Formats output
 
-Template synthèse unifiée :
-```markdown
-# SYNTHÈSE GLOBALE R0
+**TXT** : Synthèses lisibles humain (summary_*.txt)
+**JSON** : Données structurées réutilisables (analysis_complete.json, profiles/*.json)
+**CSV** : Tableaux exportables (si pertinent, non systématique R0)
 
-## CONFIGURATION
-- Params: {params_config_id}
-- Verdict: {verdict_config_id}
-- Scope: {n_gammas} gammas × {n_modifiers} modifiers × {n_encodings} encodings × {n_tests} tests
+**Règle R8.3-A** : Tout rapport doit permettre reconstruction état complet via JSON.
 
-## GAMMAS - ÉLÉMENTS CLÉS
-- [Top 3 conservation]
-- [Top 3 pathologiques]
-- [Timeline dominante]
-
-## MODIFIERS - ÉLÉMENTS CLÉS
-- [Baseline validé]
-- [Modifiers perturbateurs]
-- [Sensibilités contextuelles]
-
-## TESTS - ÉLÉMENTS CLÉS
-- [Tests discriminants]
-- [Tests non-discriminants]
-- [Tests instables]
-
-## PATTERNS STRUCTURELS
-- [D_CORRELATED]
-- [MODIFIER_CORRELATED]
-- [CONTEXTUAL]
-
-## RECOMMANDATIONS R0
-- [Liste actions suggérées humain]
-```
-
-**R8-A** : `summary_global.txt` ne doit contenir QUE éléments clés
-- Maximum 30 lignes
-- Références détails → `summaries/{axe}.txt`
-
-**R8-B** : `summary_{axe}.txt` format libre
-- Chaque axe profiling peut définir structure
-- Généré par `report_writers.write_summary_{axe}()`
 
 ### Templates Jinja2
 
@@ -767,27 +1048,6 @@ templates/
 ```
 
 Permet flexibilité axe test (discriminant_power) sans dupliquer templates
-
-### Structure rapports (vérification)
-
-**VÉRIFIER** structure actuelle conforme :
-```
-reports/verdicts/TIMESTAMP_analysis_global/
-├── summary_global.txt
-├── summaries/
-│   ├── summary_test.txt        # Ordre : test en premier
-│   ├── summary_gamma.txt
-│   ├── summary_modifier.txt
-│   └── summary_encoding.txt
-├── profiles/
-│   ├── test/
-│   ├── gamma/
-│   ├── modifier/
-│   └── encoding/
-└── comparisons/
-    ├── rankings_*.json         # Tous rankings cross_profiling
-    └── interactions_*.json     # Placeholders R0
-```
 
 ## SECTION 9 : EXTENSION DU SYSTÈME
 
@@ -907,26 +1167,6 @@ SURVIVES[R0]         # Non éliminé à R0
 REJECTED[R0]         # Éliminé comme autonome à R0
 REJECTED[GLOBAL]     # Éliminé définitif tous rangs
 ```
-### SECTION 11.5 **Structure proposée** (optimisation tokens)
-```
-1. BIBLIOTHÈQUE PERMANENTE (contexte systématique toujours disponible)
-   ├── charter_6.0.md              # Cadre architectural + interdictions
-   ├── r0_status.md                # Travail en cours (ce qui change)
-   └── catalogs_index.md           # Index catalogues (pas contenu complet)
-
-2. CATALOGUES (injection à la demande)
-   ├── core_catalog.md
-   ├── operators/gamma_catalog.md
-   ├── D_encodings/d_encoding_catalog.md
-   ├── modifiers/modifier_catalog.md
-   ├── tests/tests_catalog.md
-   └── tests/utilities/HUB_catalog.md, util_catalog.md, registries_catalog.md
-
-3. SOURCES CODE (injection conversation si besoin)
-   ├── tests/utilities/*.py
-   ├── operators/gamma_hyp_*.py
-   └── ...
-```
 
 ## SECTION 12 : INTERDICTIONS CRITIQUES
 
@@ -1023,14 +1263,39 @@ REJECTED[GLOBAL]     # Éliminé définitif tous rangs
 | **entity key** | Nom colonne DB identifiant entité axe | 'gamma_id', 'd_encoding_id' |
 | **discriminant power** | Pouvoir discriminant test cross-entities | variance inter-gammas | 
 | **grouping dimension** | Axe regroupement pour ranking | 'test' dans rank gamma par test |
----
+
+### 14.1 Obligation template + catalogue
+
+**Règle R14-A** : Toute extension encodings/tests/gammas/modifiers DOIT :
+1. Demander template approprié (structure fichier)
+2. Consulter catalogue existant (nomenclature, conventions)
+3. Documenter dans catalogue après création
+4. Mettre à jour FUNCTIONS_INDEX.md si fonctions publiques
+
+**Processus** :
+```
+1. Identifier type extension (encoding/test/gamma/modifier)
+2. Demander : "Template pour nouveau {type}" + "{type}_catalog.md"
+3. Suivre template strictement
+4. Après implémentation : mettre à jour catalogue
+5. Si fonctions réutilisables : extraire dans UTIL + FUNCTIONS_INDEX.md
+```
+
+**Templates disponibles** (à demander explicitement) :
+- `Template nouveau encoding` : D_encodings/
+- `Template nouveau test` : tests/
+- `Template nouveau gamma` : operators/
+- `Template nouveau modifier` : modifiers/
+
+**Catalogues associés** :
+- `d_encoding_catalog.md`
+- `tests_catalog.md`
+- `operators_catalog.md`
+- `modifier_catalog.md`
+
+**Interdiction** : Créer encoding/test/gamma/modifier sans consulter template + catalogue.
 
 **FIN CHARTER PRC 6.1**
-
-**Version** : 6.1.0  
-**Date** : 2025-01-15  
-**Statut** : PRODUCTION  
-**Basé sur** : Catalogues opérationnels, état fonctionnel réel  
 
 Ce charter est la **référence opérationnelle unique** pour l'architecture PRC 6.1.  
 Il décrit l'état **réel** du système tel qu'implémenté et documenté dans les catalogues.  
