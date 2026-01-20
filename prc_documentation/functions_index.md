@@ -1,5 +1,26 @@
 ## ⚠️ AVANT DE CODER
 
+** PRC_AUTOMATION (batch_runner.py) **
+
+### Fonctions publiques
+| run_batch_brut | Publique | Collecte données (db_raw) |
+| run_batch_test | Publique | Application tests (db_results) |
+| run_batch_verdict | Publique | Génération verdicts |
+| run_batch_all | Publique | Pipeline complet |
+| parse_args | Publique | Parse arguments CLI |
+| main | Publique | Point d'entrée principal |
+
+### Fonctions helpers
+| get_exec_ids_for_gamma | Module-level | Récupère exec_ids pour gamma |
+| count_observations | Module-level | Compte observations SUCCESS |
+| load_execution_context | Module-level | Charge contexte depuis db_raw |
+| load_first_snapshot | Module-level | Charge premier snapshot (state_shape) |
+| load_execution_history | Module-level | Charge history complète |
+| store_test_observation | Module-level | Stocke observation db_results |
+
+### Exceptions
+| CriticalTestError | Exception | Erreurs critiques nécessitant arrêt |
+
 **Fonctions existantes du core** :
 | Fonction | Fichier | Responsabilité |
 |----------|---------|----------------|
@@ -10,8 +31,16 @@
 | ID | Fichier | Type | Propriétés clés |
 |----|---------|------|-----------------|
 | SYM-001 à SYM-006 | rank2_symmetric.py | Rang 2 symétrique | Diverses structures |
+| create_circulant_asymmetric | Publique | Matrice circulante asymétrique |
+| create_sparse_asymmetric | Publique | Matrice asymétrique sparse |
 | ASY-001 à ASY-004 | rank2_asymmetric.py | Rang 2 asymétrique | Brisure symétrie |
+| create_uniform | Publique | Corrélations uniformes |
+| create_random | Publique | Corrélations aléatoires (helper) |
 | R3-001 à R3-003 | rank3_correlations.py | Rang 3 | Couplages d'ordre supérieur |
+| create_fully_symmetric_rank3 | Publique | Tenseur totalement symétrique (bonus) |
+| create_diagonal_rank3 | Publique | Tenseur diagonal (bonus) |
+| create_separable_rank3 | Publique | Tenseur séparable (bonus) |
+| create_block_rank3 | Publique | Tenseur par blocs (bonus) |
 
 **Modifiers existants** :
 | ID | Fichier | Type | Paramètres clés |
@@ -21,6 +50,15 @@
 | M2 | noise.py::add_uniform_noise() | Bruit uniforme | amplitude=0.1 |
 
 **Gammas existants** :
+| {GammaClass}.__init__ | Publique | Initialise paramètres + validation |
+| {GammaClass}.__call__ | Publique | Applique transformation Δ |
+| {GammaClass}.__repr__ | Publique | Représentation string |
+| {GammaClass}.reset | Publique | Réinitialise mémoire (si non-markovien) |
+| create_gamma_hyp_{NNN} | Publique | Factory création gamma |
+| PARAM_GRID_PHASE1 | Global dict | Grille paramètres phase 1 |
+| PARAM_GRID_PHASE2 | Global dict | Grille paramètres phase 2 |
+| METADATA | Global dict | Métadonnées gamma |
+
 | ID | Fichier | Famille | Applicabilité | Statut |
 |----|---------|---------|---------------|--------|
 | GAM-001 | gamma_hyp_001.py | markovian | SYM, ASY, R3 | WIP[R0-open] |
@@ -54,11 +92,21 @@
 | Module | Responsabilité | Dépendances autorisées |
 |--------|----------------|------------------------|
 | test_engine.py | Exécution tests + observations | registries, config_loader |
+| detect_dynamic_events | Module-level | Détecte événements dynamiques sur trajectoire |
+| compute_event_sequence | Module-level | Construit séquence ordonnée + onsets relatifs |
+| patch_execute_test_dynamic_events | Module-level | Calcule dynamic_events + timeseries tous metrics |
+| TestEngine._init_result | Privée | Initialise structure résultat avec exec_id |
+| TestEngine._prepare_computations | Privée | Prépare et valide toutes spécifications |
+| TestEngine._compile_results | Privée | Compile résultats finaux avec metadata |
+| TestEngine._analyze_evolution | Privée | Analyse évolution série temporelle |
 - `TestEngine.execute_test()` : Exécute test sur history, retourne observation
-- `detect_dynamic_events()` : Détecte événements dynamiques (deviation, instability, etc.)
-- `compute_event_sequence()` : Construit séquence temporelle événements
 
 | verdict_engine.py | Analyses statistiques multi-facteurs | data_loading, statistical_utils, regime_utils |
+| _compile_metadata | Privée | Compile métadonnées rapport |
+| _format_gamma_profiles | Privée | Formate gamma_profiles pour rapport |
+| _compile_structural_patterns | Privée | Compile patterns structuraux (3 strates) |
+| _write_summary_report | Privée | Écrit rapport humain principal |
+| _write_gamma_profiles | Privée | Écrit gamma_profiles.json + CSV |
 - `analyze_marginal_variance()` : Variance marginale (η² par facteur)
 - `analyze_oriented_interactions()` : Interactions orientées A|B ≠ B|A
 - `analyze_metric_discrimination()` : Détection métriques non discriminantes
@@ -158,6 +206,10 @@
 | `compute_small_world()` | graph.small_world_coefficient | Coefficient petit-monde σ | 2D carré |
 
 ### POST-PROCESSORS (post_processors.py)
+
+| get_post_processor | Publique | Récupère post-processor par clé |
+| add_post_processor | Publique | Ajoute post-processor custom |
+| POST_PROCESSORS | Global dict | Registre post-processors disponibles |
 | Clé | Fonction | Responsabilité |
 |-----|----------|----------------|
 | `identity` | lambda x: x | Identité (pas de transformation) |
@@ -173,18 +225,21 @@
 | `scientific_3` | format scientifique 3 décimales | Notation scientifique |
 
 ### RegistryManager (registry_manager.py)
+
+| RegistryManager.__new__ | Publique | Singleton pattern |
+| RegistryManager.__init__ | Publique | Initialise + charge registres |
+| RegistryManager._load_all_registries | Privée | Charge dynamiquement tous *_registry.py |
+| RegistryManager._validate_params | Privée | Valide paramètres contre signature |
 - `get_function(registry_key)` : Récupère fonction (avec cache)
 - `validate_computation_spec(spec)` : Valide COMPUTATION_SPECS
 - `list_available_functions()` : Liste toutes fonctions par registre
-- `_load_all_registries()` : Chargement automatique (privée)
-- `_validate_params(function, user_params)` : Validation paramètres (privée)
 
 ### BaseRegistry (base_registry.py)
 
-- `get_function(registry_key)` : Récupère fonction par clé complète
-- `list_functions()` : Liste toutes fonctions avec documentation
-- `_register_all_functions()` : Découverte automatique (privée)
-
+| BaseRegistry.__init__ | Publique | Initialise registre vide |
+| BaseRegistry._register_all_functions | Privée | Découvre fonctions décorées |
+| BaseRegistry.get_function | Publique | Récupère fonction par clé complète |
+| BaseRegistry.list_functions | Publique | Liste fonctions avec documentation |
 
 **Modules UTIL existants** :
 ### aggregation_utils.py (Agrégations statistiques)
@@ -202,24 +257,28 @@
 | `add_validator()` | Publique | Ajoute validator custom |
 | `VALIDATORS` | Global dict | Registre validators extensible |
 
+
 ### config_loader.py (Chargement configs YAML)
 | Fonction | Type | Responsabilité |
 |----------|------|----------------|
+| ConfigLoader._load_global | Privée | Charge config global |
+| ConfigLoader._load_specific | Privée | Charge config spécifique test |
+| ConfigLoader._merge_configs | Privée | Fusionne configs (specific override global) |
+| ConfigLoader._merge_dicts | Privée | Merge récursif dictionnaires |
+| ConfigLoader._validate_config | Privée | Validation basique structure |
+| ConfigLoader.list_available | Publique | Liste configs disponibles |
+| ConfigLoader.clear_cache | Publique | Vide cache |
+| get_loader | Publique | Récupère instance singleton |
 | `ConfigLoader.__init__()` | Publique | Initialise cache configs |
 | `ConfigLoader.load()` | Publique | Charge config avec fusion global+specific |
 | `ConfigLoader.list_available()` | Publique | Liste configs disponibles |
 | `ConfigLoader.clear_cache()` | Publique | Vide cache |
-| `ConfigLoader._load_global()` | Privée | Charge config global |
-| `ConfigLoader._load_specific()` | Privée | Charge config spécifique test |
-| `ConfigLoader._merge_configs()` | Privée | Fusionne configs (specific override global) |
-| `ConfigLoader._merge_dicts()` | Privée | Merge récursif dictionnaires |
-| `ConfigLoader._validate_config()` | Privée | Validation basique structure |
-| `get_loader()` | Publique | Récupère instance singleton |
 
 ### cross_profiling.py (Analyses croisées)
 | Fonction | Type | Responsabilité |
 |----------|------|----------------|
-| `rank_entities_by_metric()` | Publique | Ranking générique entités par métrique |
+| rank_entities_by_metric | Publique | Ranking générique entités par métrique |
+| _compute_concordance_matrix | Privée | Calcule matrice concordance entre deux axes |
 | `compute_discriminant_power()` | Publique | Variance conditionnelle cross-entités |
 | `compute_all_discriminant_powers()` | Publique | Discriminant power tous tests |
 | `analyze_pairwise_interactions()` | Publique | Interactions 2-way (R0: concordance, R1+: qualitatif) |
@@ -235,6 +294,10 @@
 | `cache_observations()` | Publique | Cache obs disque (pickle) |
 | `load_cached_observations()` | Publique | Charge cache observations |
 
+| db_connection | Publique | Gestionnaire contexte DB (context manager) |
+| decompress_snapshot | Publique | Décompresse snapshot gzip+pickle |
+| extract_metric_data | Publique | Extrait statistics + evolution métrique |
+
 ### discovery.py (Découverte tests)
 | Fonction | Type | Responsabilité |
 |----------|------|----------------|
@@ -245,6 +308,10 @@
 ### profiling_common.py (Profiling générique tous axes)
 | Fonction | Type | Responsabilité |
 |----------|------|----------------|
+| _profile_test_for_entity | Privée | Profil UN test sous UNE entité (moteur) |
+| _profile_entity_axis | Privée | Moteur générique profiling tous axes |
+| _compare_entities_summary | Privée | Comparaisons cross-entities |
+| ENTITY_KEY_MAP | Global dict | Mapping axes → clés DB |
 | `aggregate_dynamic_signatures()` | Publique | Agrège événements + timelines compositionnels |
 | `compute_prc_profile()` | Publique | Génère profil PRC avec confidence |
 | `profile_all_tests()` | Publique | Profil comportemental tests (API découvrable) |
@@ -255,10 +322,6 @@
 | `compare_modifiers_summary()` | Publique | Comparaisons inter-modifiers (API découvrable) |
 | `profile_all_encodings()` | Publique | Profil comportemental encodings (API découvrable) |
 | `compare_encodings_summary()` | Publique | Comparaisons inter-encodings (API découvrable) |
-| `_profile_test_for_entity()` | Privée | Profil UN test sous UNE entité (moteur) |
-| `_profile_entity_axis()` | Privée | Moteur générique profiling tous axes |
-| `_compare_entities_summary()` | Privée | Comparaisons cross-entities |
-| `ENTITY_KEY_MAP` | Global dict | Mapping axes → clés DB |
 
 ### regime_utils.py (Classification régimes)
 | Fonction | Type | Responsabilité |
@@ -295,6 +358,9 @@
 | `print_scale_outliers_report()` | Publique | Affiche rapport outliers (stdout) |
 | `is_numeric_valid()` | Privée | Détecte artefacts (inf/nan) observation |
 | `diagnose_numeric_degeneracy()` | Privée | Flags dégénérescences par projection |
+
+| compute_iqr | Publique | Calcule IQR et quartiles |
+| robust_normalize | Publique | Normalisation (x-median)/IQR |
 
 ### timeline_utils.py (Timelines dynamiques)
 | Fonction | Type | Responsabilité |

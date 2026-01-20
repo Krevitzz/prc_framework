@@ -16,9 +16,9 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from tests.utilities.discovery import discover_active_tests
-from tests.utilities.applicability import check as check_applicability
-from tests.utilities.test_engine import TestEngine
+from tests.utilities.utils.discovery import discover_active_tests
+from tests.utilities.utils.applicability import check as check_applicability
+from tests.utilities.HUB.test_engine import TestEngine
 
 
 class CriticalTestError(Exception):
@@ -198,7 +198,7 @@ def run_batch_verdict(args):
     
     # Import verdict_reporter (NOUVEAU)
     try:
-        from tests.utilities.verdict_reporter import generate_verdict_report
+        from tests.utilities.HUB.verdict_reporter import generate_verdict_report
     except ImportError as e:
         print(f"❌ Erreur import verdict_reporter: {e}")
         sys.exit(1)

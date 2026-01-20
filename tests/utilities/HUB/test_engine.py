@@ -8,8 +8,8 @@ import time
 import traceback
 from typing import Dict, Any, List, Tuple, Optional
 
-from .registries.registry_manager import RegistryManager
-from .config_loader import get_loader
+from ..registries.registry_manager import RegistryManager
+from ..utils.config_loader import get_loader
 
 
 # =============================================================================

@@ -29,12 +29,12 @@ from collections import defaultdict
 # ============================================================================
 
 # I/O et structuration données
-from .data_loading import (
+from ..utils.data_loading import (
     load_all_observations
 )
 
 # Filtrage et diagnostics numériques
-from .statistical_utils import (
+from ..utils.statistical_utils import (
     filter_numeric_artifacts,
     generate_degeneracy_report,
     diagnose_scale_outliers,
@@ -43,7 +43,7 @@ from .statistical_utils import (
 )
 
 # Stratification régimes
-from .regime_utils import (
+from ..utils.regime_utils import (
     stratify_by_regime,
     extract_conserved_properties
 )
@@ -58,14 +58,14 @@ from .verdict_engine import (
     MIN_TOTAL_SAMPLES
 )
 
-from .gamma_profiling import (
+from ..utils.gamma_profiling import (
     profile_all_gammas,
     rank_gammas_by_test,
     compare_gammas_summary
-)
+) #\devrait être ..utils.profiling_common
 
 # Formatage et écriture rapports
-from .report_writers import (
+from ..utils.report_writers import (
     write_json,
     write_header,
     write_regime_synthesis,
@@ -75,7 +75,7 @@ from .report_writers import (
 )
 
 # Configuration
-from .config_loader import get_loader
+from ..utils.config_loader import get_loader
 
 
 # =============================================================================

@@ -40,13 +40,13 @@ import json
 # ============================================================================
 
 # I/O et structuration données
-from .data_loading import (
+from ..utils.data_loading import (
     load_all_observations,
     observations_to_dataframe
 )
 
 # Filtrage et diagnostics numériques
-from .statistical_utils import (
+from ..utils.statistical_utils import (
     compute_eta_squared,
     kruskal_wallis_test,
     filter_numeric_artifacts,
@@ -57,10 +57,10 @@ from .statistical_utils import (
 )
 
 # Stratification régimes
-from .regime_utils import stratify_by_regime
+from ..utils.regime_utils import stratify_by_regime
 
 # Configuration
-from .config_loader import get_loader
+from ..utils.config_loader import get_loader
 
 warnings.filterwarnings('ignore', category=RuntimeWarning)
 

@@ -25,7 +25,34 @@ import numpy as np
 from typing import List, Dict
 from pathlib import Path
 
+from contextlib import contextmanager
 
+@contextmanager
+def db_connection(db_path: str, row_factory=None):
+    """
+    Gestionnaire contexte connexions DB.
+    
+    Args:
+        db_path: Chemin DB
+        row_factory: sqlite3.Row ou None
+    
+    Yields:
+        cursor: Curseur DB
+    
+    Examples:
+        >>> with db_connection('prc_r0_raw.db') as cursor:
+        ...     cursor.execute("SELECT * FROM Executions")
+    """
+    conn = sqlite3.connect(db_path)
+    if row_factory:
+        conn.row_factory = row_factory
+    cursor = conn.cursor()
+    try:
+        yield cursor
+        conn.commit()
+    finally:
+        conn.close()
+        
 def load_all_observations(
     params_config_id: str,
     db_results_path: str = './prc_automation/prc_database/prc_r0_results.db',
