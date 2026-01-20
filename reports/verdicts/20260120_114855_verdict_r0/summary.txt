@@ -1,0 +1,297 @@
+================================================================================
+VERDICT REPORT R0+ - POSTURE NON GAMMA-CENTRIQUE (REFACTORISÉ)
+================================================================================
+
+2026-01-20T11:48:55.121173
+
+ARCHITECTURE RAPPORT:
+  verdict_engine   : Analyses statistiques globales (variance, interactions)
+  gamma_profiling  : Profils comportementaux individuels (régimes, timelines)
+  verdict_reporter : Orchestration + génération rapports (REFACTORISÉ)
+  report_writers   : Formatage sections standardisées
+
+================================================================================
+DATA SUMMARY
+================================================================================
+Total observations    : 20280
+Valid observations    : 20280
+Rejected (artifacts)  : 0 (0.0%)
+Gammas analyzed       : 11
+Tests analyzed        : 9
+
+QUALITY FLAGS:
+  Dégénérescences détectées : 0 (0.0%)
+  Ruptures échelle          : 1082 (5.3%)
+
+================================================================================
+SYNTHÈSE RÉGIMES (vue transversale)
+================================================================================
+
+Total profils : 99
+
+CONSERVATION (régimes sains):
+  CONSERVES_NORM                 :  13 ( 13.1%)
+  CONSERVES_GRADIENT             :   6 (  6.1%)
+  CONSERVES_PATTERN              :   6 (  6.1%)
+  MIXED::CONSERVES_TOPOLOGY      :   6 (  6.1%)
+  MIXED::CONSERVES_NORM          :   4 (  4.0%)
+  CONSERVES_TOPOLOGY             :   3 (  3.0%)
+  CONSERVES_SPECTRUM             :   2 (  2.0%)
+  MIXED::CONSERVES_SPECTRUM      :   2 (  2.0%)
+  MIXED::CONSERVES_SYMMETRY      :   1 (  1.0%)
+  Total conservation : 43 (43.4%)
+
+PATHOLOGIES:
+  OSCILLATORY_UNSTABLE           :  19 ( 19.2%)
+  TRIVIAL                        :  16 ( 16.2%)
+  Total pathologies : 35 (35.4%)
+
+MULTIMODALITÉ (MIXED::X):
+  MIXED::OSCILLATORY_UNSTABLE    :   9 (  9.1%)
+  MIXED::CONSERVES_TOPOLOGY      :   6 (  6.1%)
+  MIXED::SATURATES_HIGH          :   5 (  5.1%)
+  MIXED::CONSERVES_NORM          :   4 (  4.0%)
+  MIXED::UNCATEGORIZED           :   4 (  4.0%)
+  Total multimodal : 33 (33.3%)
+
+
+================================================================================
+SIGNATURES DYNAMIQUES PAR GAMMA
+================================================================================
+
+
+GAM-001:
+  Timeline dominante : early_instability_to_saturation_complex (89% tests)
+  Variantes (2 timelines distinctes):
+    - late_saturation_only (1 tests)
+
+GAM-002:
+  Timeline dominante : early_instability_to_saturation_complex (67% tests)
+  Variantes (4 timelines distinctes):
+    - oscillatory_early_instability_then_saturation (1 tests)
+    - early_instability_then_deviation (1 tests)
+
+GAM-003:
+  Timeline dominante : early_deviation_then_instability (56% tests)
+  Variantes (3 timelines distinctes):
+    - late_saturation_only (3 tests)
+    - early_instability_to_saturation_complex (1 tests)
+
+GAM-004:
+  Timeline dominante : early_instability_to_collapse_complex (44% tests)
+  Variantes (4 timelines distinctes):
+    - early_instability_to_saturation_complex (2 tests)
+    - late_saturation_only (2 tests)
+
+GAM-005:
+  Timeline dominante : early_instability_to_collapse_complex (44% tests)
+  Variantes (4 timelines distinctes):
+    - early_instability_to_saturation_complex (3 tests)
+    - late_saturation_only (1 tests)
+
+GAM-006:
+  Timeline dominante : early_instability_to_saturation_complex (67% tests)
+  Variantes (3 timelines distinctes):
+    - oscillatory_early_instability_to_saturation_complex (2 tests)
+    - late_saturation_only (1 tests)
+
+GAM-007:
+  Timeline dominante : early_instability_to_saturation_complex (67% tests)
+  Variantes (4 timelines distinctes):
+    - oscillatory_early_instability_then_saturation (1 tests)
+    - early_instability_then_deviation (1 tests)
+
+GAM-008:
+  Timeline dominante : early_instability_to_saturation_complex (89% tests)
+  Variantes (2 timelines distinctes):
+    - late_saturation_only (1 tests)
+
+GAM-009:
+  Timeline dominante : oscillatory_early_instability_to_saturation_complex (44% tests)
+  Variantes (4 timelines distinctes):
+    - oscillatory_early_deviation_only (3 tests)
+    - oscillatory_early_deviation_then_saturation (1 tests)
+
+GAM-010:
+  Timeline dominante : oscillatory_early_instability_then_deviation (33% tests)
+  Variantes (5 timelines distinctes):
+    - oscillatory_early_deviation_only (2 tests)
+    - oscillatory_early_instability_to_saturation_complex (2 tests)
+
+GAM-012:
+  Timeline dominante : early_instability_to_saturation_complex (78% tests)
+  Variantes (3 timelines distinctes):
+    - early_instability_to_collapse_complex (1 tests)
+    - late_saturation_only (1 tests)
+
+
+================================================================================
+GAMMA PROFILES (régimes dominants par gamma)
+================================================================================
+
+GAM-001:
+  Régime dominant : CONSERVES_NORM
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_GRADIENT': 1, 'CONSERVES_PATTERN': 1, 'MIXED::SATURATES_HIGH': 2, 'CONSERVES_NORM': 3, 'MIXED::CONSERVES_TOPOLOGY': 1, 'MIXED::CONSERVES_NORM': 1}
+  Propriétés conservées : Gradient, Norme, Pattern, Topologie
+
+GAM-002:
+  Régime dominant : MIXED::OSCILLATORY_UNSTABLE
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_GRADIENT': 1, 'OSCILLATORY_UNSTABLE': 1, 'CONSERVES_SPECTRUM': 1, 'MIXED::OSCILLATORY_UNSTABLE': 3, 'MIXED::DEGRADING': 1, 'CONSERVES_TOPOLOGY': 1, 'MIXED::CONSERVES_NORM': 1}
+  Propriétés conservées : Gradient, Norme, Spectre, Topologie
+
+GAM-003:
+  Régime dominant : MIXED::UNCATEGORIZED
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_GRADIENT': 1, 'CONSERVES_PATTERN': 1, 'MIXED::CONSERVES_SPECTRUM': 1, 'MIXED::UNCATEGORIZED': 4, 'MIXED::CONSERVES_TOPOLOGY': 1, 'UNCATEGORIZED': 1}
+  Propriétés conservées : Gradient, Pattern, Spectre, Topologie
+
+GAM-004:
+  Régime dominant : TRIVIAL
+  Tests profilés  : 9
+  Distribution    : {'TRIVIAL': 7, 'CONSERVES_PATTERN': 1, 'MIXED::CONSERVES_TOPOLOGY': 1}
+  Propriétés conservées : Pattern, Topologie
+
+GAM-005:
+  Régime dominant : TRIVIAL
+  Tests profilés  : 9
+  Distribution    : {'TRIVIAL': 7, 'CONSERVES_PATTERN': 1, 'MIXED::OSCILLATORY_UNSTABLE': 1}
+  Propriétés conservées : Pattern
+
+GAM-006:
+  Régime dominant : CONSERVES_NORM
+  Tests profilés  : 9
+  Distribution    : {'TRIVIAL': 1, 'OSCILLATORY_UNSTABLE': 1, 'MIXED::CONSERVES_SPECTRUM': 1, 'CONSERVES_NORM': 3, 'MIXED::CONSERVES_SYMMETRY': 1, 'MIXED::CONSERVES_TOPOLOGY': 1, 'MIXED::OSCILLATORY_UNSTABLE': 1}
+  Propriétés conservées : Norme, Spectre, Symétrie, Topologie
+
+GAM-007:
+  Régime dominant : MIXED::OSCILLATORY_UNSTABLE
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_GRADIENT': 1, 'OSCILLATORY_UNSTABLE': 1, 'CONSERVES_SPECTRUM': 1, 'MIXED::OSCILLATORY_UNSTABLE': 3, 'MIXED::DEGRADING': 1, 'CONSERVES_TOPOLOGY': 1, 'CONSERVES_NORM': 1}
+  Propriétés conservées : Gradient, Norme, Spectre, Topologie
+
+GAM-008:
+  Régime dominant : CONSERVES_NORM
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_GRADIENT': 1, 'CONSERVES_PATTERN': 1, 'MIXED::SATURATES_HIGH': 2, 'CONSERVES_NORM': 3, 'MIXED::CONSERVES_TOPOLOGY': 1, 'MIXED::CONSERVES_NORM': 1}
+  Propriétés conservées : Gradient, Norme, Pattern, Topologie
+
+GAM-009:
+  Régime dominant : OSCILLATORY_UNSTABLE
+  Tests profilés  : 9
+  Distribution    : {'OSCILLATORY_UNSTABLE': 9}
+
+GAM-010:
+  Régime dominant : OSCILLATORY_UNSTABLE
+  Tests profilés  : 9
+  Distribution    : {'OSCILLATORY_UNSTABLE': 7, 'MIXED::CONSERVES_TOPOLOGY': 1, 'MIXED::OSCILLATORY_UNSTABLE': 1}
+  Propriétés conservées : Topologie
+
+GAM-012:
+  Régime dominant : CONSERVES_NORM
+  Tests profilés  : 9
+  Distribution    : {'CONSERVES_GRADIENT': 1, 'CONSERVES_PATTERN': 1, 'MIXED::SATURATES_HIGH': 1, 'CONSERVES_NORM': 3, 'TRIVIAL': 1, 'CONSERVES_TOPOLOGY': 1, 'MIXED::CONSERVES_NORM': 1}
+  Propriétés conservées : Gradient, Norme, Pattern, Topologie
+
+================================================================================
+COMPARISONS INTER-GAMMAS (par propriété)
+================================================================================
+
+
+SYMÉTRIE:
+
+  SYM-001:
+    Meilleur : GAM-006
+    Pire     : GAM-010
+    Classement : GAM-006, GAM-004, GAM-005, GAM-012, GAM-001...
+
+NORME:
+
+  SPE-001:
+    Meilleur : GAM-001
+    Pire     : GAM-010
+    Classement : GAM-001, GAM-006, GAM-008, GAM-012, GAM-004...
+
+  SPE-002:
+    Meilleur : GAM-001
+    Pire     : GAM-010
+    Classement : GAM-001, GAM-006, GAM-008, GAM-012, GAM-004...
+
+  UNIV-001:
+    Meilleur : GAM-001
+    Pire     : GAM-010
+    Classement : GAM-001, GAM-002, GAM-006, GAM-007, GAM-008...
+
+  UNIV-002:
+    Meilleur : GAM-001
+    Pire     : GAM-010
+    Classement : GAM-001, GAM-008, GAM-012, GAM-004, GAM-005...
+
+PATTERN:
+
+  PAT-001:
+    Meilleur : GAM-001
+    Pire     : GAM-010
+    Classement : GAM-001, GAM-003, GAM-004, GAM-005, GAM-008...
+
+TOPOLOGIE:
+
+  TOP-001:
+    Meilleur : GAM-001
+    Pire     : GAM-009
+    Classement : GAM-001, GAM-002, GAM-003, GAM-004, GAM-006...
+
+GRADIENT:
+
+  GRA-001:
+    Meilleur : GAM-001
+    Pire     : GAM-010
+    Classement : GAM-001, GAM-002, GAM-003, GAM-007, GAM-008...
+
+SPECTRE:
+
+  SPA-001:
+    Meilleur : GAM-002
+    Pire     : GAM-012
+    Classement : GAM-002, GAM-003, GAM-006, GAM-007, GAM-004...
+
+
+================================================================================
+STRUCTURAL PATTERNS (analyses globales stratifiées)
+================================================================================
+
+RÉGIME GLOBAL:
+  Observations : 20280
+  Status       : SUCCESS
+  Verdict      : WIP[R0-open]
+  Raison       : 1 factors dominants | 4 interactions vraies | 4 paires redondantes
+  Patterns détectés:
+    marginal_dominant: 1 occurrences
+    oriented_interactions: 4 occurrences
+    redundant: 1 occurrences
+
+RÉGIME STABLE:
+  Observations : 20280
+  Status       : SUCCESS
+  Verdict      : WIP[R0-open]
+  Raison       : 1 factors dominants | 4 interactions vraies | 4 paires redondantes
+  Patterns détectés:
+    marginal_dominant: 1 occurrences
+    oriented_interactions: 4 occurrences
+    redundant: 1 occurrences
+
+RÉGIME EXPLOSIF:
+  Observations : 0
+  Status       : INSUFFICIENT_DATA
+
+================================================================================
+CONSULTATION DÉTAILLÉE
+================================================================================
+gamma_profiles.json       : Profils complets tous gammas × tests
+gamma_profiles.csv        : Vue tabulaire pour analyse
+comparisons.json          : Classements inter-gammas
+structural_patterns.json  : Analyses globales (variance, interactions)
+diagnostics.json          : Diagnostics numériques détaillés
+marginal_variance_*.csv   : Données brutes analyses (3 strates)
+================================================================================
