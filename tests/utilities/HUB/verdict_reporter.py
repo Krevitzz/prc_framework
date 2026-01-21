@@ -87,6 +87,11 @@ from ..utils.report_writers import (
 # Configuration
 from ..utils.config_loader import get_loader
 
+# Orchestration profiling multi-axes
+from .profiling_runner import run_all_profiling
+
+# Cross-profiling (rankings, discriminant_power)
+from ..utils.cross_profiling import compute_all_discriminant_powers
 
 # =============================================================================
 # PIPELINE PRINCIPAL
@@ -100,46 +105,47 @@ def generate_verdict_report(
     """
     Pipeline complet génération rapport verdict R0.
     
-    ARCHITECTURE MIGRÉE (Phase 3) :
+    ARCHITECTURE PHASE 4 (4 axes profiling) :
     1. Chargement observations (data_loading)
     2. Diagnostics numériques (statistical_utils)
     3. Analyses globales stratifiées (verdict_engine)
-    4. Profiling gamma (profiling_common) ← MIGRÉ
-    5. Fusion résultats + génération rapports (report_writers)
+    4. Profiling multi-axes (profiling_runner) ← PHASE 4
+    5. Génération rapports (report_writers - templates Jinja2)
     
     Args:
-        params_config_id: Config params utilisée (ex: 'params_default_v1')
-        verdict_config_id: Config verdict (ex: 'verdict_default_v1')
+        params_config_id: Config params utilisée
+        verdict_config_id: Config verdict
         output_dir: Répertoire sortie rapports
     
     Returns:
-        dict: Résultats complets (pour introspection)
+        dict: Résultats complets
         {
             'metadata': {...},
-            'gamma_profiles': {...},
+            'profiling_results': {      # ← PHASE 4
+                'test': {...},
+                'gamma': {...},
+                'modifier': {...},
+                'encoding': {...}
+            },
             'structural_patterns': {...},
-            'comparisons': {...},
             'report_paths': {...}
         }
     """
     print(f"\n{'='*70}")
-    print(f"VERDICT REPORTER R0 - GÉNÉRATION RAPPORTS (MIGRÉ profiling_common)")
+    print(f"VERDICT REPORTER R0 - GÉNÉRATION RAPPORTS (PHASE 4 - 4 AXES)")
     print(f"{'='*70}\n")
     
     print(f"Params config:  {params_config_id}")
     print(f"Verdict config: {verdict_config_id}\n")
     
     # =========================================================================
-    # ÉTAPE 1 : CHARGEMENT + DIAGNOSTICS (DÉLÉGUÉ)
+    # ÉTAPES 1-2 : CHARGEMENT + DIAGNOSTICS (INCHANGÉ)
     # =========================================================================
     
     print("1. Chargement observations...")
-    # ✅ DÉLÉGUÉ → data_loading
     observations = load_all_observations(params_config_id)
     print(f"   ✓ {len(observations)} observations chargées")
     
-    # Filtrage artefacts numériques
-    # ✅ DÉLÉGUÉ → statistical_utils
     observations, rejection_stats = filter_numeric_artifacts(observations)
     
     if rejection_stats['rejected_observations'] > 0:
@@ -149,9 +155,7 @@ def generate_verdict_report(
             print(f"      {test}: {count} invalides")
     print()
     
-    # Diagnostics (informatifs uniquement)
     print("2. Diagnostics numériques...")
-    # ✅ DÉLÉGUÉ → statistical_utils
     degeneracy_report = generate_degeneracy_report(observations)
     scale_report = diagnose_scale_outliers(observations)
     print(f"   ✓ Dégénérescences : {degeneracy_report['observations_with_flags']} observations")
@@ -159,20 +163,16 @@ def generate_verdict_report(
     print()
     
     # =========================================================================
-    # ÉTAPE 2 : ANALYSES GLOBALES STRATIFIÉES (DÉLÉGUÉ verdict_engine)
+    # ÉTAPE 3 : ANALYSES GLOBALES STRATIFIÉES (INCHANGÉ)
     # =========================================================================
     
     print("3. Analyses globales stratifiées...")
     
-    # Stratification régimes
-    # ✅ DÉLÉGUÉ → regime_utils
     obs_stable, obs_explosif = stratify_by_regime(observations)
     print(f"   Régime STABLE   : {len(obs_stable)} observations ({len(obs_stable)/len(observations)*100:.1f}%)")
     print(f"   Régime EXPLOSIF : {len(obs_explosif)} observations ({len(obs_explosif)/len(observations)*100:.1f}%)")
     
-    # Analyses parallèles (3 strates)
     print("\n   Analyse GLOBAL...")
-    # ✅ DÉLÉGUÉ → verdict_engine
     results_global = analyze_regime(
         observations, 'GLOBAL',
         params_config_id, verdict_config_id
@@ -208,45 +208,82 @@ def generate_verdict_report(
     print()
     
     # =========================================================================
-    # ÉTAPE 3 : PROFILING GAMMA (MIGRÉ profiling_common)
+    # ÉTAPE 4 : PROFILING MULTI-AXES (PHASE 4 - MODIFIÉ)
     # =========================================================================
     
-    print("4. Profiling gamma (profiling_common - MIGRÉ)...")
-    # ✅ MIGRÉ → profiling_common
-    gamma_profiles = profile_all_gammas(observations)
-    print(f"   ✓ {len(gamma_profiles)} gammas profilés")
+    print("4. Profiling multi-axes (4 axes : test, gamma, modifier, encoding)...")
     
-    # Comparaisons inter-gammas
-    comparisons = compare_gammas_summary(gamma_profiles)
-    print(f"   ✓ Comparaisons : {len(comparisons['by_test'])} tests analysés")
+    # Appel profiling_runner (orchestration 4 axes)
+    profiling_results = run_all_profiling(
+        observations,
+        axes=['test', 'gamma', 'modifier', 'encoding']
+    )
+    
+    print(f"   ✓ Test     : {profiling_results['test']['metadata']['n_entities']} entités profilées")
+    print(f"   ✓ Gamma    : {profiling_results['gamma']['metadata']['n_entities']} entités profilées")
+    print(f"   ✓ Modifier : {profiling_results['modifier']['metadata']['n_entities']} entités profilées")
+    print(f"   ✓ Encoding : {profiling_results['encoding']['metadata']['n_entities']} entités profilées")
     print()
     
     # =========================================================================
-    # ÉTAPE 4 : FUSION RÉSULTATS (LOCAL - orchestration)
+    # ÉTAPE 5 : FUSION RÉSULTATS (PHASE 4 - MODIFIÉ)
     # =========================================================================
     
     print("5. Fusion résultats...")
     
-    # Compiler structure finale
+    # Extraire entités disponibles (inline, pas fonction dédiée)
+    gammas = sorted(set(obs['gamma_id'] for obs in observations))
+    tests = sorted(set(obs['test_name'] for obs in observations))
+    modifiers = sorted(set(obs['modifier_id'] for obs in observations))
+    encodings = sorted(set(obs['d_encoding_id'] for obs in observations))
+    
     final_results = {
-        'metadata': _compile_metadata(
-            params_config_id,
-            verdict_config_id,
-            observations,
-            rejection_stats,
-            degeneracy_report,
-            scale_report
-        ),
+        'metadata': {
+            'generated_at': datetime.now().isoformat(),
+            'engine_version': '6.1',
+            'architecture': 'verdict_reporter_r0_phase4_multiaxis',
+            'configs_used': {
+                'params': params_config_id,
+                'verdict': verdict_config_id
+            },
+            'data_summary': {
+                'total_observations': len(observations),
+                'valid_observations': rejection_stats['valid_observations'],
+                'rejected_observations': rejection_stats['rejected_observations'],
+                'rejection_rate': rejection_stats['rejection_rate'],
+                'n_gammas': len(gammas),
+                'n_tests': len(tests),
+                'n_modifiers': len(modifiers),
+                'n_encodings': len(encodings),
+                'gammas_list': gammas,
+                'tests_list': tests,
+                'modifiers_list': modifiers,
+                'encodings_list': encodings
+            },
+            'quality_flags': {
+                'observations_with_degeneracy': degeneracy_report['observations_with_flags'],
+                'degeneracy_rate': degeneracy_report['flag_rate'],
+                'observations_with_scale_outliers': scale_report['observations_with_outliers'],
+                'scale_outlier_rate': scale_report['outlier_rate']
+            },
+            'analysis_parameters': {
+                'factors_analyzed': FACTORS,
+                'projections_analyzed': PROJECTIONS,
+                'testability_thresholds': {
+                    'min_samples_per_group': MIN_SAMPLES_PER_GROUP,
+                    'min_groups': MIN_GROUPS,
+                    'min_total_samples': MIN_TOTAL_SAMPLES
+                }
+            }
+        },
         
-        'gamma_profiles': _format_gamma_profiles(gamma_profiles),
+        'profiling_results': profiling_results,  # ← PHASE 4 (4 axes)
         
         'structural_patterns': _compile_structural_patterns(
             results_global,
             results_stable,
             results_explosif
         ),
-        
-        'comparisons': comparisons,
         
         'diagnostics': {
             'numeric_artifacts': rejection_stats,
@@ -259,7 +296,7 @@ def generate_verdict_report(
     print()
     
     # =========================================================================
-    # ÉTAPE 5 : GÉNÉRATION RAPPORTS (MIGRÉ Templates Jinja2)
+    # ÉTAPE 6 : GÉNÉRATION RAPPORTS (PHASE 4 - MODIFIÉ)
     # =========================================================================
     
     print("6. Génération rapports multi-formats...")
@@ -271,47 +308,58 @@ def generate_verdict_report(
     report_paths = {}
     
     # 6a. Metadata
-    # ✅ DÉLÉGUÉ → report_writers
     write_json(final_results['metadata'], report_dir / 'metadata.json')
     report_paths['metadata'] = str(report_dir / 'metadata.json')
     
-    # 6b. Rapport gamma (Template Jinja2)
-    print("   Génération summary_gamma.txt (Jinja2)...")
-    metadata_profiling = {
-        'generated_at': datetime.now().isoformat(),
-        'n_entities': len(gamma_profiles),
-        'n_observations': len(observations),
-        'profiling_version': '6.1',
-        'profiling_module': 'profiling_common'
-    }
+    # 6b. Rapports par axe (4 × summary_*.txt via templates Jinja2)
+    for axis in ['test', 'gamma', 'modifier', 'encoding']:
+        print(f"   Génération summary_{axis}.txt (Jinja2)...")
+        
+        axis_results = profiling_results[axis]
+        
+        write_summary_axis(
+            output_path=report_dir / f'summary_{axis}.txt',
+            axis=axis,
+            profiles=axis_results['profiles'],
+            summary=axis_results['summary'],
+            metadata=axis_results['metadata'],
+            discriminant_powers=axis_results.get('discriminant_powers')  # Seulement axe test
+        )
+        report_paths[f'summary_{axis}'] = str(report_dir / f'summary_{axis}.txt')
     
-    write_summary_axis(
-        output_path=report_dir / 'summary_gamma.txt',
-        axis='gamma',
-        profiles=gamma_profiles,
-        summary=comparisons,
-        metadata=metadata_profiling,
-        discriminant_powers=None  # Pas calculé pour gamma (axe test uniquement)
+    # 6c. Rapport global (synthèse multi-axes)
+    print("   Génération summary_global.txt (Jinja2)...")
+    from ..utils.report_writers import write_summary_global
+    
+    write_summary_global(
+        output_path=report_dir / 'summary_global.txt',
+        metadata=final_results['metadata'],
+        profiling_results=profiling_results,
+        structural_patterns=final_results['structural_patterns'],
+        diagnostics=final_results['diagnostics']
     )
-    report_paths['summary_gamma'] = str(report_dir / 'summary_gamma.txt')
+    report_paths['summary_global'] = str(report_dir / 'summary_global.txt')
     
-    # 6c. Gamma profiles (JSON + CSV)
-    _write_gamma_profiles(report_dir, final_results['gamma_profiles'])
-    report_paths['gamma_profiles_json'] = str(report_dir / 'gamma_profiles.json')
-    report_paths['gamma_profiles_csv'] = str(report_dir / 'gamma_profiles.csv')
+    # 6d. Profils individuels (JSON par axe/entité)
+    profiles_dir = report_dir / 'profiles'
     
-    # 6d. Comparaisons inter-gammas
-    # ✅ DÉLÉGUÉ → report_writers
-    write_json(final_results['comparisons'], report_dir / 'comparisons.json')
-    report_paths['comparisons'] = str(report_dir / 'comparisons.json')
+    for axis in ['test', 'gamma', 'modifier', 'encoding']:
+        axis_dir = profiles_dir / axis
+        axis_dir.mkdir(parents=True, exist_ok=True)
+        
+        axis_profiles = profiling_results[axis]['profiles']
+        
+        for entity_id, entity_data in axis_profiles.items():
+            entity_file = axis_dir / f"{entity_id}.json"
+            write_json(entity_data, entity_file)
+        
+        report_paths[f'profiles_{axis}'] = str(axis_dir)
     
     # 6e. Structural patterns (analyses globales)
-    # ✅ DÉLÉGUÉ → report_writers
     write_json(final_results['structural_patterns'], report_dir / 'structural_patterns.json')
     report_paths['structural_patterns'] = str(report_dir / 'structural_patterns.json')
     
     # 6f. Diagnostics détaillés
-    # ✅ DÉLÉGUÉ → report_writers
     write_json(final_results['diagnostics'], report_dir / 'diagnostics.json')
     report_paths['diagnostics'] = str(report_dir / 'diagnostics.json')
     
@@ -345,11 +393,12 @@ def generate_verdict_report(
     # =========================================================================
     
     print("="*70)
-    print("RAPPORT VERDICT R0 GÉNÉRÉ (MIGRÉ profiling_common)")
+    print("RAPPORT VERDICT R0 GÉNÉRÉ (PHASE 4 - 4 AXES PROFILING)")
     print("="*70)
     print(f"Répertoire : {report_dir}")
-    print(f"Gammas     : {len(gamma_profiles)}")
-    print(f"Tests      : {len(comparisons['by_test'])}")
+    print(f"Axes       : test, gamma, modifier, encoding")
+    print(f"Entités    : {len(tests)} tests, {len(gammas)} gammas, "
+          f"{len(modifiers)} modifiers, {len(encodings)} encodings")
     print(f"Fichiers   : {len(report_paths)}")
     print("="*70 + "\n")
     
@@ -412,68 +461,6 @@ def _compile_metadata(
 
 
 # =============================================================================
-# FORMATAGE GAMMA PROFILES (LOCAL - spécifique verdict)
-# =============================================================================
-
-def _format_gamma_profiles(gamma_profiles: dict) -> dict:
-    """
-    Formate gamma_profiles pour rapport.
-    
-    Structure Charter R0 :
-    {
-        'GAM-001': {
-            'tests': {
-                'SYM-001': {
-                    'regime': 'CONSERVES_X',
-                    'behavior': 'stable',
-                    'timeline': 'early_deviation_then_saturation',
-                    'confidence': 'high'
-                }
-            },
-            'summary': {...}
-        }
-    }
-    """
-    formatted = {}
-    
-    for gamma_id, gamma_data in gamma_profiles.items():
-        tests_formatted = {}
-        
-        for test_name, test_profile in gamma_data['tests'].items():
-            prc = test_profile['prc_profile']
-            
-            tests_formatted[test_name] = {
-                'regime': prc['regime'],
-                'behavior': prc['behavior'],
-                'timeline': prc['dominant_timeline']['timeline_compact'],
-                'timeline_confidence': prc['dominant_timeline']['confidence'],
-                'confidence': prc['confidence'],
-                'n_runs': prc['n_runs'],
-                'n_valid': prc['n_valid'],
-                'pathologies': prc['pathologies'],
-                'robustness': prc['robustness']
-            }
-        
-        # Synthèse gamma (régime dominant)
-        regime_counts = defaultdict(int)
-        for test_prof in tests_formatted.values():
-            regime_counts[test_prof['regime']] += 1
-        
-        dominant_regime = max(regime_counts.items(), key=lambda x: x[1])[0] if regime_counts else 'NO_DATA'
-        
-        formatted[gamma_id] = {
-            'tests': tests_formatted,
-            'summary': {
-                'n_tests': len(tests_formatted),
-                'dominant_regime': dominant_regime,
-                'regime_distribution': dict(regime_counts)
-            }
-        }
-    
-    return formatted
-
-
-# =============================================================================
 # COMPILATION STRUCTURAL PATTERNS (LOCAL - spécifique verdict)
 # =============================================================================
 
@@ -511,39 +498,3 @@ def _compile_structural_patterns(
     }
 
 
-# =============================================================================
-# GÉNÉRATION FICHIERS RAPPORTS (PARTIELLEMENT DÉLÉGUÉ)
-# =============================================================================
-
-def _write_gamma_profiles(report_dir: Path, gamma_profiles: dict):
-    """Écrit gamma_profiles.json + CSV."""
-    
-    # JSON complet
-    # ✅ DÉLÉGUÉ → report_writers
-    write_json(gamma_profiles, report_dir / 'gamma_profiles.json')
-    
-    # CSV (vue tabulaire)
-    rows = []
-    for gamma_id, gamma_data in gamma_profiles.items():
-        for test_name, test_data in gamma_data['tests'].items():
-            rows.append({
-                'gamma_id': gamma_id,
-                'test_name': test_name,
-                'regime': test_data['regime'],
-                'behavior': test_data['behavior'],
-                'timeline': test_data['timeline'],
-                'timeline_confidence': test_data['timeline_confidence'],
-                'confidence': test_data['confidence'],
-                'n_runs': test_data['n_runs'],
-                'n_valid': test_data['n_valid'],
-                'pathology_numeric_instability': test_data['pathologies']['numeric_instability'],
-                'pathology_oscillatory': test_data['pathologies']['oscillatory'],
-                'pathology_collapse': test_data['pathologies']['collapse'],
-                'pathology_trivial': test_data['pathologies']['trivial'],
-                'robust_homogeneous': test_data['robustness']['homogeneous'],
-                'robust_mixed_behavior': test_data['robustness']['mixed_behavior'],
-                'robust_numerically_stable': test_data['robustness']['numerically_stable']
-            })
-    
-    df = pd.DataFrame(rows)
-    df.to_csv(report_dir / 'gamma_profiles.csv', index=False)

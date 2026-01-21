@@ -211,13 +211,14 @@ def run_batch_verdict(args):
         )
         
         # Résumé rapide
-        print(f"\n{'='*70}")
-        print("✓ VERDICT TERMINÉ")
-        print(f"{'='*70}")
-        print(f"Gammas profilés : {results['metadata']['data_summary']['n_gammas']}")
-        print(f"Tests analysés  : {results['metadata']['data_summary']['n_tests']}")
-        print(f"Répertoire      : {Path(results['report_paths']['summary']).parent}")
-        print(f"{'='*70}\n")
+        print("="*70)
+        print("VERDICT GÉNÉRÉ")
+        print("="*70)
+        print(f"Répertoire      : {Path(results['report_paths']['summary_global']).parent}")
+        print(f"Rapport global  : summary_global.txt")
+        print(f"Rapports axes   : summary_test.txt, summary_gamma.txt, summary_modifier.txt, summary_encoding.txt")
+        print(f"Fichiers totaux : {len(results['report_paths'])}")
+        print("="*70)
         
     except Exception as e:
         print(f"\n❌ Erreur génération verdict: {e}")

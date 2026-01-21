@@ -38,13 +38,13 @@ Observations      : {{ profiling_results[axis_name].metadata.n_observations }}
 
 Régimes dominants (top 5) :
 {% set by_regime = profiling_results[axis_name].summary.by_regime %}
-{% for regime, entities in by_regime.items()|sort(attribute='1', reverse=True)[:5] %}
+{% for regime, entities in (by_regime.items()|list|sort(attribute='1', reverse=True))[:5] %}
   {{ "%-30s"|format(regime) }} : {{ entities|length }} entités
 {% endfor %}
 
 {% if profiling_results[axis_name].discriminant_powers %}
 Pouvoir discriminant (top 3 tests) :
-{% for test_name, power in profiling_results[axis_name].discriminant_powers.items()|sort(attribute='1.discriminant_ratio', reverse=True)[:3] %}
+{% for test_name, power in (profiling_results[axis_name].discriminant_powers.items()|list|sort(attribute='1.discriminant_ratio', reverse=True))[:3] %}
   {{ "%-20s"|format(test_name) }} : ratio {{ power.discriminant_ratio|round(2) }} ({{ power.interpretation }})
 {% endfor %}
 {% endif %}

@@ -26,7 +26,7 @@ from typing import Dict, List
 from collections import defaultdict
 
 # Profiling modules
-from ..profiling_common import (
+from ..utils.profiling_common import (
     profile_all_tests,
     profile_all_gammas,
     profile_all_modifiers,
@@ -38,7 +38,7 @@ from ..profiling_common import (
 )
 
 # Cross-profiling
-from ..cross_profiling import compute_all_discriminant_powers
+from ..utils.cross_profiling import compute_all_discriminant_powers
 
 
 # ============================================================================

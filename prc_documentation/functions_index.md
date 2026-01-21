@@ -119,10 +119,8 @@
 ###verdict_reporter.py | Orchestration rapports complets | verdict_engine, profiling_runner, report_writers |
 - `generate_verdict_report()` : Pipeline complet 6 étapes
 - `_compile_metadata()` : Compilation métadonnées rapport
-- `_format_gamma_profiles()` : Formatage structure gamma_profiles
 - `_compile_structural_patterns()` : Compilation patterns globaux
 - `_write_summary_report()` : Écriture rapport humain (partiellement délégué)
-- `_write_gamma_profiles()` : Écriture JSON + CSV
 
 ### profiling_runner.py | Orchestration profiling multi-axes | profiling_common, cross_profiling |
 - `run_all_profiling()` : Exécute profiling tous axes demandés
