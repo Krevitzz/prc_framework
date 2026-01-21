@@ -1,0 +1,402 @@
+================================================================================
+RAPPORT GAMMA - PROFILING R0
+================================================================================
+Généré le : 2026-01-21T01:18:20.430091
+Axe analysé : gamma
+Entités profilées : 11
+Observations totales : 20280
+
+================================================================================
+DISTRIBUTION RÉGIMES
+================================================================================
+
+
+
+CONSERVATION (régimes sains) :
+  CONSERVES_NORM                      :  13 (13.1%)
+  CONSERVES_GRADIENT                  :   6 (6.1%)
+  CONSERVES_PATTERN                   :   6 (6.1%)
+  MIXED::CONSERVES_TOPOLOGY           :   6 (6.1%)
+  MIXED::CONSERVES_NORM               :   4 (4.0%)
+  CONSERVES_TOPOLOGY                  :   3 (3.0%)
+  CONSERVES_SPECTRUM                  :   2 (2.0%)
+  MIXED::CONSERVES_SPECTRUM           :   2 (2.0%)
+  MIXED::CONSERVES_SYMMETRY           :   1 (1.0%)
+
+PATHOLOGIES :
+  OSCILLATORY_UNSTABLE                :  19 (19.2%)
+  TRIVIAL                             :  16 (16.2%)
+
+MULTIMODALITÉ (MIXED::X) :
+  MIXED::OSCILLATORY_UNSTABLE         :   9 (9.1%)
+
+
+================================================================================
+SIGNATURES DYNAMIQUES
+================================================================================
+
+
+GAM-001 :
+  Timeline dominante : early_instability_to_saturation_complex (89% tests)
+  Variantes (2 distinctes) :
+    - late_saturation_only (1 tests)
+
+
+GAM-002 :
+  Timeline dominante : early_instability_to_saturation_complex (67% tests)
+  Variantes (4 distinctes) :
+    - oscillatory_early_instability_then_saturation (1 tests)
+    - early_instability_then_deviation (1 tests)
+    - oscillatory_early_instability_to_saturation_complex (1 tests)
+
+
+GAM-003 :
+  Timeline dominante : early_deviation_then_instability (56% tests)
+  Variantes (3 distinctes) :
+    - late_saturation_only (3 tests)
+    - early_instability_to_saturation_complex (1 tests)
+
+
+GAM-004 :
+  Timeline dominante : early_instability_to_collapse_complex (44% tests)
+  Variantes (4 distinctes) :
+    - early_instability_to_saturation_complex (2 tests)
+    - late_saturation_only (2 tests)
+    - mid_instability_to_saturation_complex (1 tests)
+
+
+GAM-005 :
+  Timeline dominante : early_instability_to_collapse_complex (44% tests)
+  Variantes (4 distinctes) :
+    - early_instability_to_saturation_complex (3 tests)
+    - late_saturation_only (1 tests)
+    - oscillatory_early_deviation_only (1 tests)
+
+
+GAM-006 :
+  Timeline dominante : early_instability_to_saturation_complex (67% tests)
+  Variantes (3 distinctes) :
+    - oscillatory_early_instability_to_saturation_complex (2 tests)
+    - late_saturation_only (1 tests)
+
+
+GAM-007 :
+  Timeline dominante : early_instability_to_saturation_complex (67% tests)
+  Variantes (4 distinctes) :
+    - oscillatory_early_instability_then_saturation (1 tests)
+    - early_instability_then_deviation (1 tests)
+    - oscillatory_early_instability_to_saturation_complex (1 tests)
+
+
+GAM-008 :
+  Timeline dominante : early_instability_to_saturation_complex (89% tests)
+  Variantes (2 distinctes) :
+    - late_saturation_only (1 tests)
+
+
+GAM-009 :
+  Timeline dominante : oscillatory_early_instability_to_saturation_complex (44% tests)
+  Variantes (4 distinctes) :
+    - oscillatory_early_deviation_only (3 tests)
+    - oscillatory_early_deviation_then_saturation (1 tests)
+    - oscillatory_late_saturation_only (1 tests)
+
+
+GAM-010 :
+  Timeline dominante : oscillatory_early_instability_then_deviation (33% tests)
+  Variantes (5 distinctes) :
+    - oscillatory_early_deviation_only (2 tests)
+    - oscillatory_early_instability_to_saturation_complex (2 tests)
+    - oscillatory_late_deviation_then_saturation (1 tests)
+
+
+GAM-012 :
+  Timeline dominante : early_instability_to_saturation_complex (78% tests)
+  Variantes (3 distinctes) :
+    - early_instability_to_collapse_complex (1 tests)
+    - late_saturation_only (1 tests)
+
+
+================================================================================
+PROFILS INDIVIDUELS
+================================================================================
+
+
+GAM-001
+--------------------------------------------------------------------------------
+Tests profilés : 9
+Runs totaux    : 1860
+
+Régimes par test :
+  GRA-001         : CONSERVES_GRADIENT                  [stable] (low)
+  PAT-001         : CONSERVES_PATTERN                   [stable] (low)
+  SPA-001         : MIXED::SATURATES_HIGH               [mixed] (low)
+  SPE-001         : CONSERVES_NORM                      [stable] (low)
+  SPE-002         : CONSERVES_NORM                      [stable] (low)
+  SYM-001         : MIXED::SATURATES_HIGH               [mixed] (low)
+  TOP-001         : MIXED::CONSERVES_TOPOLOGY           [mixed] (low)
+  UNIV-001        : CONSERVES_NORM                      [stable] (low)
+  UNIV-002        : MIXED::CONSERVES_NORM               [mixed] (low)
+
+Propriétés conservées :
+  GRADIENT, PATTERN, NORM, TOPOLOGY
+
+
+GAM-002
+--------------------------------------------------------------------------------
+Tests profilés : 9
+Runs totaux    : 1800
+
+Régimes par test :
+  GRA-001         : CONSERVES_GRADIENT                  [stable] (low)
+  PAT-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  SPA-001         : CONSERVES_SPECTRUM                  [stable] (low)
+  SPE-001         : MIXED::OSCILLATORY_UNSTABLE         [mixed] (low)
+  SPE-002         : MIXED::OSCILLATORY_UNSTABLE         [mixed] (low)
+  SYM-001         : MIXED::DEGRADING                    [mixed] (low)
+  TOP-001         : CONSERVES_TOPOLOGY                  [stable] (low)
+  UNIV-001        : MIXED::CONSERVES_NORM               [mixed] (low)
+  UNIV-002        : MIXED::OSCILLATORY_UNSTABLE         [mixed] (low)
+
+Propriétés conservées :
+  GRADIENT, SPECTRUM, TOPOLOGY, NORM
+
+
+GAM-003
+--------------------------------------------------------------------------------
+Tests profilés : 9
+Runs totaux    : 1860
+
+Régimes par test :
+  GRA-001         : CONSERVES_GRADIENT                  [stable] (low)
+  PAT-001         : CONSERVES_PATTERN                   [stable] (low)
+  SPA-001         : MIXED::CONSERVES_SPECTRUM           [mixed] (low)
+  SPE-001         : MIXED::UNCATEGORIZED                [mixed] (low)
+  SPE-002         : MIXED::UNCATEGORIZED                [mixed] (low)
+  SYM-001         : MIXED::UNCATEGORIZED                [mixed] (low)
+  TOP-001         : MIXED::CONSERVES_TOPOLOGY           [mixed] (low)
+  UNIV-001        : UNCATEGORIZED                       [uncategorized] (low)
+  UNIV-002        : MIXED::UNCATEGORIZED                [mixed] (low)
+
+Propriétés conservées :
+  GRADIENT, PATTERN, SPECTRUM, TOPOLOGY
+
+
+GAM-004
+--------------------------------------------------------------------------------
+Tests profilés : 9
+Runs totaux    : 1860
+
+Régimes par test :
+  GRA-001         : TRIVIAL                             [stable] (low)
+  PAT-001         : CONSERVES_PATTERN                   [stable] (low)
+  SPA-001         : TRIVIAL                             [stable] (low)
+  SPE-001         : TRIVIAL                             [stable] (low)
+  SPE-002         : TRIVIAL                             [stable] (low)
+  SYM-001         : TRIVIAL                             [stable] (low)
+  TOP-001         : MIXED::CONSERVES_TOPOLOGY           [mixed] (low)
+  UNIV-001        : TRIVIAL                             [stable] (low)
+  UNIV-002        : TRIVIAL                             [stable] (low)
+
+Propriétés conservées :
+  PATTERN, TOPOLOGY
+
+
+GAM-005
+--------------------------------------------------------------------------------
+Tests profilés : 9
+Runs totaux    : 1860
+
+Régimes par test :
+  GRA-001         : TRIVIAL                             [stable] (low)
+  PAT-001         : CONSERVES_PATTERN                   [stable] (low)
+  SPA-001         : TRIVIAL                             [stable] (low)
+  SPE-001         : TRIVIAL                             [stable] (low)
+  SPE-002         : TRIVIAL                             [stable] (low)
+  SYM-001         : TRIVIAL                             [stable] (low)
+  TOP-001         : MIXED::OSCILLATORY_UNSTABLE         [mixed] (low)
+  UNIV-001        : TRIVIAL                             [stable] (low)
+  UNIV-002        : TRIVIAL                             [stable] (low)
+
+Propriétés conservées :
+  PATTERN
+
+
+GAM-006
+--------------------------------------------------------------------------------
+Tests profilés : 9
+Runs totaux    : 1860
+
+Régimes par test :
+  GRA-001         : TRIVIAL                             [stable] (low)
+  PAT-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  SPA-001         : MIXED::CONSERVES_SPECTRUM           [mixed] (low)
+  SPE-001         : CONSERVES_NORM                      [stable] (low)
+  SPE-002         : CONSERVES_NORM                      [stable] (low)
+  SYM-001         : MIXED::CONSERVES_SYMMETRY           [mixed] (low)
+  TOP-001         : MIXED::CONSERVES_TOPOLOGY           [mixed] (low)
+  UNIV-001        : CONSERVES_NORM                      [stable] (low)
+  UNIV-002        : MIXED::OSCILLATORY_UNSTABLE         [mixed] (low)
+
+Propriétés conservées :
+  SPECTRUM, NORM, SYMMETRY, TOPOLOGY
+
+
+GAM-007
+--------------------------------------------------------------------------------
+Tests profilés : 9
+Runs totaux    : 1800
+
+Régimes par test :
+  GRA-001         : CONSERVES_GRADIENT                  [stable] (low)
+  PAT-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  SPA-001         : CONSERVES_SPECTRUM                  [stable] (low)
+  SPE-001         : MIXED::OSCILLATORY_UNSTABLE         [mixed] (low)
+  SPE-002         : MIXED::OSCILLATORY_UNSTABLE         [mixed] (low)
+  SYM-001         : MIXED::DEGRADING                    [mixed] (low)
+  TOP-001         : CONSERVES_TOPOLOGY                  [stable] (low)
+  UNIV-001        : CONSERVES_NORM                      [stable] (low)
+  UNIV-002        : MIXED::OSCILLATORY_UNSTABLE         [mixed] (low)
+
+Propriétés conservées :
+  GRADIENT, SPECTRUM, TOPOLOGY, NORM
+
+
+GAM-008
+--------------------------------------------------------------------------------
+Tests profilés : 9
+Runs totaux    : 1860
+
+Régimes par test :
+  GRA-001         : CONSERVES_GRADIENT                  [stable] (low)
+  PAT-001         : CONSERVES_PATTERN                   [stable] (low)
+  SPA-001         : MIXED::SATURATES_HIGH               [mixed] (low)
+  SPE-001         : CONSERVES_NORM                      [stable] (low)
+  SPE-002         : CONSERVES_NORM                      [stable] (low)
+  SYM-001         : MIXED::SATURATES_HIGH               [mixed] (low)
+  TOP-001         : MIXED::CONSERVES_TOPOLOGY           [mixed] (low)
+  UNIV-001        : CONSERVES_NORM                      [stable] (low)
+  UNIV-002        : MIXED::CONSERVES_NORM               [mixed] (low)
+
+Propriétés conservées :
+  GRADIENT, PATTERN, NORM, TOPOLOGY
+
+
+GAM-009
+--------------------------------------------------------------------------------
+Tests profilés : 9
+Runs totaux    : 1860
+
+Régimes par test :
+  GRA-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  PAT-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  SPA-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  SPE-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  SPE-002         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  SYM-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  TOP-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  UNIV-001        : OSCILLATORY_UNSTABLE                [unstable] (low)
+  UNIV-002        : OSCILLATORY_UNSTABLE                [unstable] (low)
+
+Propriétés conservées :
+  Aucune propriété systématiquement conservée
+
+
+GAM-010
+--------------------------------------------------------------------------------
+Tests profilés : 9
+Runs totaux    : 1860
+
+Régimes par test :
+  GRA-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  PAT-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  SPA-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  SPE-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  SPE-002         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  SYM-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  TOP-001         : MIXED::CONSERVES_TOPOLOGY           [mixed] (low)
+  UNIV-001        : OSCILLATORY_UNSTABLE                [unstable] (low)
+  UNIV-002        : MIXED::OSCILLATORY_UNSTABLE         [mixed] (low)
+
+Propriétés conservées :
+  TOPOLOGY
+
+
+GAM-012
+--------------------------------------------------------------------------------
+Tests profilés : 9
+Runs totaux    : 1800
+
+Régimes par test :
+  GRA-001         : CONSERVES_GRADIENT                  [stable] (low)
+  PAT-001         : CONSERVES_PATTERN                   [stable] (low)
+  SPA-001         : MIXED::SATURATES_HIGH               [mixed] (low)
+  SPE-001         : CONSERVES_NORM                      [stable] (low)
+  SPE-002         : CONSERVES_NORM                      [stable] (low)
+  SYM-001         : TRIVIAL                             [stable] (low)
+  TOP-001         : CONSERVES_TOPOLOGY                  [stable] (low)
+  UNIV-001        : CONSERVES_NORM                      [stable] (low)
+  UNIV-002        : MIXED::CONSERVES_NORM               [mixed] (low)
+
+Propriétés conservées :
+  GRADIENT, PATTERN, NORM, TOPOLOGY
+
+
+================================================================================
+COMPARAISONS INTER-ENTITÉS
+================================================================================
+
+Régimes dominants :
+  OSCILLATORY_UNSTABLE                : 2 entités (GAM-009, GAM-010)
+  TRIVIAL                             : 2 entités (GAM-004, GAM-005)
+  MIXED::UNCATEGORIZED                : 1 entités (GAM-003)
+  MIXED::OSCILLATORY_UNSTABLE         : 2 entités (GAM-002, GAM-007)
+  CONSERVES_NORM                      : 4 entités (GAM-001, GAM-006, GAM-008, GAM-012)
+
+Rankings par test (conservation) :
+
+GRA-001 :
+  Meilleur conservation : GAM-001
+  Pire conservation     : GAM-010
+  Top 5 : GAM-001, GAM-002, GAM-003, GAM-007, GAM-008
+PAT-001 :
+  Meilleur conservation : GAM-001
+  Pire conservation     : GAM-010
+  Top 5 : GAM-001, GAM-003, GAM-004, GAM-005, GAM-008
+SPA-001 :
+  Meilleur conservation : GAM-002
+  Pire conservation     : GAM-012
+  Top 5 : GAM-002, GAM-003, GAM-006, GAM-007, GAM-004
+SPE-001 :
+  Meilleur conservation : GAM-001
+  Pire conservation     : GAM-010
+  Top 5 : GAM-001, GAM-006, GAM-008, GAM-012, GAM-004
+SPE-002 :
+  Meilleur conservation : GAM-001
+  Pire conservation     : GAM-010
+  Top 5 : GAM-001, GAM-006, GAM-008, GAM-012, GAM-004
+SYM-001 :
+  Meilleur conservation : GAM-006
+  Pire conservation     : GAM-010
+  Top 5 : GAM-006, GAM-004, GAM-005, GAM-012, GAM-001
+TOP-001 :
+  Meilleur conservation : GAM-001
+  Pire conservation     : GAM-009
+  Top 5 : GAM-001, GAM-002, GAM-003, GAM-004, GAM-006
+UNIV-001 :
+  Meilleur conservation : GAM-001
+  Pire conservation     : GAM-010
+  Top 5 : GAM-001, GAM-002, GAM-006, GAM-007, GAM-008
+UNIV-002 :
+  Meilleur conservation : GAM-001
+  Pire conservation     : GAM-010
+  Top 5 : GAM-001, GAM-008, GAM-012, GAM-004, GAM-005
+
+================================================================================
+CONSULTATION DÉTAILLÉE
+================================================================================
+Profils complets JSON : profiles/gamma/
+Comparaisons          : comparisons/rankings_gamma.json
+Données brutes        : analysis_complete.json (section 'gamma')
+
+================================================================================

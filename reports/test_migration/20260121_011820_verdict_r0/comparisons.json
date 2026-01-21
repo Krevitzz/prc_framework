@@ -23,40 +23,6 @@
     ]
   },
   "by_test": {
-    "SYM-001": {
-      "best_conservation": "GAM-006",
-      "worst_conservation": "GAM-010",
-      "ranking": [
-        "GAM-006",
-        "GAM-004",
-        "GAM-005",
-        "GAM-012",
-        "GAM-001",
-        "GAM-002",
-        "GAM-003",
-        "GAM-007",
-        "GAM-008",
-        "GAM-009",
-        "GAM-010"
-      ]
-    },
-    "TOP-001": {
-      "best_conservation": "GAM-001",
-      "worst_conservation": "GAM-009",
-      "ranking": [
-        "GAM-001",
-        "GAM-002",
-        "GAM-003",
-        "GAM-004",
-        "GAM-006",
-        "GAM-007",
-        "GAM-008",
-        "GAM-010",
-        "GAM-012",
-        "GAM-005",
-        "GAM-009"
-      ]
-    },
     "UNIV-002": {
       "best_conservation": "GAM-001",
       "worst_conservation": "GAM-010",
@@ -69,74 +35,6 @@
         "GAM-002",
         "GAM-003",
         "GAM-006",
-        "GAM-007",
-        "GAM-009",
-        "GAM-010"
-      ]
-    },
-    "PAT-001": {
-      "best_conservation": "GAM-001",
-      "worst_conservation": "GAM-010",
-      "ranking": [
-        "GAM-001",
-        "GAM-003",
-        "GAM-004",
-        "GAM-005",
-        "GAM-008",
-        "GAM-012",
-        "GAM-002",
-        "GAM-006",
-        "GAM-007",
-        "GAM-009",
-        "GAM-010"
-      ]
-    },
-    "SPA-001": {
-      "best_conservation": "GAM-002",
-      "worst_conservation": "GAM-012",
-      "ranking": [
-        "GAM-002",
-        "GAM-003",
-        "GAM-006",
-        "GAM-007",
-        "GAM-004",
-        "GAM-005",
-        "GAM-001",
-        "GAM-008",
-        "GAM-009",
-        "GAM-010",
-        "GAM-012"
-      ]
-    },
-    "GRA-001": {
-      "best_conservation": "GAM-001",
-      "worst_conservation": "GAM-010",
-      "ranking": [
-        "GAM-001",
-        "GAM-002",
-        "GAM-003",
-        "GAM-007",
-        "GAM-008",
-        "GAM-012",
-        "GAM-004",
-        "GAM-005",
-        "GAM-006",
-        "GAM-009",
-        "GAM-010"
-      ]
-    },
-    "SPE-002": {
-      "best_conservation": "GAM-001",
-      "worst_conservation": "GAM-010",
-      "ranking": [
-        "GAM-001",
-        "GAM-006",
-        "GAM-008",
-        "GAM-012",
-        "GAM-004",
-        "GAM-005",
-        "GAM-002",
-        "GAM-003",
         "GAM-007",
         "GAM-009",
         "GAM-010"
@@ -159,6 +57,40 @@
         "GAM-010"
       ]
     },
+    "GRA-001": {
+      "best_conservation": "GAM-001",
+      "worst_conservation": "GAM-010",
+      "ranking": [
+        "GAM-001",
+        "GAM-002",
+        "GAM-003",
+        "GAM-007",
+        "GAM-008",
+        "GAM-012",
+        "GAM-004",
+        "GAM-005",
+        "GAM-006",
+        "GAM-009",
+        "GAM-010"
+      ]
+    },
+    "SYM-001": {
+      "best_conservation": "GAM-006",
+      "worst_conservation": "GAM-010",
+      "ranking": [
+        "GAM-006",
+        "GAM-004",
+        "GAM-005",
+        "GAM-012",
+        "GAM-001",
+        "GAM-002",
+        "GAM-003",
+        "GAM-007",
+        "GAM-008",
+        "GAM-009",
+        "GAM-010"
+      ]
+    },
     "UNIV-001": {
       "best_conservation": "GAM-001",
       "worst_conservation": "GAM-010",
@@ -172,6 +104,74 @@
         "GAM-004",
         "GAM-005",
         "GAM-003",
+        "GAM-009",
+        "GAM-010"
+      ]
+    },
+    "TOP-001": {
+      "best_conservation": "GAM-001",
+      "worst_conservation": "GAM-009",
+      "ranking": [
+        "GAM-001",
+        "GAM-002",
+        "GAM-003",
+        "GAM-004",
+        "GAM-006",
+        "GAM-007",
+        "GAM-008",
+        "GAM-010",
+        "GAM-012",
+        "GAM-005",
+        "GAM-009"
+      ]
+    },
+    "SPE-002": {
+      "best_conservation": "GAM-001",
+      "worst_conservation": "GAM-010",
+      "ranking": [
+        "GAM-001",
+        "GAM-006",
+        "GAM-008",
+        "GAM-012",
+        "GAM-004",
+        "GAM-005",
+        "GAM-002",
+        "GAM-003",
+        "GAM-007",
+        "GAM-009",
+        "GAM-010"
+      ]
+    },
+    "SPA-001": {
+      "best_conservation": "GAM-002",
+      "worst_conservation": "GAM-012",
+      "ranking": [
+        "GAM-002",
+        "GAM-003",
+        "GAM-006",
+        "GAM-007",
+        "GAM-004",
+        "GAM-005",
+        "GAM-001",
+        "GAM-008",
+        "GAM-009",
+        "GAM-010",
+        "GAM-012"
+      ]
+    },
+    "PAT-001": {
+      "best_conservation": "GAM-001",
+      "worst_conservation": "GAM-010",
+      "ranking": [
+        "GAM-001",
+        "GAM-003",
+        "GAM-004",
+        "GAM-005",
+        "GAM-008",
+        "GAM-012",
+        "GAM-002",
+        "GAM-006",
+        "GAM-007",
         "GAM-009",
         "GAM-010"
       ]

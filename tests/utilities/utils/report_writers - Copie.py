@@ -1,257 +1,37 @@
-# tests/utilities/utils/report_writers.py
+# tests/utilities/report_writers.py
 """
 Report Writers - Formatage et écriture rapports structurés.
 
-ARCHITECTURE ENRICHIE (Phase 1.2 - Templates Jinja2) :
-- Templates Jinja2 pour rapports standardisés
-- Helpers formatage réutilisables (conservés)
-- write_json() pour structures complètes
-
 RESPONSABILITÉS :
-- Rendu templates Jinja2 (summary_global, summary_axis, profile_entity)
 - Écriture JSON structurés
-- Helpers formatage TXT (header, key_value, etc.)
+- Formatage TXT lisibles humains
 - Génération CSVs analyse
+- Helpers formatage (sections, tableaux)
+
+ARCHITECTURE :
+- write_json() : JSON avec indent
+- write_summary_section() : Formatage sections TXT
+- write_regime_synthesis() : Synthèse régimes
+- write_timeline_signatures() : Signatures dynamiques
 
 PRINCIPE R0 :
 - Séparation calcul/formatting (modules analytiques ≠ writers)
 - Réutilisabilité formatters (verdict, modifier, test profiling)
-- Templates génériques tous axes
+- Structure rapports standardisée
 
 UTILISATEURS :
 - verdict_reporter.py (rapports complets)
-- Futurs : modifier_profiling.py, test_profiling.py, encoding_profiling.py
+- Futurs : modifier_profiling.py, test_profiling.py
 """
 
 import json
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from collections import defaultdict
-from datetime import datetime
-
-# Jinja2 pour templates
-try:
-    from jinja2 import Environment, FileSystemLoader, select_autoescape
-    JINJA2_AVAILABLE = True
-except ImportError:
-    JINJA2_AVAILABLE = False
-    print("⚠️  Jinja2 non installé. Templates désactivés. Installez avec : pip install jinja2")
 
 
 # =============================================================================
-# CONFIGURATION JINJA2
-# =============================================================================
-
-# Chemin templates (relatif à ce fichier)
-TEMPLATE_DIR = Path(__file__).parent.parent / 'report_templates'
-
-# Environment Jinja2 (initialisé si disponible)
-if JINJA2_AVAILABLE and TEMPLATE_DIR.exists():
-    jinja_env = Environment(
-        loader=FileSystemLoader(str(TEMPLATE_DIR)),
-        autoescape=select_autoescape(['html', 'xml']),
-        trim_blocks=True,
-        lstrip_blocks=True
-    )
-    
-    # Filtres custom
-    def format_percentage(value, decimals=1):
-        """Formatte pourcentage avec décimales."""
-        return f"{value * 100:.{decimals}f}%"
-    
-    def format_number(value, decimals=2):
-        """Formatte nombre avec décimales."""
-        return f"{value:.{decimals}f}"
-    
-    jinja_env.filters['percentage'] = format_percentage
-    jinja_env.filters['number'] = format_number
-    
-    TEMPLATES_LOADED = True
-else:
-    jinja_env = None
-    TEMPLATES_LOADED = False
-
-
-# =============================================================================
-# RENDU TEMPLATES JINJA2
-# =============================================================================
-
-def render_template(
-    template_name: str,
-    context: Dict[str, Any],
-    output_path: Optional[Path] = None
-) -> str:
-    """
-    Rend template Jinja2 avec contexte.
-    
-    Args:
-        template_name: Nom fichier template (ex: 'summary_global.md.j2')
-        context: Variables contexte template
-        output_path: Chemin sortie (None = retourne string)
-    
-    Returns:
-        Contenu rendu (si output_path=None)
-    
-    Raises:
-        RuntimeError: Si Jinja2 non disponible
-        FileNotFoundError: Si template introuvable
-    
-    Examples:
-        >>> context = {'metadata': {...}, 'profiling_results': {...}}
-        >>> render_template('summary_global.md.j2', context, Path('summary.txt'))
-        
-        >>> content = render_template('summary_axis.md.j2', context)
-        >>> print(content)
-    """
-    if not JINJA2_AVAILABLE:
-        raise RuntimeError(
-            "Jinja2 non installé. Installez avec : pip install jinja2"
-        )
-    
-    if not TEMPLATES_LOADED:
-        raise RuntimeError(
-            f"Templates non trouvés dans : {TEMPLATE_DIR}"
-        )
-    
-    try:
-        template = jinja_env.get_template(template_name)
-    except Exception as e:
-        raise FileNotFoundError(
-            f"Template '{template_name}' introuvable dans {TEMPLATE_DIR}. "
-            f"Erreur : {e}"
-        )
-    
-    # Rendu
-    rendered = template.render(**context)
-    
-    # Écriture si chemin fourni
-    if output_path:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(rendered)
-    
-    return rendered
-
-
-def write_summary_global(
-    output_path: Path,
-    metadata: Dict,
-    profiling_results: Dict,
-    structural_patterns: Dict,
-    diagnostics: Optional[Dict] = None
-) -> None:
-    """
-    Génère summary_global.txt via template Jinja2.
-    
-    Args:
-        output_path: Chemin fichier sortie
-        metadata: Métadonnées rapport (data_summary, quality_flags, etc.)
-        profiling_results: Résultats profiling_runner.run_all_profiling()
-            {
-                'test': {...},
-                'gamma': {...},
-                'modifier': {...},
-                'encoding': {...}
-            }
-        structural_patterns: Patterns stratifiés (GLOBAL/STABLE/EXPLOSIF)
-        diagnostics: Diagnostics numériques (optionnel)
-    
-    Examples:
-        >>> write_summary_global(
-        ...     Path('reports/summary_global.txt'),
-        ...     metadata, profiling_results, structural_patterns
-        ... )
-    """
-    context = {
-        'metadata': metadata,
-        'profiling_results': profiling_results,
-        'structural_patterns': structural_patterns,
-        'diagnostics': diagnostics or {}
-    }
-    
-    render_template('summary_global.md.j2', context, output_path)
-
-
-def write_summary_axis(
-    output_path: Path,
-    axis: str,
-    profiles: Dict,
-    summary: Dict,
-    metadata: Dict,
-    discriminant_powers: Optional[Dict] = None
-) -> None:
-    """
-    Génère summary_{axis}.txt via template Jinja2.
-    
-    Args:
-        output_path: Chemin fichier sortie
-        axis: Nom axe ('test', 'gamma', 'modifier', 'encoding')
-        profiles: Profils entités (résultat profile_all_{axis})
-        summary: Comparaisons (résultat compare_{axis}_summary)
-        metadata: Métadonnées profiling
-        discriminant_powers: Pouvoir discriminant (si axe='test')
-    
-    Examples:
-        >>> write_summary_axis(
-        ...     Path('reports/summary_gamma.txt'),
-        ...     'gamma', gamma_profiles, gamma_summary, metadata
-        ... )
-        
-        >>> write_summary_axis(
-        ...     Path('reports/summary_test.txt'),
-        ...     'test', test_profiles, test_summary, metadata,
-        ...     discriminant_powers=test_discriminant_powers
-        ... )
-    """
-    context = {
-        'axis': axis,
-        'profiles': profiles,
-        'summary': summary,
-        'metadata': metadata,
-        'discriminant_powers': discriminant_powers
-    }
-    
-    render_template('summary_axis.md.j2', context, output_path)
-
-
-def write_profile_entity_json(
-    output_path: Path,
-    entity_id: str,
-    axis: str,
-    tests_profiles: Dict,
-    metadata: Dict,
-    summary: Dict
-) -> None:
-    """
-    Génère profil entité JSON via template Jinja2.
-    
-    Args:
-        output_path: Chemin fichier sortie
-        entity_id: ID entité (ex: 'GAM-001', 'M1')
-        axis: Nom axe
-        tests_profiles: Profils tests pour cette entité
-        metadata: Métadonnées profiling
-        summary: Résumé entité (régime dominant, propriétés conservées, etc.)
-    
-    Examples:
-        >>> write_profile_entity_json(
-        ...     Path('profiles/gamma/GAM-001.json'),
-        ...     'GAM-001', 'gamma', tests_profiles, metadata, summary
-        ... )
-    """
-    context = {
-        'entity_id': entity_id,
-        'axis': axis,
-        'tests_profiles': tests_profiles,
-        'metadata': metadata,
-        'summary': summary
-    }
-    
-    render_template('profile_entity.json.j2', context, output_path)
-
-
-# =============================================================================
-# ÉCRITURE JSON (conservé)
+# ÉCRITURE JSON
 # =============================================================================
 
 def write_json(
@@ -273,7 +53,6 @@ def write_json(
     # Conversion tuples → strings pour sérialisation
     data_serializable = _make_json_serializable(data)
     
-    filepath.parent.mkdir(parents=True, exist_ok=True)
     with open(filepath, 'w', encoding='utf-8') as f:
         json.dump(data_serializable, f, indent=indent)
 
@@ -299,7 +78,7 @@ def _make_json_serializable(obj):
 
 
 # =============================================================================
-# HELPERS FORMATAGE TXT (conservés - réutilisables)
+# FORMATAGE SECTIONS TXT
 # =============================================================================
 
 def write_header(
@@ -369,7 +148,7 @@ def write_key_value(
 
 
 # =============================================================================
-# SYNTHÈSE RÉGIMES (conservé - utilisable sans template)
+# SYNTHÈSE RÉGIMES (TRANSVERSALE)
 # =============================================================================
 
 def write_regime_synthesis(
@@ -379,9 +158,6 @@ def write_regime_synthesis(
 ) -> None:
     """
     Écrit synthèse régimes transversale.
-    
-    CONSERVÉ : Helper réutilisable (si besoin formatage custom)
-    REMPLACÉ PAR : Templates Jinja2 (summary_axis.md.j2)
     
     Agrège régimes sur tous gammas × tests, groupés par famille.
     
@@ -415,6 +191,7 @@ def write_regime_synthesis(
     conservation = {k: v for k, v in regime_counter.items() if 'CONSERVES_' in k}
     pathologies = {k: v for k, v in regime_counter.items() if k in ['NUMERIC_INSTABILITY', 'OSCILLATORY_UNSTABLE', 'TRIVIAL', 'DEGRADING']}
     mixed = {k: v for k, v in regime_counter.items() if k.startswith('MIXED::')}
+    other = {k: v for k, v in regime_counter.items() if k not in conservation and k not in pathologies and k not in mixed}
     
     if conservation:
         f.write("CONSERVATION (régimes sains):\n")
@@ -439,7 +216,7 @@ def write_regime_synthesis(
 
 
 # =============================================================================
-# SIGNATURES DYNAMIQUES (conservé)
+# SIGNATURES DYNAMIQUES
 # =============================================================================
 
 def write_dynamic_signatures(
@@ -449,9 +226,6 @@ def write_dynamic_signatures(
 ) -> None:
     """
     Écrit signatures dynamiques par gamma.
-    
-    CONSERVÉ : Helper réutilisable
-    REMPLACÉ PAR : Templates Jinja2 (summary_axis.md.j2)
     
     Args:
         f: File handle
@@ -494,7 +268,7 @@ def write_dynamic_signatures(
 
 
 # =============================================================================
-# COMPARAISONS ENRICHIES (conservé)
+# COMPARAISONS ENRICHIES (PAR PROPRIÉTÉ)
 # =============================================================================
 
 def write_comparisons_enriched(
@@ -505,9 +279,6 @@ def write_comparisons_enriched(
 ) -> None:
     """
     Écrit comparaisons enrichies avec contexte propriétés.
-    
-    CONSERVÉ : Helper réutilisable
-    REMPLACÉ PAR : Templates Jinja2 (summary_axis.md.j2)
     
     Args:
         f: File handle
@@ -555,7 +326,7 @@ def write_comparisons_enriched(
 
 
 # =============================================================================
-# FOOTER CONSULTATION (conservé)
+# FOOTER CONSULTATION
 # =============================================================================
 
 def write_consultation_footer(
@@ -565,8 +336,6 @@ def write_consultation_footer(
 ) -> None:
     """
     Écrit footer avec fichiers consultation.
-    
-    CONSERVÉ : Helper réutilisable
     
     Args:
         f: File handle
@@ -583,47 +352,3 @@ def write_consultation_footer(
     f.write("diagnostics.json          : Diagnostics numériques détaillés\n")
     f.write("marginal_variance_*.csv   : Données brutes analyses (3 strates)\n")
     f.write(char * width + "\n")
-
-
-# =============================================================================
-# VALIDATION TEMPLATES
-# =============================================================================
-
-def validate_templates() -> Dict[str, bool]:
-    """
-    Valide disponibilité templates Jinja2.
-    
-    Returns:
-        {
-            'jinja2_installed': bool,
-            'template_dir_exists': bool,
-            'templates_found': {
-                'summary_global.md.j2': bool,
-                'summary_axis.md.j2': bool,
-                'profile_entity.json.j2': bool
-            }
-        }
-    
-    Examples:
-        >>> status = validate_templates()
-        >>> if not status['jinja2_installed']:
-        ...     print("Installer Jinja2 : pip install jinja2")
-    """
-    status = {
-        'jinja2_installed': JINJA2_AVAILABLE,
-        'template_dir_exists': TEMPLATE_DIR.exists() if JINJA2_AVAILABLE else False,
-        'templates_found': {}
-    }
-    
-    if JINJA2_AVAILABLE and TEMPLATE_DIR.exists():
-        required_templates = [
-            'summary_global.md.j2',
-            'summary_axis.md.j2',
-            'profile_entity.json.j2'
-        ]
-        
-        for template_name in required_templates:
-            template_path = TEMPLATE_DIR / template_name
-            status['templates_found'][template_name] = template_path.exists()
-    
-    return status

@@ -1,259 +1,273 @@
-📝 FICHIER TÂCHES PIPELINE
-PHASE 1 : CRÉATION ARCHITECTURE
-1.1 Création répertoires formels ✅
+# PLAN MIGRATION PROFILING - ORDRE OPTIMAL
 
- Créer tests/utilities/HUB/ ✅
- Créer tests/utilities/PROFILING/ ✅
- Créer tests/utilities/UTIL/  ✅
- Créer tests/utilities/report_templates/  ✅
+## PHASE 1 : TEMPLATES JINJA2 (avec gamma_profiling actuel)
+**Objectif** : Finaliser système reports réutilisable
 
-1.2 Création profiling_common.py
+### 1.1 Création templates
+- [✅] `summary_global.md.j2` (synthèse multi-axes)
+- [✅] `summary_axis.md.j2` (générique tous axes)
+- [✅ `profile_entity.json.j2` (profil individuel)
 
- Créer tests/utilities/PROFILING/profiling_common.py
- Implémenter ENTITY_KEY_MAP
- Implémenter aggregate_dynamic_signatures() (extraction depuis gamma_profiling actuel)
- Implémenter compute_prc_profile() (extraction, suppression parameter extensions)
- Implémenter _compute_discriminant_power() (nouveau)
- Implémenter _profile_test_for_entity() (extraction + généralisation)
- Implémenter _profile_entity_axis() (moteur générique)
- Implémenter _compare_entities_summary() (extraction + généralisation)
- Implémenter API publique (8 fonctions) :
+### 1.2 Intégration report_writers
+- [ ] Installer `jinja2` (si absent)
+- [ ] Implémenter `render_template(template_name, context)`
+- [ ] Adapter `write_summary_global()` → Jinja2
+- [ ] Adapter `write_summary_axis()` → Jinja2
+- [ ] Garder helpers existants (write_header, write_key_value, etc.)
 
- profile_all_tests() + post-traitement discriminant_power
- compare_tests_summary()
- profile_all_gammas()
- compare_gammas_summary()
- profile_all_modifiers()
- compare_modifiers_summary()
- profile_all_encodings()
- compare_encodings_summary()
+### 1.3 Validation avec gamma_profiling actuel
+- [ ] Exécuter pipeline complet (gamma uniquement)
+- [ ] Générer rapports Jinja2
+- [ ] Comparer avec rapports actuels (manuellement)
+- [ ] Valider lisibilité, exhaustivité
 
-
-
-1.3 Création cross_profiling.py
-
- Créer tests/utilities/PROFILING/cross_profiling.py
- Implémenter rank_entities_by_metric() (complet)
- Créer placeholders docstrings :
-
- analyze_pairwise_interactions()
- analyze_multiway_interactions()
- detect_global_signatures()
-
-
-
-1.4 Création profiling_runner.py
-
- Créer tests/utilities/HUB/profiling_runner.py
- Définir PROFILING_AXES registry (ordre: test, gamma, modifier, encoding)
- Implémenter run_all_profiling() orchestration
- Implémenter validation format retour strict
-
-
-PHASE 2 : MIGRATION MODULES EXISTANTS
-2.1 Migration HUB ✅
-
- Déplacer tests/utilities/verdict_reporter.py → tests/utilities/HUB/verdict_reporter.py ✅
- Déplacer tests/utilities/verdict_engine.py → tests/utilities/HUB/verdict_engine.py ✅
- Déplacer tests/utilities/test_engine.py → tests/utilities/HUB/test_engine.py ✅
-
-2.2 Migration UTIL  ✅
-
- Vérifier emplacement aggregation_utils.py  ✅
- Vérifier emplacement timeline_utils.py ✅
-
-2.3 Nettoyage anciens fichiers
-
- Supprimer tests/utilities/gamma_profiling.py (maintenant dans profiling_common)
- Supprimer anciens catalogues *_catalog.md 
-
-
-PHASE 3 : REFACTORING MODULES EXISTANTS
-3.1 Refactor verdict_reporter.py
-
- Importer profiling_runner au lieu de gamma_profiling
- Remplacer appels directs :
-```
-# Avant
-  gamma_profiles = gamma_profiling.profile_all_gammas(observations)
-  gamma_summary = gamma_profiling.compare_gammas_summary(gamma_profiles)
-  
-  # Après
-  all_profiling = profiling_runner.run_all_profiling(
-      observations,
-      axes=['test', 'gamma', 'modifier', 'encoding']
-  )
-```
-- [ ] Adapter `_compile_all_analyses()` pour structure unifiée
-- [ ] Mettre à jour appels `report_writers`
-
-### 3.2 Refactor report_writers.py
-- [ ] Implémenter `write_summary_global()` (avec Jinja2)
-- [ ] Implémenter `write_summary_axis()` générique (avec Jinja2)
-- [ ] Implémenter `write_profile_entity()` générique
-- [ ] Adapter fonctions existantes si nécessaire
-
-### 3.3 Mise à jour imports tous modules
-- [ ] Rechercher tous `from tests.utilities.gamma_profiling import`
-- [ ] Remplacer par `from tests.utilities.PROFILING.profiling_common import`
-- [ ] Rechercher tous `from tests.utilities.verdict_reporter import`
-- [ ] Remplacer par `from tests.utilities.HUB.verdict_reporter import`
-- [ ] Idem verdict_engine, test_engine
-- [ ] Vérifier imports relatifs (si utilisés)
+**✅ LIVRABLE** : Système reports Jinja2 fonctionnel avec gamma_profiling
 
 ---
 
-## PHASE 4 : TEMPLATES JINJA2
+## PHASE 2 : VALIDATION PROFILING_COMMON (parallèle)
+**Objectif** : Garantir équivalence gamma_profiling ↔ profiling_common
 
-### 4.1 Création templates
-- [ ] Créer `tests/utilities/report_templates/summary_global.md.j2`
-- [ ] Créer `tests/utilities/report_templates/summary_axis.md.j2` (avec conditionnelles discriminant_power)
-- [ ] Créer `tests/utilities/report_templates/profile_entity.json.j2`
+### 2.1 Tests rétrocompatibilité
+- [ ] Exécuter ancien pipeline → `old_gamma_results.json`
+- [ ] Exécuter nouveau pipeline (`profiling_common.profile_all_gammas()`) → `new_gamma_results.json`
+- [ ] Script comparaison JSON (deep diff)
+- [ ] Tolérance float (1e-6)
+- [ ] Validation structure identique
 
-### 4.2 Intégration report_writers
-- [ ] Installer/vérifier dépendance `jinja2`
-- [ ] Charger templates dans `report_writers.py`
-- [ ] Tester rendu templates avec données réelles
-
----
-
-## PHASE 5 : DOCUMENTATION
-
-### 5.1 Création catalogs
-- [ ] Créer `tests/utilities/PROFILING/PROFILING_catalog.md`
-- [ ] Créer `tests/utilities/HUB/HUB_catalog.md`
-- [ ] Créer `tests/utilities/UTIL/UTIL_catalog.md`
-- [ ] Créer `tests/utilities/registries/REGISTRIES_catalog.md`   ✅
-
----
-
-## PHASE 6 : VALIDATION RÉTROCOMPATIBILITÉ
-
-### 6.1 Tests gamma × tests (existant)
-- [ ] Exécuter ancien pipeline gamma_profiling (avant migration)  ✅
-- [ ] Sauvegarder résultats JSON (`old_gamma_results.json`)  ✅
-- [ ] Exécuter nouveau pipeline profiling_common
-- [ ] Sauvegarder résultats JSON (`new_gamma_results.json`)
-- [ ] Comparaison manuelle Notepad++ (structure + valeurs clés)
-
-### 6.2 Tests ranking
-- [ ] Comparer ancien `rank_gammas_by_test()` 
-- [ ] Avec nouveau `rank_entities_by_metric(..., 'test', 'SYM-001', 'conservation')`
+### 2.2 Tests ranking
+- [ ] Comparer `gamma_profiling.rank_gammas_by_test()`
+- [ ] Avec `cross_profiling.rank_entities_by_metric(..., 'test', 'SYM-001')`
 - [ ] Vérifier ordre identique
-- [ ] Vérifier scores identiques (tolérance float)
+- [ ] Vérifier scores identiques
+
+**✅ LIVRABLE** : Preuve équivalence mathématique profiling_common
 
 ---
 
-## PHASE 7 : EXÉCUTION NOUVEAUX AXES
+## PHASE 3 : MIGRATION VERDICT_REPORTER (switch atomique)
+**Objectif** : Basculer vers profiling_common sans casser rapports
 
-### 7.1 Profiling modifier
-- [ ] Vérifier observations DB contiennent `modifier_id`
-- [ ] Exécuter `profiling_common.profile_all_modifiers(observations)`
-- [ ] Valider format retour conforme R5.1-A
-- [ ] Générer rapports `summary_modifier.txt`
-- [ ] Validation manuelle résultats
+### 3.1 Refactor imports verdict_reporter
+```python
+# Avant
+from ..utils.gamma_profiling import (
+    profile_all_gammas,
+    compare_gammas_summary
+)
 
-### 7.2 Profiling encoding
-- [ ] Vérifier observations DB contiennent `d_encoding_id`
-- [ ] Exécuter `profiling_common.profile_all_encodings(observations)`
-- [ ] Valider format retour conforme R5.1-A
-- [ ] Générer rapports `summary_encoding.txt`
-- [ ] Validation manuelle résultats
-
-### 7.3 Profiling test
-- [ ] Exécuter `profiling_common.profile_all_tests(observations)`
-- [ ] Vérifier calcul `discriminant_power`
-- [ ] Valider format retour (standard + discriminant_power)
-- [ ] Générer rapports `summary_test.txt`
-- [ ] Validation manuelle résultats
-
----
-
-## PHASE 8 : INTÉGRATION COMPLÈTE
-
-### 8.1 Pipeline complet verdict_reporter
-- [ ] Exécuter `profiling_runner.run_all_profiling()` (4 axes)
-- [ ] Valider compilation tous axes
-- [ ] Générer `summary_global.txt`
-- [ ] Générer 4 × `summary_{axe}.txt`
-- [ ] Générer profils individuels JSON
-- [ ] Générer comparisons/rankings
-
-### 8.2 Validation rapports
-- [ ] Vérifier cohérence `summary_global.txt` (références autres summaries)
-- [ ] Vérifier lisibilité tous rapports
-- [ ] Vérifier exhaustivité données (rien manquant)
-- [ ] Vérifier navigation rapports (références croisées)
-
----
-
-## PHASE 9 : NETTOYAGE FINAL
-
-### 9.1 Suppression fichiers obsolètes
-- [ ] Supprimer anciens catalogues racine utilities/
-- [ ] Supprimer anciens modules racine utilities/ (si migration complète)
-- [ ] Vérifier aucun import cassé
-
-### 9.2 Validation imports
-- [ ] Exécuter tous modules (pas d'ImportError)
-- [ ] Vérifier chemins relatifs/absolus cohérents
-- [ ] Tester depuis différents points d'entrée (batch_runner, tests, etc.)
-
----
-
-## PHASE 10 : PRÉPARATION REPRISE R0
-
-### 10.1 Validation données disponibles
-- [ ] Lister gammas disponibles DB (`SELECT DISTINCT gamma_id`)
-- [ ] Lister modifiers disponibles DB
-- [ ] Lister encodings disponibles DB
-- [ ] Lister tests disponibles DB
-- [ ] Vérifier cohérence avec catalogues théoriques
-
-### 10.2 Génération rapports complets R0
-- [ ] Exécuter pipeline complet (tous axes)
-- [ ] Archiver rapports générés
-- [ ] Préparer synthèses pour décisions HYP
-
-### 10.3 Reprise r0.txt
-- [ ] Lire rapports gamma (status HYP existants)
-- [ ] Lire rapports modifier (nouveaux insights)
-- [ ] Lire rapports encoding (nouveaux insights)
-- [ ] Lire rapports test (pouvoir discriminant)
-- [ ] Lire rapports cross (interactions détectées)
-- [ ] Mise à jour statuts HYP (SURVIVES, REJECTED, WIP)
-- [ ] Génération nouveaux CON si pertinent
-- [ ] Formulation nouvelles HYP[R1] si pertinent
-
----
-
-## DÉPENDANCES PHASES
+# Après
+from ..utils.profiling_common import (
+    profile_all_gammas,  # Même signature !
+    compare_gammas_summary
+)
 ```
-Phase 1 (création) → Phase 2 (migration) → Phase 3 (refactor)
-                                              ↓
-Phase 4 (templates) ←←←←←←←←←←←←←←←←←←←←←←←←←←←
-                                              ↓
-Phase 5 (documentation) ←← Phase 6 (validation)
-                                              ↓
-Phase 7 (nouveaux axes) ←←←←←←←←←←←←←←←←←←←←←←←
-                                              ↓
-Phase 8 (intégration) → Phase 9 (nettoyage) → Phase 10 (reprise R0)
 
-CRITÈRES SUCCÈS
-Technique
+### 3.2 Validation switch
+- [ ] Exécuter pipeline complet
+- [ ] Comparer rapports avant/après (Jinja2 identiques)
+- [ ] Vérifier aucune régression
 
-✅ Aucun ImportError
-✅ Format retour unifié tous axes (validation automatique)
-✅ Rétrocompatibilité gamma × tests (comparaison JSON identique)
-✅ Templates Jinja2 fonctionnels
-✅ Rapports générés complets et lisibles
+**✅ LIVRABLE** : verdict_reporter utilise profiling_common
 
-Métier
+---
 
-✅ Profiling 4 axes exécutable
-✅ Rankings multi-dimensionnels fonctionnels
-✅ Rapports exploitables décisions R0
-✅ Données prêtes reprise r0.txt
+## PHASE 4 : EXTENSION NOUVEAUX AXES (incrémental)
+**Objectif** : Profiling modifier, encoding, test
 
+### 4.1 Profiling modifier
+```python
+# Dans verdict_reporter
+modifier_profiles = profiling_common.profile_all_modifiers(observations)
+modifier_summary = profiling_common.compare_modifiers_summary(modifier_profiles)
+```
+- [ ] Exécuter profiling modifier
+- [ ] Générer `summary_modifier.txt` (Jinja2)
+- [ ] Validation manuelle résultats
 
-FIN FICHIER TÂCHES
+### 4.2 Profiling encoding
+- [ ] Idem modifier (via `profile_all_encodings()`)
+- [ ] Générer `summary_encoding.txt`
+
+### 4.3 Profiling test
+- [ ] Idem test (via `profile_all_tests()`)
+- [ ] Calculer `discriminant_power` (cross_profiling)
+- [ ] Générer `summary_test.txt`
+
+**✅ LIVRABLE** : 4 axes profiling opérationnels
+
+---
+
+## PHASE 5 : PROFILING_RUNNER (orchestration finale)
+**Objectif** : Unification appels verdict_reporter
+
+### 5.1 Intégration profiling_runner
+```python
+# Dans verdict_reporter
+all_profiling = profiling_runner.run_all_profiling(
+    observations,
+    axes=['test', 'gamma', 'modifier', 'encoding']
+)
+
+gamma_profiles = all_profiling['gamma']['profiles']
+modifier_profiles = all_profiling['modifier']['profiles']
+# etc.
+```
+
+### 5.2 Génération rapports unifiés
+- [ ] `summary_global.txt` (synthèse 4 axes)
+- [ ] 4 × `summary_{axis}.txt`
+- [ ] Profils individuels JSON
+- [ ] Comparisons/rankings
+
+**✅ LIVRABLE** : Pipeline complet 4 axes avec rapports unifiés
+
+---
+
+## PHASE 6 : NETTOYAGE (après validation complète)
+**Objectif** : Supprimer gamma_profiling legacy
+
+### 6.1 Suppression fichiers obsolètes
+- [ ] Supprimer `tests/utilities/utils/gamma_profiling.py`
+- [ ] Supprimer anciens catalogues si remplacés
+- [ ] Vérifier aucun import cassé (grep récursif)
+
+### 6.2 Documentation finale
+- [ ] Mettre à jour `FUNCTIONS_INDEX.md`
+- [ ] Mettre à jour catalogues (HUB, UTIL, PROFILING)
+- [ ] Documenter migration dans CHANGELOG (si créé)
+
+**✅ LIVRABLE** : Code propre, gamma_profiling supprimé
+
+---
+
+## CRITÈRES VALIDATION CHAQUE PHASE
+
+### Phase 1 (Templates)
+- ✅ Rapports Jinja2 générés
+- ✅ Lisibilité validée manuellement
+- ✅ Pas de régression vs rapports actuels
+
+### Phase 2 (Validation)
+- ✅ JSON diff clean (structure + valeurs)
+- ✅ Rankings identiques
+- ✅ Aucune erreur runtime
+
+### Phase 3 (Migration)
+- ✅ Rapports identiques avant/après switch
+- ✅ Aucun import cassé
+- ✅ Pipeline stable
+
+### Phase 4 (Nouveaux axes)
+- ✅ Format retour conforme Charter R5.1-A
+- ✅ Rapports exploitables
+- ✅ Insights nouveaux validés
+
+### Phase 5 (Orchestration)
+- ✅ `summary_global.txt` cohérent
+- ✅ 4 axes synchronisés
+- ✅ Navigation rapports fluide
+
+### Phase 6 (Nettoyage)
+- ✅ Aucun fichier mort
+- ✅ Documentation à jour
+- ✅ Code audit clean
+
+---
+
+## DÉPENDANCES CRITIQUES
+
+```
+Phase 1 (Templates)
+    ↓
+Phase 2 (Validation) ← doit passer AVANT Phase 3
+    ↓
+Phase 3 (Migration) ← switch atomique
+    ↓
+Phase 4 (Nouveaux axes) ← incrémental
+    ↓
+Phase 5 (Orchestration) ← unification
+    ↓
+Phase 6 (Nettoyage) ← après validation complète
+```
+
+**⚠️ RÈGLE ABSOLUE** : Aucune suppression gamma_profiling avant Phase 6
+
+---
+
+## ESTIMATION TEMPS
+
+| Phase | Durée | Validation |
+|-------|-------|------------|
+| Phase 1 (Templates) | 3-4h | Tests manuels rapports |
+| Phase 2 (Validation) | 2-3h | Script comparaison JSON |
+| Phase 3 (Migration) | 1h | Tests regression |
+| Phase 4 (Nouveaux axes) | 4-5h | Validation manuelle chaque axe |
+| Phase 5 (Orchestration) | 2-3h | Tests intégration |
+| Phase 6 (Nettoyage) | 1h | Audit code |
+
+**TOTAL** : ~13-19h (2-3 jours de travail concentré)
+
+---
+
+## ROLLBACK STRATEGY
+
+Chaque phase maintient possibilité retour arrière :
+
+### Phase 1-2 : gamma_profiling intact
+- Aucune modification pipeline existant
+- Templates additionnels (pas remplacement)
+
+### Phase 3 : Switch réversible
+```python
+# Rollback immédiat possible
+from ..utils.gamma_profiling import ...  # Restaurer import
+```
+
+### Phase 4-5 : Nouveaux axes indépendants
+- Gamma reste fonctionnel
+- Échec nouveau axe → désactiver axe, garder gamma
+
+### Phase 6 : Suppression après validation totale
+- Backup gamma_profiling avant suppression
+- Période observation 1 semaine
+
+---
+
+## NEXT STEP IMMÉDIAT
+
+**ACTION** : Créer templates Jinja2 (Phase 1.1)
+
+**Fichiers à créer** :
+1. `tests/utilities/report_templates/summary_global.md.j2`
+2. `tests/utilities/report_templates/summary_axis.md.j2`
+3. `tests/utilities/report_templates/profile_entity.json.j2`
+
+**Structure template minimal** (summary_axis.md.j2) :
+```jinja2
+# RAPPORT {{ axis|upper }} - PROFILING R0
+
+Entités analysées : {{ n_entities }}
+Tests profilés : {{ n_tests }}
+
+## RÉGIMES DOMINANTS
+
+{% for regime, entities in by_regime.items() %}
+{{ regime }} : {{ entities|length }} entités
+{% endfor %}
+
+## RANKINGS PAR TEST
+
+{% for test_name, ranking in by_test.items() %}
+### {{ test_name }}
+  Meilleur : {{ ranking.best_conservation }}
+  Pire : {{ ranking.worst_conservation }}
+{% endfor %}
+
+{% if discriminant_powers %}
+## POUVOIR DISCRIMINANT (tests uniquement)
+{% for test, power in discriminant_powers.items() %}
+{{ test }} : ratio {{ power.discriminant_ratio|round(2) }}
+{% endfor %}
+{% endif %}
+```

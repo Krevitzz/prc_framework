@@ -91,7 +91,7 @@
 **Modules HUB existants** :
 | Module | Responsabilité | Dépendances autorisées |
 |--------|----------------|------------------------|
-| test_engine.py | Exécution tests + observations | registries, config_loader |
+###test_engine.py | Exécution tests + observations | registries, config_loader |
 | detect_dynamic_events | Module-level | Détecte événements dynamiques sur trajectoire |
 | compute_event_sequence | Module-level | Construit séquence ordonnée + onsets relatifs |
 | patch_execute_test_dynamic_events | Module-level | Calcule dynamic_events + timeseries tous metrics |
@@ -101,7 +101,7 @@
 | TestEngine._analyze_evolution | Privée | Analyse évolution série temporelle |
 - `TestEngine.execute_test()` : Exécute test sur history, retourne observation
 
-| verdict_engine.py | Analyses statistiques multi-facteurs | data_loading, statistical_utils, regime_utils |
+### verdict_engine.py | Analyses statistiques multi-facteurs | data_loading, statistical_utils, regime_utils |
 | _compile_metadata | Privée | Compile métadonnées rapport |
 | _format_gamma_profiles | Privée | Formate gamma_profiles pour rapport |
 | _compile_structural_patterns | Privée | Compile patterns structuraux (3 strates) |
@@ -116,7 +116,7 @@
 - `analyze_regime()` : Pipeline complet sur strate (GLOBAL/STABLE/EXPLOSIF)
 - `compute_verdict()` : Pipeline principal (point d'entrée)
 
-| verdict_reporter.py | Orchestration rapports complets | verdict_engine, profiling_runner, report_writers |
+###verdict_reporter.py | Orchestration rapports complets | verdict_engine, profiling_runner, report_writers |
 - `generate_verdict_report()` : Pipeline complet 6 étapes
 - `_compile_metadata()` : Compilation métadonnées rapport
 - `_format_gamma_profiles()` : Formatage structure gamma_profiles
@@ -124,7 +124,7 @@
 - `_write_summary_report()` : Écriture rapport humain (partiellement délégué)
 - `_write_gamma_profiles()` : Écriture JSON + CSV
 
-| profiling_runner.py | Orchestration profiling multi-axes | profiling_common, cross_profiling |
+### profiling_runner.py | Orchestration profiling multi-axes | profiling_common, cross_profiling |
 - `run_all_profiling()` : Exécute profiling tous axes demandés
 - `run_profiling_single_axis()` : Profiling un seul axe (helper)
 - `discover_profiling_axes()` : Découverte axes disponibles
@@ -306,22 +306,34 @@
 | `REQUIRED_ATTRIBUTES` | Global list | Attributs requis architecture 5.5 |
 
 ### profiling_common.py (Profiling générique tous axes)
-| Fonction | Type | Responsabilité |
-|----------|------|----------------|
-| _profile_test_for_entity | Privée | Profil UN test sous UNE entité (moteur) |
-| _profile_entity_axis | Privée | Moteur générique profiling tous axes |
-| _compare_entities_summary | Privée | Comparaisons cross-entities |
-| ENTITY_KEY_MAP | Global dict | Mapping axes → clés DB |
-| `aggregate_dynamic_signatures()` | Publique | Agrège événements + timelines compositionnels |
-| `compute_prc_profile()` | Publique | Génère profil PRC avec confidence |
-| `profile_all_tests()` | Publique | Profil comportemental tests (API découvrable) |
-| `compare_tests_summary()` | Publique | Comparaisons inter-tests (API découvrable) |
-| `profile_all_gammas()` | Publique | Profil comportemental gammas (API découvrable) |
-| `compare_gammas_summary()` | Publique | Comparaisons inter-gammas (API découvrable) |
-| `profile_all_modifiers()` | Publique | Profil comportemental modifiers (API découvrable) |
-| `compare_modifiers_summary()` | Publique | Comparaisons inter-modifiers (API découvrable) |
-| `profile_all_encodings()` | Publique | Profil comportemental encodings (API découvrable) |
-| `compare_encodings_summary()` | Publique | Comparaisons inter-encodings (API découvrable) |
+
+| Fonction | Type | Responsabilité | Axes supportés |
+|----------|------|----------------|----------------|
+| `profile_all_tests()` | Publique | Profil comportemental tests | test |
+| `compare_tests_summary()` | Publique | Comparaisons inter-tests | test |
+| `profile_all_gammas()` | Publique | Profil comportemental gammas | gamma |
+| `compare_gammas_summary()` | Publique | Comparaisons inter-gammas | gamma |
+| `profile_all_modifiers()` | Publique | Profil comportemental modifiers | modifier |
+| `compare_modifiers_summary()` | Publique | Comparaisons inter-modifiers | modifier |
+| `profile_all_encodings()` | Publique | Profil comportemental encodings | encoding |
+| `compare_encodings_summary()` | Publique | Comparaisons inter-encodings | encoding |
+| `aggregate_dynamic_signatures()` | Publique | Agrège événements + timelines | Tous |
+| `compute_prc_profile()` | Publique | Génère profil PRC complet | Tous |
+| `_profile_test_for_entity()` | Privée | Profil UN test sous UNE entité | Tous |
+| `_profile_entity_axis()` | Privée | Moteur générique profiling | Tous |
+| `_compare_entities_summary()` | Privée | Comparaisons génériques | Tous |
+| `ENTITY_KEY_MAP` | Constante | Mapping axes → clés DB | - |
+
+**Convention naming** : `profile_all_{axis}()` + `compare_{axis}_summary()`
+
+**Format retour** : Structure unifiée stricte (Charter R5.1-A)
+```python
+{
+    'profiles': {...},       # Profils individuels
+    'summary': {...},        # Comparaisons cross-entités
+    'metadata': {...}        # Infos exécution
+}
+```
 
 ### regime_utils.py (Classification régimes)
 | Fonction | Type | Responsabilité |

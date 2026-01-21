@@ -1,17 +1,16 @@
-# tests/utilities/HUB/verdict_reporter.py
+# tests/utilities/verdict_reporter.py
 """
 Verdict Reporter - Orchestration génération rapports R0.
 
-ARCHITECTURE MIGRÉE (Phase 3 - profiling_common) :
-- ✅ Utilise profiling_common (profiling unifié tous axes)
-- ✅ Templates Jinja2 (rapports standardisés)
-- ✅ Délégation I/O → data_loading.py
-- ✅ Délégation diagnostics → statistical_utils.py
-- ✅ Délégation stratification → regime_utils.py
-- ✅ Délégation formatage → report_writers.py
+ARCHITECTURE REFACTORISÉE (Phase 2.3) :
+- Délégation I/O → data_loading.py
+- Délégation diagnostics → statistical_utils.py
+- Délégation stratification → regime_utils.py
+- Délégation formatage → report_writers.py
+- Cœur métier : orchestration pipeline + compilation résultats
 
 RESPONSABILITÉS CONSERVÉES :
-- Orchestration pipeline complet (6 étapes)
+- Orchestration pipeline complet (5 étapes)
 - Compilation métadata
 - Formatage structures gamma_profiles
 - Compilation structural_patterns
@@ -59,19 +58,11 @@ from .verdict_engine import (
     MIN_TOTAL_SAMPLES
 )
 
-# ============================================================================
-# MIGRATION PROFILING : gamma_profiling → profiling_common
-# ============================================================================
-
-from ..utils.profiling_common import (
+from ..utils.gamma_profiling import (
     profile_all_gammas,
+    rank_gammas_by_test,
     compare_gammas_summary
-)
-
-# Note : rank_gammas_by_test() legacy supprimé
-# → Utiliser cross_profiling.rank_entities_by_metric() si besoin
-
-# ============================================================================
+) #\devrait être ..utils.profiling_common
 
 # Formatage et écriture rapports
 from ..utils.report_writers import (
@@ -80,8 +71,7 @@ from ..utils.report_writers import (
     write_regime_synthesis,
     write_dynamic_signatures,
     write_comparisons_enriched,
-    write_consultation_footer,
-    write_summary_axis  # Template Jinja2
+    write_consultation_footer
 )
 
 # Configuration
@@ -100,11 +90,11 @@ def generate_verdict_report(
     """
     Pipeline complet génération rapport verdict R0.
     
-    ARCHITECTURE MIGRÉE (Phase 3) :
+    ARCHITECTURE REFACTORISÉE :
     1. Chargement observations (data_loading)
     2. Diagnostics numériques (statistical_utils)
     3. Analyses globales stratifiées (verdict_engine)
-    4. Profiling gamma (profiling_common) ← MIGRÉ
+    4. Profiling gamma (gamma_profiling)
     5. Fusion résultats + génération rapports (report_writers)
     
     Args:
@@ -123,7 +113,7 @@ def generate_verdict_report(
         }
     """
     print(f"\n{'='*70}")
-    print(f"VERDICT REPORTER R0 - GÉNÉRATION RAPPORTS (MIGRÉ profiling_common)")
+    print(f"VERDICT REPORTER R0 - GÉNÉRATION RAPPORTS (REFACTORISÉ)")
     print(f"{'='*70}\n")
     
     print(f"Params config:  {params_config_id}")
@@ -208,11 +198,11 @@ def generate_verdict_report(
     print()
     
     # =========================================================================
-    # ÉTAPE 3 : PROFILING GAMMA (MIGRÉ profiling_common)
+    # ÉTAPE 3 : PROFILING GAMMA (DÉLÉGUÉ gamma_profiling)
     # =========================================================================
     
-    print("4. Profiling gamma (profiling_common - MIGRÉ)...")
-    # ✅ MIGRÉ → profiling_common
+    print("4. Profiling gamma (comportements individuels)...")
+    # ✅ DÉLÉGUÉ → gamma_profiling
     gamma_profiles = profile_all_gammas(observations)
     print(f"   ✓ {len(gamma_profiles)} gammas profilés")
     
@@ -259,7 +249,7 @@ def generate_verdict_report(
     print()
     
     # =========================================================================
-    # ÉTAPE 5 : GÉNÉRATION RAPPORTS (MIGRÉ Templates Jinja2)
+    # ÉTAPE 5 : GÉNÉRATION RAPPORTS (DÉLÉGUÉ report_writers)
     # =========================================================================
     
     print("6. Génération rapports multi-formats...")
@@ -275,25 +265,9 @@ def generate_verdict_report(
     write_json(final_results['metadata'], report_dir / 'metadata.json')
     report_paths['metadata'] = str(report_dir / 'metadata.json')
     
-    # 6b. Rapport gamma (Template Jinja2)
-    print("   Génération summary_gamma.txt (Jinja2)...")
-    metadata_profiling = {
-        'generated_at': datetime.now().isoformat(),
-        'n_entities': len(gamma_profiles),
-        'n_observations': len(observations),
-        'profiling_version': '6.1',
-        'profiling_module': 'profiling_common'
-    }
-    
-    write_summary_axis(
-        output_path=report_dir / 'summary_gamma.txt',
-        axis='gamma',
-        profiles=gamma_profiles,
-        summary=comparisons,
-        metadata=metadata_profiling,
-        discriminant_powers=None  # Pas calculé pour gamma (axe test uniquement)
-    )
-    report_paths['summary_gamma'] = str(report_dir / 'summary_gamma.txt')
+    # 6b. Rapport humain principal
+    _write_summary_report(report_dir, final_results)
+    report_paths['summary'] = str(report_dir / 'summary.txt')
     
     # 6c. Gamma profiles (JSON + CSV)
     _write_gamma_profiles(report_dir, final_results['gamma_profiles'])
@@ -345,7 +319,7 @@ def generate_verdict_report(
     # =========================================================================
     
     print("="*70)
-    print("RAPPORT VERDICT R0 GÉNÉRÉ (MIGRÉ profiling_common)")
+    print("RAPPORT VERDICT R0 GÉNÉRÉ (REFACTORISÉ)")
     print("="*70)
     print(f"Répertoire : {report_dir}")
     print(f"Gammas     : {len(gamma_profiles)}")
@@ -377,8 +351,8 @@ def _compile_metadata(
     
     return {
         'generated_at': datetime.now().isoformat(),
-        'engine_version': '6.1',
-        'architecture': 'verdict_reporter_r0_migrated_profiling_common',
+        'engine_version': '5.5',
+        'architecture': 'verdict_reporter_r0_refactored',
         'configs_used': {
             'params': params_config_id,
             'verdict': verdict_config_id
@@ -514,6 +488,106 @@ def _compile_structural_patterns(
 # =============================================================================
 # GÉNÉRATION FICHIERS RAPPORTS (PARTIELLEMENT DÉLÉGUÉ)
 # =============================================================================
+
+def _write_summary_report(report_dir: Path, results: dict):
+    """
+    Écrit rapport humain principal (ENRICHI R0+).
+    
+    ⚠️ PARTIELLEMENT DÉLÉGUÉ : Utilise report_writers pour sections
+    """
+    
+    metadata = results['metadata']
+    gamma_profiles = results['gamma_profiles']
+    structural = results['structural_patterns']
+    comparisons = results['comparisons']
+    
+    with open(report_dir / 'summary.txt', 'w', encoding='utf-8') as f:
+        # ✅ DÉLÉGUÉ → report_writers
+        write_header(f, "VERDICT REPORT R0+ - POSTURE NON GAMMA-CENTRIQUE (REFACTORISÉ)")
+        
+        f.write(f"{metadata['generated_at']}\n\n")
+        
+        f.write("ARCHITECTURE RAPPORT:\n")
+        f.write("  verdict_engine   : Analyses statistiques globales (variance, interactions)\n")
+        f.write("  gamma_profiling  : Profils comportementaux individuels (régimes, timelines)\n")
+        f.write("  verdict_reporter : Orchestration + génération rapports (REFACTORISÉ)\n")
+        f.write("  report_writers   : Formatage sections standardisées\n\n")
+        
+        # DATA SUMMARY
+        f.write("="*80 + "\n")
+        f.write("DATA SUMMARY\n")
+        f.write("="*80 + "\n")
+        data = metadata['data_summary']
+        f.write(f"Total observations    : {data['total_observations']}\n")
+        f.write(f"Valid observations    : {data['valid_observations']}\n")
+        f.write(f"Rejected (artifacts)  : {data['rejected_observations']} ({data['rejection_rate']*100:.1f}%)\n")
+        f.write(f"Gammas analyzed       : {data['n_gammas']}\n")
+        f.write(f"Tests analyzed        : {data['n_tests']}\n\n")
+        
+        # QUALITY FLAGS
+        f.write("QUALITY FLAGS:\n")
+        quality = metadata['quality_flags']
+        f.write(f"  Dégénérescences détectées : {quality['observations_with_degeneracy']} ({quality['degeneracy_rate']*100:.1f}%)\n")
+        f.write(f"  Ruptures échelle          : {quality['observations_with_scale_outliers']} ({quality['scale_outlier_rate']*100:.1f}%)\n\n")
+        
+        # ✅ DÉLÉGUÉ → report_writers
+        write_regime_synthesis(f, gamma_profiles)
+        f.write("\n")
+        
+        # ✅ DÉLÉGUÉ → report_writers
+        write_dynamic_signatures(f, gamma_profiles)
+        f.write("\n")
+        
+        # GAMMA PROFILES (résumé par gamma)
+        f.write("="*80 + "\n")
+        f.write("GAMMA PROFILES (régimes dominants par gamma)\n")
+        f.write("="*80 + "\n")
+        
+        for gamma_id in sorted(gamma_profiles.keys()):
+            profile = gamma_profiles[gamma_id]
+            summary = profile['summary']
+            f.write(f"\n{gamma_id}:\n")
+            f.write(f"  Régime dominant : {summary['dominant_regime']}\n")
+            f.write(f"  Tests profilés  : {summary['n_tests']}\n")
+            f.write(f"  Distribution    : {summary['regime_distribution']}\n")
+            
+            # ✅ DÉLÉGUÉ → regime_utils
+            conserved = extract_conserved_properties(profile)
+            if conserved:
+                f.write(f"  Propriétés conservées : {', '.join(conserved)}\n")
+        
+        f.write("\n")
+        
+        # ✅ DÉLÉGUÉ → report_writers
+        write_comparisons_enriched(f, comparisons, gamma_profiles)
+        f.write("\n")
+        
+        # STRUCTURAL PATTERNS (analyses globales)
+        f.write("="*80 + "\n")
+        f.write("STRUCTURAL PATTERNS (analyses globales stratifiées)\n")
+        f.write("="*80 + "\n")
+        
+        for regime_name in ['GLOBAL', 'STABLE', 'EXPLOSIF']:
+            regime_data = structural['stratification'][regime_name]
+            f.write(f"\nRÉGIME {regime_name}:\n")
+            f.write(f"  Observations : {regime_data['n_observations']}\n")
+            f.write(f"  Status       : {regime_data['status']}\n")
+            
+            if regime_data['status'] == 'SUCCESS':
+                f.write(f"  Verdict      : {regime_data['verdict']}\n")
+                f.write(f"  Raison       : {regime_data['reason']}\n")
+                
+                patterns = regime_data['patterns']
+                f.write(f"  Patterns détectés:\n")
+                for pattern_type, pattern_list in patterns.items():
+                    if pattern_list:
+                        f.write(f"    {pattern_type}: {len(pattern_list)} occurrences\n")
+        
+        f.write("\n")
+        
+        # ✅ DÉLÉGUÉ → report_writers
+        write_consultation_footer(f)
+
 
 def _write_gamma_profiles(report_dir: Path, gamma_profiles: dict):
     """Écrit gamma_profiles.json + CSV."""

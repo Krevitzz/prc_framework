@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-01-20T11:48:55.121173",
-  "engine_version": "5.5",
-  "architecture": "verdict_reporter_r0_refactored",
+  "generated_at": "2026-01-21T01:18:20.425213",
+  "engine_version": "6.1",
+  "architecture": "verdict_reporter_r0_migrated_profiling_common",
   "configs_used": {
     "params": "params_default_v1",
     "verdict": "verdict_default_v1"
