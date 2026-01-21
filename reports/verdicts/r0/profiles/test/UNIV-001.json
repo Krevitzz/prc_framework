@@ -1,0 +1,118 @@
+{
+  "tests": {
+    "UNIV-001": {
+      "test_name": "UNIV-001",
+      "test_id": "UNIV-001",
+      "prc_profile": {
+        "regime": "MIXED::CONSERVES_NORM",
+        "behavior": "mixed",
+        "dominant_timeline": {
+          "timeline_compact": "early_instability_to_saturation_complex",
+          "confidence": 0.4768181818181818,
+          "variants": {
+            "early_instability_to_saturation_complex": 1049,
+            "early_instability_then_saturation": 30,
+            "early_instability_then_deviation": 71,
+            "early_deviation_only": 40,
+            "early_deviation_then_instability": 200,
+            "early_instability_to_collapse_complex": 410,
+            "oscillatory_early_instability_to_saturation_complex": 380,
+            "oscillatory_early_instability_then_deviation": 20
+          }
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        },
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": true,
+          "trivial": false,
+          "degrading": false
+        },
+        "n_runs": 2200,
+        "n_valid": 0,
+        "confidence": "low",
+        "confidence_metadata": {
+          "level": "low",
+          "criteria": {
+            "min_runs_high": 20,
+            "min_runs_medium": 10,
+            "max_cv_homogeneous": 0.5,
+            "min_timeline_confidence": 0.7
+          },
+          "rationale": "n_valid=0 < 10"
+        }
+      },
+      "diagnostic_signature": {
+        "dynamic_signature": {
+          "deviation_onset_median": 1.0,
+          "instability_onset_median": 0.0,
+          "oscillatory_fraction": 0.18181818181818182,
+          "saturation_fraction": 0.8495454545454545,
+          "collapse_fraction": 0.18636363636363637
+        },
+        "timeline_distribution": {
+          "dominant_timeline": "early_instability_to_saturation_complex",
+          "timeline_confidence": 0.4768181818181818,
+          "timeline_variants": {
+            "early_instability_to_saturation_complex": 1049,
+            "early_instability_then_saturation": 30,
+            "early_instability_then_deviation": 71,
+            "early_deviation_only": 40,
+            "early_deviation_then_instability": 200,
+            "early_instability_to_collapse_complex": 410,
+            "oscillatory_early_instability_to_saturation_complex": 380,
+            "oscillatory_early_instability_then_deviation": 20
+          }
+        },
+        "run_dispersion": {
+          "final_value_iqr_ratio": 116.90421830169097,
+          "cv_across_runs": 4.714298078116067,
+          "bimodal_detected": true
+        },
+        "thresholds_used": {
+          "timeline_early": 0.2,
+          "timeline_mid": 0.6,
+          "timeline_late": 0.6,
+          "instability_detection": "P90 * 10 (relative)",
+          "oscillatory_threshold": "10% sign changes",
+          "saturation_cv": "5%",
+          "bimodal_iqr_ratio": "3.0"
+        }
+      },
+      "instrumentation": {
+        "metric_name": "frobenius_norm",
+        "summary_metrics": {
+          "final_value": {
+            "median": 1.1248,
+            "q1": 0.40952500000000003,
+            "q3": 47.8752,
+            "mean": 6.198593933263905e+43,
+            "std": 2.9222019466607937e+44
+          },
+          "initial_value": 16.826050000000002,
+          "mean_value": 7.837656617631191e+41,
+          "cv": 4.714298078116067
+        },
+        "data_completeness": {
+          "dynamic_events_present": true,
+          "timeseries_present": true,
+          "fallback_used": false
+        },
+        "computation_metadata": {
+          "profiling_version": "6.1",
+          "profiling_module": "profiling_common",
+          "profiling_axis": "test",
+          "timeline_architecture": "compositional_relative",
+          "n_runs": 2200,
+          "n_valid": 0
+        }
+      }
+    }
+  },
+  "n_tests": 1,
+  "n_total_runs": 2200
+}

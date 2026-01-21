@@ -1,0 +1,91 @@
+{
+  "generated_at": "2026-01-21T22:40:45.620250",
+  "engine_version": "6.1",
+  "architecture": "verdict_reporter_r0_phase4_multiaxis",
+  "configs_used": {
+    "params": "params_default_v1",
+    "verdict": "verdict_default_v1"
+  },
+  "data_summary": {
+    "total_observations": 20280,
+    "valid_observations": 20280,
+    "rejected_observations": 0,
+    "rejection_rate": 0.0,
+    "n_gammas": 11,
+    "n_tests": 9,
+    "n_modifiers": 4,
+    "n_encodings": 13,
+    "gammas_list": [
+      "GAM-001",
+      "GAM-002",
+      "GAM-003",
+      "GAM-004",
+      "GAM-005",
+      "GAM-006",
+      "GAM-007",
+      "GAM-008",
+      "GAM-009",
+      "GAM-010",
+      "GAM-012"
+    ],
+    "tests_list": [
+      "GRA-001",
+      "PAT-001",
+      "SPA-001",
+      "SPE-001",
+      "SPE-002",
+      "SYM-001",
+      "TOP-001",
+      "UNIV-001",
+      "UNIV-002"
+    ],
+    "modifiers_list": [
+      "M0",
+      "M1",
+      "M2",
+      "M3"
+    ],
+    "encodings_list": [
+      "ASY-001",
+      "ASY-002",
+      "ASY-003",
+      "ASY-004",
+      "R3-001",
+      "R3-002",
+      "R3-003",
+      "SYM-001",
+      "SYM-002",
+      "SYM-003",
+      "SYM-004",
+      "SYM-005",
+      "SYM-006"
+    ]
+  },
+  "quality_flags": {
+    "observations_with_degeneracy": 0,
+    "degeneracy_rate": 0.0,
+    "observations_with_scale_outliers": 1082,
+    "scale_outlier_rate": 0.053353057199211046
+  },
+  "analysis_parameters": {
+    "factors_analyzed": [
+      "gamma_id",
+      "d_encoding_id",
+      "modifier_id",
+      "seed",
+      "test_name"
+    ],
+    "projections_analyzed": [
+      "value_final",
+      "value_mean",
+      "slope",
+      "volatility",
+      "relative_change"
+    ],
+    "testability_thresholds": {
+      "min_samples_per_group": 2,
+      "min_groups": 2,
+      "min_total_samples": 10
+    }
+  }
+}

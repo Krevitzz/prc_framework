@@ -1,0 +1,352 @@
+================================================================================
+RAPPORT TEST - PROFILING R0
+================================================================================
+Généré le : 
+Axe analysé : test
+Entités profilées : 9
+Observations totales : 20280
+
+================================================================================
+DISTRIBUTION RÉGIMES
+================================================================================
+
+
+
+CONSERVATION (régimes sains) :
+  MIXED::CONSERVES_NORM               :   3 (33.3%)
+  MIXED::CONSERVES_GRADIENT           :   1 (11.1%)
+  MIXED::CONSERVES_SPECTRUM           :   1 (11.1%)
+  MIXED::CONSERVES_SYMMETRY           :   1 (11.1%)
+  MIXED::CONSERVES_TOPOLOGY           :   1 (11.1%)
+
+PATHOLOGIES :
+  OSCILLATORY_UNSTABLE                :   1 (11.1%)
+
+MULTIMODALITÉ (MIXED::X) :
+  MIXED::CONSERVES_NORM               :   3 (33.3%)
+  MIXED::CONSERVES_GRADIENT           :   1 (11.1%)
+  MIXED::CONSERVES_SPECTRUM           :   1 (11.1%)
+  MIXED::CONSERVES_SYMMETRY           :   1 (11.1%)
+
+================================================================================
+POUVOIR DISCRIMINANT (tests uniquement)
+================================================================================
+
+Tests les plus discriminants :
+
+SPE-001 :
+  Ratio discriminant    : 0.0
+  Variance inter-entités : 0.0
+  Variance intra-entité  : 0.0
+  Effect size (η²)       : 0.0
+  Kruskal-Wallis p-value : 1.0
+  Interprétation         : Insufficient entities for analysis
+  
+  Top 3 entités :
+
+SPA-001 :
+  Ratio discriminant    : 0.0
+  Variance inter-entités : 0.0
+  Variance intra-entité  : 0.0
+  Effect size (η²)       : 0.0
+  Kruskal-Wallis p-value : 1.0
+  Interprétation         : Insufficient entities for analysis
+  
+  Top 3 entités :
+
+SYM-001 :
+  Ratio discriminant    : 0.0
+  Variance inter-entités : 0.0
+  Variance intra-entité  : 0.0
+  Effect size (η²)       : 0.0
+  Kruskal-Wallis p-value : 1.0
+  Interprétation         : Insufficient entities for analysis
+  
+  Top 3 entités :
+
+TOP-001 :
+  Ratio discriminant    : 0.0
+  Variance inter-entités : 0.0
+  Variance intra-entité  : 0.0
+  Effect size (η²)       : 0.0
+  Kruskal-Wallis p-value : 1.0
+  Interprétation         : Insufficient entities for analysis
+  
+  Top 3 entités :
+
+GRA-001 :
+  Ratio discriminant    : 0.0
+  Variance inter-entités : 0.0
+  Variance intra-entité  : 0.0
+  Effect size (η²)       : 0.0
+  Kruskal-Wallis p-value : 1.0
+  Interprétation         : Insufficient entities for analysis
+  
+  Top 3 entités :
+
+PAT-001 :
+  Ratio discriminant    : 0.0
+  Variance inter-entités : 0.0
+  Variance intra-entité  : 0.0
+  Effect size (η²)       : 0.0
+  Kruskal-Wallis p-value : 1.0
+  Interprétation         : Insufficient entities for analysis
+  
+  Top 3 entités :
+
+UNIV-002 :
+  Ratio discriminant    : 0.0
+  Variance inter-entités : 0.0
+  Variance intra-entité  : 0.0
+  Effect size (η²)       : 0.0
+  Kruskal-Wallis p-value : 1.0
+  Interprétation         : Insufficient entities for analysis
+  
+  Top 3 entités :
+
+SPE-002 :
+  Ratio discriminant    : 0.0
+  Variance inter-entités : 0.0
+  Variance intra-entité  : 0.0
+  Effect size (η²)       : 0.0
+  Kruskal-Wallis p-value : 1.0
+  Interprétation         : Insufficient entities for analysis
+  
+  Top 3 entités :
+
+UNIV-001 :
+  Ratio discriminant    : 0.0
+  Variance inter-entités : 0.0
+  Variance intra-entité  : 0.0
+  Effect size (η²)       : 0.0
+  Kruskal-Wallis p-value : 1.0
+  Interprétation         : Insufficient entities for analysis
+  
+  Top 3 entités :
+
+Tests faiblement discriminants (ratio < 0.5) :
+  SPE-001 : ratio 0.0 (Insufficient entities for analysis)
+  SPA-001 : ratio 0.0 (Insufficient entities for analysis)
+  SYM-001 : ratio 0.0 (Insufficient entities for analysis)
+  TOP-001 : ratio 0.0 (Insufficient entities for analysis)
+  GRA-001 : ratio 0.0 (Insufficient entities for analysis)
+  PAT-001 : ratio 0.0 (Insufficient entities for analysis)
+  UNIV-002 : ratio 0.0 (Insufficient entities for analysis)
+  SPE-002 : ratio 0.0 (Insufficient entities for analysis)
+  UNIV-001 : ratio 0.0 (Insufficient entities for analysis)
+
+
+================================================================================
+SIGNATURES DYNAMIQUES
+================================================================================
+
+
+GRA-001 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+PAT-001 :
+  Timeline dominante : late_saturation_only (100% tests)
+
+
+SPA-001 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+SPE-001 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+SPE-002 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+SYM-001 :
+  Timeline dominante : late_saturation_only (100% tests)
+
+
+TOP-001 :
+  Timeline dominante : late_saturation_only (100% tests)
+
+
+UNIV-001 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+UNIV-002 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+================================================================================
+PROFILS INDIVIDUELS
+================================================================================
+
+
+GRA-001
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 2200
+
+Régimes par test :
+  GRA-001         : MIXED::CONSERVES_GRADIENT           [mixed] (low)
+
+Propriétés conservées :
+  GRADIENT
+
+
+PAT-001
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 2680
+
+Régimes par test :
+  PAT-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+
+Propriétés conservées :
+  Aucune propriété systématiquement conservée
+
+
+SPA-001
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 2200
+
+Régimes par test :
+  SPA-001         : MIXED::CONSERVES_SPECTRUM           [mixed] (low)
+
+Propriétés conservées :
+  SPECTRUM
+
+
+SPE-001
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 2200
+
+Régimes par test :
+  SPE-001         : MIXED::CONSERVES_NORM               [mixed] (low)
+
+Propriétés conservées :
+  NORM
+
+
+SPE-002
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 2200
+
+Régimes par test :
+  SPE-002         : MIXED::CONSERVES_NORM               [mixed] (low)
+
+Propriétés conservées :
+  NORM
+
+
+SYM-001
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 2200
+
+Régimes par test :
+  SYM-001         : MIXED::CONSERVES_SYMMETRY           [mixed] (low)
+
+Propriétés conservées :
+  SYMMETRY
+
+
+TOP-001
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 2200
+
+Régimes par test :
+  TOP-001         : MIXED::CONSERVES_TOPOLOGY           [mixed] (low)
+
+Propriétés conservées :
+  TOPOLOGY
+
+
+UNIV-001
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 2200
+
+Régimes par test :
+  UNIV-001        : MIXED::CONSERVES_NORM               [mixed] (low)
+
+Propriétés conservées :
+  NORM
+
+
+UNIV-002
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 2200
+
+Régimes par test :
+  UNIV-002        : MIXED::OSCILLATORY_UNSTABLE         [mixed] (low)
+
+Propriétés conservées :
+  Aucune propriété systématiquement conservée
+
+
+================================================================================
+COMPARAISONS INTER-ENTITÉS
+================================================================================
+
+Régimes dominants :
+  MIXED::OSCILLATORY_UNSTABLE         : 1 entités (UNIV-002)
+  MIXED::CONSERVES_TOPOLOGY           : 1 entités (TOP-001)
+  MIXED::CONSERVES_SYMMETRY           : 1 entités (SYM-001)
+  MIXED::CONSERVES_NORM               : 3 entités (SPE-001, SPE-002, UNIV-001)
+  MIXED::CONSERVES_SPECTRUM           : 1 entités (SPA-001)
+  OSCILLATORY_UNSTABLE                : 1 entités (PAT-001)
+  MIXED::CONSERVES_GRADIENT           : 1 entités (GRA-001)
+
+Rankings par test (conservation) :
+
+GRA-001 :
+  Meilleur conservation : GRA-001
+  Pire conservation     : GRA-001
+  Top 5 : GRA-001
+PAT-001 :
+  Meilleur conservation : PAT-001
+  Pire conservation     : PAT-001
+  Top 5 : PAT-001
+SPA-001 :
+  Meilleur conservation : SPA-001
+  Pire conservation     : SPA-001
+  Top 5 : SPA-001
+SPE-001 :
+  Meilleur conservation : SPE-001
+  Pire conservation     : SPE-001
+  Top 5 : SPE-001
+SPE-002 :
+  Meilleur conservation : SPE-002
+  Pire conservation     : SPE-002
+  Top 5 : SPE-002
+SYM-001 :
+  Meilleur conservation : SYM-001
+  Pire conservation     : SYM-001
+  Top 5 : SYM-001
+TOP-001 :
+  Meilleur conservation : TOP-001
+  Pire conservation     : TOP-001
+  Top 5 : TOP-001
+UNIV-001 :
+  Meilleur conservation : UNIV-001
+  Pire conservation     : UNIV-001
+  Top 5 : UNIV-001
+UNIV-002 :
+  Meilleur conservation : UNIV-002
+  Pire conservation     : UNIV-002
+  Top 5 : UNIV-002
+
+================================================================================
+CONSULTATION DÉTAILLÉE
+================================================================================
+Profils complets JSON : profiles/test/
+Comparaisons          : comparisons/rankings_test.json
+Données brutes        : analysis_complete.json (section 'test')
+
+================================================================================
