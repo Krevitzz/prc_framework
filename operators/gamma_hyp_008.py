@@ -26,7 +26,7 @@ class DifferentialMemoryGamma:
     - Convergence douce possible
     """
     
-    def __init__(self, gamma: float = 0.3, beta: float = 1.0):
+    def __init__(self, gamma: float = 0.3, beta: float = 1.0, seed: int = None):
         """
         Args:
             gamma: Poids inertie [0, 1]
@@ -72,7 +72,7 @@ class DifferentialMemoryGamma:
 
 
 def create_gamma_hyp_008(gamma: float = 0.3, 
-                         beta: float = 1.0) -> Callable[[np.ndarray], np.ndarray]:
+                         beta: float = 1.0, seed: int = None) -> Callable[[np.ndarray], np.ndarray]:
     """Factory pour GAM-008."""
     return DifferentialMemoryGamma(gamma=gamma, beta=beta)
 

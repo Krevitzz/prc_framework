@@ -11,7 +11,7 @@ PHASE = "R0"
 class PureSaturationGamma:
     """Γ de saturation pure pointwise."""
     
-    def __init__(self, beta: float = 2.0):
+    def __init__(self, beta: float = 2.0, seed: int = None):
         assert beta > 0, "beta doit être strictement positif"
         self.beta = beta
     
@@ -21,7 +21,7 @@ class PureSaturationGamma:
     def __repr__(self):
         return f"PureSaturationGamma(beta={self.beta})"
 
-def create_gamma_hyp_001(beta: float = 2.0) -> Callable[[np.ndarray], np.ndarray]:
+def create_gamma_hyp_001(beta: float = 2.0, seed: int = None) -> Callable[[np.ndarray], np.ndarray]:
     return PureSaturationGamma(beta=beta)
 
 PARAM_GRID_PHASE1 = {'nominal': {'beta': 2.0}}

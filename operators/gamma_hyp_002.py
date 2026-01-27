@@ -28,7 +28,7 @@ class PureDiffusionGamma:
     - Applique simplement la diffusion locale
     """
     
-    def __init__(self, alpha: float = 0.05):
+    def __init__(self, alpha: float = 0.05, seed: int = None):
         """
         Args:
             alpha: Coefficient de diffusion (doit être < 0.25 pour stabilité)
@@ -75,7 +75,7 @@ class PureDiffusionGamma:
         return f"PureDiffusionGamma(alpha={self.alpha})"
 
 
-def create_gamma_hyp_002(alpha: float = 0.05) -> Callable[[np.ndarray], np.ndarray]:
+def create_gamma_hyp_002(alpha: float = 0.05, seed: int = None) -> Callable[[np.ndarray], np.ndarray]:
     """
     Factory pour créer GAM-002.
     

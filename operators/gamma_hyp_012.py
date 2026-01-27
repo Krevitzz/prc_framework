@@ -25,7 +25,7 @@ class ForcedSymmetryGamma:
     - Test si forçage artificiel aide non-trivialité
     """
     
-    def __init__(self, beta: float = 2.0):
+    def __init__(self, beta: float = 2.0, seed: int = None):
         """
         Args:
             beta: Force de saturation dans F
@@ -54,7 +54,7 @@ class ForcedSymmetryGamma:
         return f"ForcedSymmetryGamma(beta={self.beta})"
 
 
-def create_gamma_hyp_012(beta: float = 2.0) -> Callable[[np.ndarray], np.ndarray]:
+def create_gamma_hyp_012(beta: float = 2.0, seed: int = None) -> Callable[[np.ndarray], np.ndarray]:
     """Factory pour GAM-012."""
     return ForcedSymmetryGamma(beta=beta)
 

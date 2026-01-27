@@ -352,36 +352,43 @@ def run_batch_brut(
             encoding_info = encodings_by_id[d_encoding_id]
             modifier_info = modifiers_by_id.get(modifier_id)
             
-            # Créer D_base
+            # ✅ PHASE 10 : Centralisation seed dans prepare_state()
+            
+            # 1. Extraire fonctions
             encoding_module = encoding_info['module']
             encoding_func_name = encoding_info['function_name']
             encoding_func = getattr(encoding_module, encoding_func_name)
             
-            try:
-                D_base = encoding_func(n_dof=10, seed=seed)
-            except TypeError:
-                try:
-                    D_base = encoding_func(seed=seed)
-                except TypeError:
-                    D_base = encoding_func()
-            
-            # Appliquer modifier
-            
-            modifier_func_name = modifier_info['function_name']  # 'apply'
+            modifier_module = modifier_info['module']
+            modifier_func_name = modifier_info['function_name']
             modifier_func = getattr(modifier_module, modifier_func_name)
             
-            # ✅ Appel direct (pas via prepare_state)
-            D_final = modifier_func(D_base, seed=seed)
+            # 2. Préparer encoding_params (n_dof obligatoire)
+            encoding_params = {'n_dof': 100}
             
-            # Créer gamma
+            # 3. Préparer modifiers et configs
+            modifiers_list = [modifier_func]
+            modifier_configs = {modifier_func: {}}  # Params default (sigma, amplitude)
+            
+            # 4. Créer D_final via prepare_state (seed centralisé)
+            D_final = prepare_state(
+                encoding_func=encoding_func,
+                encoding_params=encoding_params,
+                modifiers=modifiers_list,
+                modifier_configs=modifier_configs,
+                seed=seed  # ← Seed pour reproductibilité D_final
+            )
+            
+            # 5. Créer gamma (avec seed pour uniformité)
             gamma_module = gamma_info['module']
             factory_name = gamma_info['function_name']
             factory = getattr(gamma_module, factory_name)
-            gamma = factory()  # Params default pour R0
+            gamma = factory(seed=seed)  # ← Seed pour gammas stochastiques
             
-            # Reset mémoire si non-markovien
+            # Reset mémoire si non-markovien (inchangé)
             if hasattr(gamma, 'reset'):
                 gamma.reset()
+
             
             # Exécuter kernel
             snapshots = []

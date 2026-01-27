@@ -120,7 +120,14 @@ def _discover_tests(phase: str = None) -> List[Dict]:
         
         # Extract phase
         test_phase = getattr(module, 'TEST_PHASE', None)
-        
+        metadata = {
+            'test_id': module.TEST_ID,
+            'category': module.TEST_CATEGORY,
+            'version': module.TEST_VERSION,
+            'weight': getattr(module, 'TEST_WEIGHT', 1.0),
+            'applicability': module.APPLICABILITY_SPEC,
+            'computation_specs': module.COMPUTATION_SPECS,
+        }
         # Filter by phase
         if phase is not None and test_phase is not None and test_phase != phase:
             continue

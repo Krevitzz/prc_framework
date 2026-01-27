@@ -26,7 +26,7 @@ class SlidingAverageGamma:
     - Perte diversité mais plus lente que diffusion pure
     """
     
-    def __init__(self, epsilon: float = 0.1):
+    def __init__(self, epsilon: float = 0.1, seed: int = None):
         """
         Args:
             epsilon: Force de régulation [0, 1]
@@ -73,7 +73,7 @@ class SlidingAverageGamma:
         return f"SlidingAverageGamma(epsilon={self.epsilon})"
 
 
-def create_gamma_hyp_007(epsilon: float = 0.1) -> Callable[[np.ndarray], np.ndarray]:
+def create_gamma_hyp_007(epsilon: float = 0.1, seed: int = None) -> Callable[[np.ndarray], np.ndarray]:
     """Factory pour GAM-007."""
     return SlidingAverageGamma(epsilon=epsilon)
 

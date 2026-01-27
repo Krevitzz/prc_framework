@@ -28,7 +28,7 @@ class HebbianReinforcementGamma:
     WARNING: Instable sans régulation (saturation recommandée).
     """
     
-    def __init__(self, eta: float = 0.01):
+    def __init__(self, eta: float = 0.01, seed: int = None):
         """
         Args:
             eta: Taux d'apprentissage [0, 0.1]
@@ -66,7 +66,7 @@ class HebbianReinforcementGamma:
         return f"HebbianReinforcementGamma(eta={self.eta})"
 
 
-def create_gamma_hyp_013(eta: float = 0.01) -> Callable[[np.ndarray], np.ndarray]:
+def create_gamma_hyp_013(eta: float = 0.01, seed: int = None) -> Callable[[np.ndarray], np.ndarray]:
     """Factory pour GAM-013."""
     return HebbianReinforcementGamma(eta=eta)
 

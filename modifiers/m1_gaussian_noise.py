@@ -24,7 +24,8 @@ METADATA = {
 }
 
 # ============ FONCTION PRINCIPALE ============
-def apply(state: np.ndarray, seed: int = None, sigma: float = 0.05) -> np.ndarray:
+# ============ FONCTION PRINCIPALE (À REMPLACER) ============
+def apply(state: np.ndarray, sigma: float = 0.05) -> np.ndarray:
     """
     Applique bruit gaussien additif.
     
@@ -32,23 +33,27 @@ def apply(state: np.ndarray, seed: int = None, sigma: float = 0.05) -> np.ndarra
     USAGE: Perturbation gaussienne, test robustesse
     PROPRIÉTÉS: Bruit centré, distribution normale
     
+    SEED MANAGEMENT (PHASE 10):
+    - Seed géré par prepare_state() en amont
+    - Utilise np.random global (déjà seeded)
+    - Reproductibilité garantie par seed centralisé
+    
     Args:
         state: Tenseur d'état
-        seed: Graine aléatoire (reproductibilité)
         sigma: Écart-type du bruit (0.05 par défaut)
     
     Returns:
         Tenseur avec bruit gaussien ajouté
     
     Examples:
+        >>> np.random.seed(42)  # Géré par prepare_state
         >>> D = np.ones((3, 3))
-        >>> D_noisy = apply(D, seed=42, sigma=0.1)
+        >>> D_noisy = apply(D, sigma=0.1)
         >>> D_noisy.shape
         (3, 3)
         >>> not np.allclose(D, D_noisy)
         True
     """
-    rng = np.random.RandomState(seed) if seed is not None else np.random
-    
-    noise = rng.randn(*state.shape) * sigma
+    # Utilise np.random global (seeded par prepare_state)
+    noise = np.random.randn(*state.shape) * sigma
     return state + noise

@@ -24,7 +24,8 @@ METADATA = {
 }
 
 # ============ FONCTION PRINCIPALE ============
-def apply(state: np.ndarray, seed: int = None, amplitude: float = 0.1) -> np.ndarray:
+# ============ FONCTION PRINCIPALE (À REMPLACER) ============
+def apply(state: np.ndarray, amplitude: float = 0.1) -> np.ndarray:
     """
     Applique bruit uniforme additif.
     
@@ -32,23 +33,27 @@ def apply(state: np.ndarray, seed: int = None, amplitude: float = 0.1) -> np.nda
     USAGE: Perturbation uniforme, test robustesse non-gaussienne
     PROPRIÉTÉS: Bruit uniforme, distribution équiprobable
     
+    SEED MANAGEMENT (PHASE 10):
+    - Seed géré par prepare_state() en amont
+    - Utilise np.random global (déjà seeded)
+    - Reproductibilité garantie par seed centralisé
+    
     Args:
         state: Tenseur d'état
-        seed: Graine aléatoire (reproductibilité)
         amplitude: Amplitude du bruit (0.1 par défaut)
     
     Returns:
         Tenseur avec bruit uniforme ajouté
     
     Examples:
+        >>> np.random.seed(42)  # Géré par prepare_state
         >>> D = np.ones((3, 3))
-        >>> D_noisy = apply(D, seed=42, amplitude=0.2)
+        >>> D_noisy = apply(D, amplitude=0.2)
         >>> D_noisy.shape
         (3, 3)
         >>> not np.allclose(D, D_noisy)
         True
     """
-    rng = np.random.RandomState(seed) if seed is not None else np.random
-    
-    noise = rng.uniform(-amplitude, amplitude, size=state.shape)
+    # Utilise np.random global (seeded par prepare_state)
+    noise = np.random.uniform(-amplitude, amplitude, size=state.shape)
     return state + noise

@@ -27,7 +27,7 @@ class MemorySaturationGamma:
     via l'attribut interne _previous_state.
     """
     
-    def __init__(self, beta: float = 1.0, alpha: float = 0.3):
+    def __init__(self, beta: float = 1.0, alpha: float = 0.3, seed: int = None):
         """
         Args:
             beta: Force de saturation (> 0)
@@ -72,7 +72,7 @@ class MemorySaturationGamma:
         return f"MemorySaturationGamma(beta={self.beta}, alpha={self.alpha})"
 
 
-def create_gamma_hyp_006(beta: float = 1.0, alpha: float = 0.3) -> Callable[[np.ndarray], np.ndarray]:
+def create_gamma_hyp_006(beta: float = 1.0, alpha: float = 0.3, seed: int = None) -> Callable[[np.ndarray], np.ndarray]:
     """Factory pour GAM-006."""
     return MemorySaturationGamma(beta=beta, alpha=alpha)
 

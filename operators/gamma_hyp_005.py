@@ -28,7 +28,7 @@ class HarmonicOscillatorGamma:
     - Pas d'émergence de structure
     """
     
-    def __init__(self, omega: float = np.pi / 4):
+    def __init__(self, omega: float = np.pi / 4, seed: int = None):
         """
         Args:
             omega: Fréquence angulaire (rad/iteration)
@@ -65,7 +65,7 @@ class HarmonicOscillatorGamma:
         return f"HarmonicOscillatorGamma(omega={self.omega:.4f})"
 
 
-def create_gamma_hyp_005(omega: float = np.pi / 4) -> Callable[[np.ndarray], np.ndarray]:
+def create_gamma_hyp_005(omega: float = np.pi / 4, seed: int = None) -> Callable[[np.ndarray], np.ndarray]:
     """Factory pour GAM-005."""
     return HarmonicOscillatorGamma(omega=omega)
 

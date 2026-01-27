@@ -23,7 +23,7 @@ class ExponentialDecayGamma:
     - Trivialité (attracteur zéro)
     """
     
-    def __init__(self, gamma: float = 0.05):
+    def __init__(self, gamma: float = 0.05, seed: int = None):
         """
         Args:
             gamma: Taux de décroissance (> 0)
@@ -44,7 +44,7 @@ class ExponentialDecayGamma:
         return f"ExponentialDecayGamma(gamma={self.gamma})"
 
 
-def create_gamma_hyp_004(gamma: float = 0.05) -> Callable[[np.ndarray], np.ndarray]:
+def create_gamma_hyp_004(gamma: float = 0.05, seed: int = None) -> Callable[[np.ndarray], np.ndarray]:
     """Factory pour GAM-004."""
     return ExponentialDecayGamma(gamma=gamma)
 

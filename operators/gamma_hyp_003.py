@@ -27,7 +27,7 @@ class ExponentialGrowthGamma:
     les explosions numériques.
     """
     
-    def __init__(self, gamma: float = 0.05):
+    def __init__(self, gamma: float = 0.05, seed: int = None):
         """
         Args:
             gamma: Taux de croissance (> 0)
@@ -48,7 +48,7 @@ class ExponentialGrowthGamma:
         return f"ExponentialGrowthGamma(gamma={self.gamma})"
 
 
-def create_gamma_hyp_003(gamma: float = 0.05) -> Callable[[np.ndarray], np.ndarray]:
+def create_gamma_hyp_003(gamma: float = 0.05, seed: int = None) -> Callable[[np.ndarray], np.ndarray]:
     """Factory pour GAM-003."""
     return ExponentialGrowthGamma(gamma=gamma)
 
