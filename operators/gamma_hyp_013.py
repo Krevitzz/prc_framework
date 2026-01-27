@@ -10,8 +10,7 @@ ATTENDU: Émergence clusters, croissance non-linéaire
 
 import numpy as np
 from typing import Callable
-
-
+PHASE = "R0"
 class HebbianReinforcementGamma:
     """
     Γ de renforcement hebbien (apprentissage non-supervisé).
@@ -93,6 +92,7 @@ PARAM_GRID_PHASE2 = {
 
 METADATA = {
     'id': 'GAM-013',
+    'PHASE' : "R0",
     'name': 'Renforcement hebbien local',
     'family': 'structural',
     'form': 'T_{n+1}[i,j] = T_n[i,j] + η·Σ_k T_n[i,k]·T_n[k,j]',

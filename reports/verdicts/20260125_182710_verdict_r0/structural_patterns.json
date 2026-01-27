@@ -1,0 +1,131 @@
+{
+  "stratification": {
+    "GLOBAL": {
+      "n_observations": 45,
+      "status": "SUCCESS",
+      "verdict": "WIP[R0-open]",
+      "reason": "1 factors dominants | 1 interactions vraies | 2 paires redondantes",
+      "patterns": {
+        "marginal_dominant": [
+          {
+            "factor": "d_encoding_id",
+            "n_metrics": 16,
+            "projections": [
+              "value_mean",
+              "value_final",
+              "volatility",
+              "relative_change"
+            ],
+            "max_variance_ratio": 0.8341838720268411
+          }
+        ],
+        "oriented_interactions": [
+          {
+            "interaction": "d_encoding_id | gamma_id",
+            "n_cases": 3,
+            "contexts_affected": [
+              "GAM-001"
+            ],
+            "max_strength": 5.606642761385969,
+            "examples": [
+              {
+                "test_name": "PAT-001",
+                "metric_name": "concentration_top10",
+                "projection": "slope",
+                "context_value": "GAM-001",
+                "interaction_strength": 5.606642761385969
+              },
+              {
+                "test_name": "PAT-001",
+                "metric_name": "diversity_simpson",
+                "projection": "slope",
+                "context_value": "GAM-001",
+                "interaction_strength": 4.4810411794213705
+              },
+              {
+                "test_name": "PAT-001",
+                "metric_name": "uniformity",
+                "projection": "slope",
+                "context_value": "GAM-001",
+                "interaction_strength": 4.481041179421343
+              }
+            ]
+          }
+        ],
+        "non_discriminant": [],
+        "redundant": [
+          {
+            "n_pairs": 2
+          }
+        ]
+      }
+    },
+    "STABLE": {
+      "n_observations": 45,
+      "status": "SUCCESS",
+      "verdict": "WIP[R0-open]",
+      "reason": "1 factors dominants | 1 interactions vraies | 2 paires redondantes",
+      "patterns": {
+        "marginal_dominant": [
+          {
+            "factor": "d_encoding_id",
+            "n_metrics": 16,
+            "projections": [
+              "value_mean",
+              "value_final",
+              "volatility",
+              "relative_change"
+            ],
+            "max_variance_ratio": 0.8341838720268411
+          }
+        ],
+        "oriented_interactions": [
+          {
+            "interaction": "d_encoding_id | gamma_id",
+            "n_cases": 3,
+            "contexts_affected": [
+              "GAM-001"
+            ],
+            "max_strength": 5.606642761385969,
+            "examples": [
+              {
+                "test_name": "PAT-001",
+                "metric_name": "concentration_top10",
+                "projection": "slope",
+                "context_value": "GAM-001",
+                "interaction_strength": 5.606642761385969
+              },
+              {
+                "test_name": "PAT-001",
+                "metric_name": "diversity_simpson",
+                "projection": "slope",
+                "context_value": "GAM-001",
+                "interaction_strength": 4.4810411794213705
+              },
+              {
+                "test_name": "PAT-001",
+                "metric_name": "uniformity",
+                "projection": "slope",
+                "context_value": "GAM-001",
+                "interaction_strength": 4.481041179421343
+              }
+            ]
+          }
+        ],
+        "non_discriminant": [],
+        "redundant": [
+          {
+            "n_pairs": 2
+          }
+        ]
+      }
+    },
+    "EXPLOSIF": {
+      "n_observations": 0,
+      "status": "INSUFFICIENT_DATA",
+      "verdict": "N/A",
+      "reason": "N/A",
+      "patterns": {}
+    }
+  }
+}

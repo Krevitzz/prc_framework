@@ -1,195 +1,595 @@
 # tests/utilities/data_loading.py
 """
-Data Loading Utilities - I/O Observations depuis DBs.
+Data Loading Utilities - Discovery + I/O Observations.
 
-RESPONSABILITÉS :
-- Connexions DB (prc_r0_results.db + prc_r0_raw.db)
-- Fusion observations + métadonnées runs
+RESPONSABILITÉS (PHASE 10):
+- Discovery unifiée (tests, gammas, encodings, modifiers)
+- Validation applicabilité tests
+- I/O observations (UNE SEULE connexion DB)
 - Conversion observations → DataFrame normalisé
 - Cache observations (futur)
 
-ARCHITECTURE :
-- load_all_observations() : Double connexion (TestObservations + Executions)
-- observations_to_dataframe() : Normalisation pour analyses stats
+ARCHITECTURE UNIFIÉE:
+- discover_entities() : Point d'entrée unique tous types
+- check_applicability() : Validation contraintes techniques
+- load_all_observations() : Connexion unique db_results
+- observations_to_dataframe() : Normalisation analyses stats
 
-UTILISATEURS :
-- verdict_engine.py (compute_verdict)
-- verdict_reporter.py (generate_verdict_report)
-- Futurs : modifier_profiling.py, test_profiling.py
+FUSION:
+- discovery.py (tests)
+- discovery_entities.py (legacy, supprimé)
+- applicability.py (validators)
+- data_loading.py (I/O)
+
+Version: 2.0 (PHASE 10)
 """
 
+import importlib
+import inspect
+import warnings
 import sqlite3
 import json
 import pandas as pd
 import numpy as np
-from typing import List, Dict
 from pathlib import Path
-
+from typing import Literal, List, Dict, Any, Tuple, Callable
 from contextlib import contextmanager
 
-@contextmanager
-def db_connection(db_path: str, row_factory=None):
+
+# =============================================================================
+# DISCOVERY UNIFIÉE (FUSION discovery.py + discovery_entities.py)
+# =============================================================================
+
+def discover_entities(
+    entity_type: Literal['test', 'gamma', 'encoding', 'modifier'],
+    phase: str = None
+) -> List[Dict[str, Any]]:
     """
-    Gestionnaire contexte connexions DB.
+    Découvre entités actives d'un type donné.
     
     Args:
-        db_path: Chemin DB
-        row_factory: sqlite3.Row ou None
-    
-    Yields:
-        cursor: Curseur DB
-    
-    Examples:
-        >>> with db_connection('prc_r0_raw.db') as cursor:
-        ...     cursor.execute("SELECT * FROM Executions")
-    """
-    conn = sqlite3.connect(db_path)
-    if row_factory:
-        conn.row_factory = row_factory
-    cursor = conn.cursor()
-    try:
-        yield cursor
-        conn.commit()
-    finally:
-        conn.close()
-        
-def load_all_observations(
-    params_config_id: str,
-    db_results_path: str = './prc_automation/prc_database/prc_r0_results.db',
-    db_raw_path: str = './prc_automation/prc_database/prc_r0_raw.db'
-) -> List[Dict]:
-    """
-    Charge observations SUCCESS avec métadonnées runs.
-    
-    DOUBLE CONNEXION :
-    - db_results : TestObservations (observation_data, status)
-    - db_raw : Executions (gamma_id, d_encoding_id, modifier_id, seed)
-    
-    Args:
-        params_config_id: ID config params (ex: 'params_default_v1')
-        db_results_path: Chemin DB résultats tests
-        db_raw_path: Chemin DB exécutions brutes
+        entity_type: Type entité à découvrir
+        phase: Filtre phase ('R0', 'R1', None=all)
     
     Returns:
-        List[dict]: Observations avec métadonnées fusionnées
-        Format :
+        [
+            {
+                'id': 'GAM-001',
+                'module_path': 'operators/gamma_hyp_001.py',
+                'module': <module object>,
+                'function_name': 'create_gamma_hyp_001',  # gammas uniquement
+                'phase': 'R0',
+                'metadata': {...}  # Type-specific
+            },
+            ...
+        ]
+    
+    Raises:
+        CriticalDiscoveryError: Si PHASE absent pour gamma/encoding/modifier
+        ValidationError: Si structure module invalide
+    
+    Examples:
+        >>> tests = discover_entities('test', phase='R0')
+        >>> gammas = discover_entities('gamma', phase=None)
+    """
+    if entity_type == 'test':
+        return _discover_tests(phase)
+    elif entity_type == 'gamma':
+        return _discover_gammas(phase)
+    elif entity_type == 'encoding':
+        return _discover_encodings(phase)
+    elif entity_type == 'modifier':
+        return _discover_modifiers(phase)
+    else:
+        raise ValueError(f"Type inconnu: {entity_type}")
+
+
+def _discover_tests(phase: str = None) -> List[Dict]:
+    """
+    Découvre tests actifs (architecture 5.5 inchangée).
+    
+    Notes:
+        - TEST_PHASE = None autorisé (applicable toutes phases)
+        - Skip *_deprecated_*
+        - Validation structure stricte (TEST_VERSION='5.5')
+    """
+    tests_dir = Path(__file__).parent.parent.parent
+    test_files = tests_dir.glob('test_*.py')
+    
+    entities = []
+    
+    for test_file in test_files:
+        # Skip deprecated
+        if '_deprecated' in test_file.stem:
+            continue
+        
+        # Import module
+        module_name = f'tests.{test_file.stem}'
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as e:
+            warnings.warn(f"Failed import {module_name}: {e}")
+            continue
+        
+        # Validate structure
+        try:
+            _validate_test_structure(module)
+        except AssertionError as e:
+            warnings.warn(f"Invalid structure {module_name}: {e}")
+            continue
+        
+        # Extract phase
+        test_phase = getattr(module, 'TEST_PHASE', None)
+        
+        # Filter by phase
+        if phase is not None and test_phase is not None and test_phase != phase:
+            continue
+        
+        entities.append({
+            'id': module.TEST_ID,
+            'module_path': str(test_file),
+            'module': module,
+            'phase': test_phase,
+            'metadata': metadata
+        })
+    
+    return entities
+
+
+def _discover_gammas(phase: str = None) -> List[Dict]:
+    """
+    Découvre gammas actifs (1 fichier = 1 gamma).
+    
+    Structure attendue:
+        - PHASE = "R0" (OBLIGATOIRE)
+        - METADATA = {'gamma_id': 'GAM-NNN', ...}
+        - create_gamma_hyp_NNN() factory
+    """
+    operators_dir = Path(__file__).parent.parent.parent.parent / 'operators'
+    gamma_files = operators_dir.glob('gamma_hyp_*.py')
+    
+    entities = []
+    
+    for gamma_file in gamma_files:
+        if '_deprecated' in gamma_file.stem:
+            continue
+        
+        module_name = f'operators.{gamma_file.stem}'
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as e:
+            warnings.warn(f"Failed import {module_name}: {e}")
+            continue
+        
+        # ✅ Validation PHASE obligatoire
+        if not hasattr(module, 'PHASE'):
+            raise CriticalDiscoveryError(
+                f"{module_name}: PHASE attribute missing (OBLIGATOIRE)"
+            )
+        
+        gamma_phase = module.PHASE
+        
+        # Filter by phase
+        if phase is not None and gamma_phase != phase:
+            continue
+        
+        # Extract metadata
+        if not hasattr(module, 'METADATA'):
+            warnings.warn(f"{module_name}: METADATA missing")
+            continue
+        
+        metadata = module.METADATA
+        gamma_id = metadata.get('id')
+        
+        if not gamma_id:
+            warnings.warn(f"{module_name}: METADATA['id'] missing")
+            continue
+        
+        # Find factory function (create_gamma_hyp_NNN)
+        factory_name = f"create_{gamma_file.stem}"
+        factory_func = getattr(module, factory_name, None)
+        
+        if factory_func is None:
+            warnings.warn(f"{module_name}: {factory_name}() not found")
+            continue
+        
+        entities.append({
+            'id': gamma_id,
+            'module_path': str(gamma_file),
+            'module': module,
+            'function_name': factory_name,
+            'phase': gamma_phase,
+            'metadata': metadata
+        })
+    
+    return entities
+
+
+def _discover_encodings(phase: str = None) -> List[Dict]:
+    """
+    Découvre encodings actifs (1 fichier = 1 encoding).
+    
+    Structure attendue:
+        - Fichier: {sym,asy,r3}_NNN_descriptif.py
+        - PHASE = "R0" (OBLIGATOIRE)
+        - METADATA = {'id': 'XXX-NNN', 'rank': 2, ...}
+        - create(n_dof, seed=None, **kwargs) → np.ndarray
+    """
+    encodings_dir = Path(__file__).parent.parent.parent.parent / 'D_encodings'
+    
+    # Pattern strict: {sym,asy,r3}_*.py
+    encoding_files = list(encodings_dir.glob('sym_*.py'))
+    encoding_files += list(encodings_dir.glob('asy_*.py'))
+    encoding_files += list(encodings_dir.glob('r3_*.py'))
+    
+    entities = []
+    
+    for enc_file in encoding_files:
+        if '_deprecated' in enc_file.stem:
+            continue
+        
+        module_name = f'D_encodings.{enc_file.stem}'
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as e:
+            warnings.warn(f"Failed import {module_name}: {e}")
+            continue
+        
+        # ✅ Validation PHASE obligatoire
+        if not hasattr(module, 'PHASE'):
+            raise CriticalDiscoveryError(
+                f"{module_name}: PHASE attribute missing (OBLIGATOIRE)"
+            )
+        
+        enc_phase = module.PHASE
+        
+        # Filter by phase
+        if phase is not None and enc_phase != phase:
+            continue
+        
+        # Extract metadata
+        if not hasattr(module, 'METADATA'):
+            warnings.warn(f"{module_name}: METADATA missing")
+            continue
+        
+        metadata = module.METADATA
+        enc_id = metadata.get('id')
+        
+        if not enc_id:
+            warnings.warn(f"{module_name}: METADATA['id'] missing")
+            continue
+        
+        # Validate create() exists
+        create_func = getattr(module, 'create', None)
+        
+        if create_func is None:
+            warnings.warn(f"{module_name}: create() function not found")
+            continue
+        
+        entities.append({
+            'id': enc_id,
+            'module_path': str(enc_file),
+            'module': module,
+            'function_name': 'create',
+            'phase': enc_phase,
+            'metadata': metadata
+        })
+    
+    return entities
+
+
+def _discover_modifiers(phase: str = None) -> List[Dict]:
+    """
+    Découvre modifiers actifs (1 fichier = 1 modifier).
+    
+    Structure attendue:
+        - Fichier: m{N}_descriptif.py
+        - PHASE = "R0" (OBLIGATOIRE)
+        - METADATA = {'id': 'M{N}', 'type': '...', ...}
+        - apply(state, seed=None, **kwargs) → np.ndarray
+    """
+    modifiers_dir = Path(__file__).parent.parent.parent.parent / 'modifiers'
+    modifier_files = list(modifiers_dir.glob('m*.py'))
+    
+    entities = []
+    
+    for mod_file in modifier_files:
+        if '_deprecated' in mod_file.stem or mod_file.stem == '__init__':
+            continue
+        
+        module_name = f'modifiers.{mod_file.stem}'
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as e:
+            warnings.warn(f"Failed import {module_name}: {e}")
+            continue
+        
+        # ✅ Validation PHASE obligatoire
+        if not hasattr(module, 'PHASE'):
+            raise CriticalDiscoveryError(
+                f"{module_name}: PHASE attribute missing (OBLIGATOIRE)"
+            )
+        
+        mod_phase = module.PHASE
+        
+        # Filter by phase
+        if phase is not None and mod_phase != phase:
+            continue
+        
+        # Extract metadata
+        if not hasattr(module, 'METADATA'):
+            warnings.warn(f"{module_name}: METADATA missing")
+            continue
+        
+        metadata = module.METADATA
+        mod_id = metadata.get('id')
+        
+        if not mod_id:
+            warnings.warn(f"{module_name}: METADATA['id'] missing")
+            continue
+        
+        # Validate apply() exists
+        apply_func = getattr(module, 'apply', None)
+        
+        if apply_func is None:
+            warnings.warn(f"{module_name}: apply() function not found")
+            continue
+        
+        entities.append({
+            'id': mod_id,
+            'module_path': str(mod_file),
+            'module': module,
+            'function_name': 'apply',
+            'phase': mod_phase,
+            'metadata': metadata
+        })
+    
+    return entities
+
+
+# =============================================================================
+# VALIDATION (HELPERS)
+# =============================================================================
+
+def _validate_test_structure(module) -> None:
+    """Valide structure test architecture 5.5."""
+    REQUIRED_ATTRIBUTES = [
+        'TEST_ID', 'TEST_CATEGORY', 'TEST_VERSION',
+        'APPLICABILITY_SPEC', 'COMPUTATION_SPECS'
+    ]
+    
+    for attr in REQUIRED_ATTRIBUTES:
+        assert hasattr(module, attr), f"Missing: {attr}"
+    
+    assert isinstance(module.TEST_ID, str)
+    assert isinstance(module.TEST_CATEGORY, str)
+    assert isinstance(module.TEST_VERSION, str)
+    assert module.TEST_VERSION == "5.5", f"TEST_VERSION must be '5.5'"
+    
+    import re
+    assert re.match(r'^[A-Z]{3,4}-\d{3}$', module.TEST_ID), \
+        f"TEST_ID invalid: {module.TEST_ID}"
+    
+    assert isinstance(module.APPLICABILITY_SPEC, dict)
+    assert isinstance(module.COMPUTATION_SPECS, dict)
+    assert 1 <= len(module.COMPUTATION_SPECS) <= 5
+    
+    for metric_name, spec in module.COMPUTATION_SPECS.items():
+        assert 'registry_key' in spec
+        assert 'default_params' in spec
+        assert '.' in spec['registry_key']
+
+
+# =============================================================================
+# APPLICABILITY (FUSIONNÉ applicability.py)
+# =============================================================================
+
+VALIDATORS: Dict[str, Callable] = {
+    'requires_rank': lambda run_metadata, expected: 
+        expected is None or len(run_metadata['state_shape']) == expected,
+    
+    'requires_square': lambda run_metadata, required: 
+        not required or (
+            len(run_metadata['state_shape']) == 2 and 
+            run_metadata['state_shape'][0] == run_metadata['state_shape'][1]
+        ),
+    
+    'allowed_d_types': lambda run_metadata, allowed: 
+        'ALL' in allowed or run_metadata['d_encoding_id'].split('-')[0] in allowed,
+    
+    'requires_even_dimension': lambda run_metadata, required: 
+        not required or all(dim % 2 == 0 for dim in run_metadata['state_shape']),
+    
+    'minimum_dimension': lambda run_metadata, min_dim:
+        min_dim is None or all(dim >= min_dim for dim in run_metadata['state_shape']),
+}
+
+
+def check_applicability(test_module, run_metadata: Dict[str, Any]) -> Tuple[bool, str]:
+    """
+    Vérifie applicabilité test (fusion applicability.py).
+    
+    Args:
+        test_module: Module test
+        run_metadata: {
+            'gamma_id': str,
+            'd_encoding_id': str,
+            'modifier_id': str,
+            'seed': int,
+            'state_shape': tuple
+        }
+    
+    Returns:
+        (applicable: bool, reason: str)
+    
+    Examples:
+        >>> applicable, reason = check_applicability(test_module, run_metadata)
+        >>> if not applicable:
+        ...     print(f"Skip: {reason}")
+    """
+    spec = test_module.APPLICABILITY_SPEC
+    
+    for constraint_name, constraint_value in spec.items():
+        if constraint_name not in VALIDATORS:
+            return False, f"Contrainte inconnue: {constraint_name}"
+        
+        validator = VALIDATORS[constraint_name]
+        
+        try:
+            is_valid = validator(run_metadata, constraint_value)
+            
+            if not is_valid:
+                return False, f"{constraint_name}={constraint_value} non satisfait"
+        
+        except KeyError as e:
+            return False, f"Info manquante: {e}"
+        
+        except Exception as e:
+            return False, f"Erreur validation {constraint_name}: {e}"
+    
+    return True, ""
+
+
+def add_validator(name: str, validator: Callable) -> None:
+    """
+    Ajoute validator custom.
+    
+    Args:
+        name: Nom contrainte
+        validator: Fonction (run_metadata, constraint_value) -> bool
+    
+    Raises:
+        ValueError: Si validator déjà existant
+    
+    Examples:
+        >>> def my_validator(run_metadata, value):
+        ...     return run_metadata['d_encoding_id'].startswith('SYM')
+        >>> add_validator('requires_symmetric', my_validator)
+    """
+    if name in VALIDATORS:
+        raise ValueError(f"Validator '{name}' déjà existant")
+    VALIDATORS[name] = validator
+
+
+# =============================================================================
+# I/O OBSERVATIONS (SIMPLIFIÉ - UNE SEULE CONNEXION)
+# =============================================================================
+
+@contextmanager
+def db_connection(db_path: str):
+    """
+    Gestionnaire contexte DB (context manager).
+    
+    Args:
+        db_path: Chemin base données
+    
+    Yields:
+        Connection SQLite
+    
+    Examples:
+        >>> with db_connection('./prc_r0_results.db') as conn:
+        ...     cursor = conn.cursor()
+        ...     cursor.execute("SELECT COUNT(*) FROM observations")
+    """
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+def load_all_observations(
+    params_config_id: str,
+    phase: str = 'R0',
+    db_results_path: str = './prc_automation/prc_database/prc_r0_results.db'
+) -> List[Dict]:
+    """
+    Charge observations SUCCESS (SIMPLIFIÉ - une seule connexion).
+    
+    CHANGEMENT PHASE 10:
+    - UNE SEULE connexion (db_results uniquement)
+    - gamma_id, d_encoding_id présents directement dans observations
+    - Pas de JOIN avec db_raw
+    
+    Args:
+        params_config_id: ID config params
+        phase: Phase cible ('R0', 'R1', etc.)
+        db_results_path: Chemin DB résultats
+    
+    Returns:
+        List[dict]: Observations avec identité complète
         {
-            'observation_id': int,
-            'exec_id': int,
-            'run_id': str,
             'gamma_id': str,
             'd_encoding_id': str,
             'modifier_id': str,
             'seed': int,
             'test_name': str,
+            'test_category': str,
             'params_config_id': str,
             'observation_data': dict,
-            'computed_at': str
+            'timestamp': str,
+            'exec_id': str  # Traçabilité
         }
     
     Raises:
-        ValueError: Si aucune observation SUCCESS trouvée
+        ValueError: Si aucune observation SUCCESS
     
     Examples:
-        >>> obs = load_all_observations('params_default_v1')
+        >>> obs = load_all_observations('params_baseline', phase='R0')
         >>> len(obs)
         4320
-        >>> obs[0]['gamma_id']
-        'GAM-001'
+        >>> obs[0].keys()
+        dict_keys(['gamma_id', 'd_encoding_id', 'modifier_id', 'seed', ...])
     """
-    # 1. Charger observations depuis db_results
-    conn_results = sqlite3.connect(db_results_path)
-    conn_results.row_factory = sqlite3.Row
-    cursor_results = conn_results.cursor()
+    with db_connection(db_results_path) as conn:
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT 
+                gamma_id,
+                d_encoding_id,
+                modifier_id,
+                seed,
+                test_name,
+                test_category,
+                params_config_id,
+                observation_data,
+                timestamp,
+                exec_id,
+                status
+            FROM observations
+            WHERE params_config_id = ?
+              AND phase = ?
+              AND status = 'SUCCESS'
+        """, (params_config_id, phase))
+        
+        rows = cursor.fetchall()
     
-    cursor_results.execute("""
-        SELECT 
-            observation_id,
-            exec_id,
-            test_name,
-            params_config_id,
-            status,
-            observation_data,
-            computed_at
-        FROM TestObservations
-        WHERE params_config_id = ?
-          AND status = 'SUCCESS'
-    """, (params_config_id,))
-    
-    obs_rows = cursor_results.fetchall()
-    conn_results.close()
-    
-    if not obs_rows:
+    if not rows:
         raise ValueError(
-            f"Aucune observation SUCCESS pour params={params_config_id}"
+            f"Aucune observation SUCCESS pour params={params_config_id}, phase={phase}"
         )
     
-    # 2. Extraire exec_ids uniques
-    exec_ids = list(set(row['exec_id'] for row in obs_rows))
-    
-    # 3. Charger métadonnées Executions depuis db_raw
-    conn_raw = sqlite3.connect(db_raw_path)
-    conn_raw.row_factory = sqlite3.Row
-    cursor_raw = conn_raw.cursor()
-    
-    placeholders = ','.join('?' * len(exec_ids))
-    cursor_raw.execute(f"""
-        SELECT 
-            id,
-            run_id,
-            gamma_id,
-            d_encoding_id,
-            modifier_id,
-            seed
-        FROM Executions
-        WHERE id IN ({placeholders})
-    """, exec_ids)
-    
-    exec_rows = cursor_raw.fetchall()
-    conn_raw.close()
-    
-    # 4. Index executions par id
-    executions_by_id = {
-        row['id']: {
-            'run_id': row['run_id'],
-            'gamma_id': row['gamma_id'],
-            'd_encoding_id': row['d_encoding_id'],
-            'modifier_id': row['modifier_id'],
-            'seed': row['seed']
-        }
-        for row in exec_rows
-    }
-    
-    # 5. Fusionner observations + métadonnées
     observations = []
-    for row in obs_rows:
-        exec_id = row['exec_id']
-        
-        if exec_id not in executions_by_id:
-            print(f"⚠️ Skip observation {row['observation_id']}: "
-                  f"exec_id={exec_id} introuvable dans db_raw")
-            continue
-        
-        exec_meta = executions_by_id[exec_id]
-        
+    for row in rows:
         try:
             obs_data = json.loads(row['observation_data'])
             
             observations.append({
-                'observation_id': row['observation_id'],
-                'exec_id': exec_id,
-                'run_id': exec_meta['run_id'],
-                'gamma_id': exec_meta['gamma_id'],
-                'd_encoding_id': exec_meta['d_encoding_id'],
-                'modifier_id': exec_meta['modifier_id'],
-                'seed': exec_meta['seed'],
+                'gamma_id': row['gamma_id'],
+                'd_encoding_id': row['d_encoding_id'],
+                'modifier_id': row['modifier_id'],
+                'seed': row['seed'],
                 'test_name': row['test_name'],
+                'test_category': row['test_category'],
                 'params_config_id': row['params_config_id'],
                 'observation_data': obs_data,
-                'computed_at': row['computed_at']
+                'timestamp': row['timestamp'],
+                'exec_id': row['exec_id'],
             })
         except (json.JSONDecodeError, KeyError) as e:
-            print(f"⚠️ Skip observation {row['observation_id']}: {e}")
+            warnings.warn(f"Skip observation: {e}")
             continue
     
     return observations
@@ -199,7 +599,7 @@ def observations_to_dataframe(observations: List[Dict]) -> pd.DataFrame:
     """
     Convertit observations → DataFrame normalisé pour analyses stats.
     
-    PROJECTIONS EXTRAITES :
+    PROJECTIONS EXTRAITES:
     - value_final, value_initial, value_mean, value_std, value_min, value_max
     - slope, volatility, relative_change
     - transition, trend (catégorielles)
@@ -208,11 +608,11 @@ def observations_to_dataframe(observations: List[Dict]) -> pd.DataFrame:
         observations: Liste observations (retour load_all_observations)
     
     Returns:
-        DataFrame avec colonnes :
-        - Identifiants : gamma_id, d_encoding_id, modifier_id, seed, 
+        DataFrame avec colonnes:
+        - Identifiants: gamma_id, d_encoding_id, modifier_id, seed, 
                         test_name, params_config_id, metric_name
-        - Projections numériques : value_*, slope, volatility, relative_change
-        - Catégorielles : transition, trend
+        - Projections numériques: value_*, slope, volatility, relative_change
+        - Catégorielles: transition, trend
     
     Notes:
         - Filtre lignes avec NaN dans TOUTES projections numériques
@@ -221,7 +621,7 @@ def observations_to_dataframe(observations: List[Dict]) -> pd.DataFrame:
     Examples:
         >>> df = observations_to_dataframe(obs)
         >>> df.columns
-        ['gamma_id', 'test_name', 'value_final', 'slope', ...]
+        Index(['gamma_id', 'test_name', 'value_final', 'slope', ...])
         >>> df.shape
         (8640, 17)  # 4320 obs × 2 métriques moyennes
     """
@@ -296,7 +696,7 @@ def cache_observations(
     """
     Cache observations sur disque (pickle).
     
-    FUTUR : Optimisation chargement répété.
+    FUTUR: Optimisation chargement répété.
     
     Args:
         observations: Liste observations
@@ -313,7 +713,7 @@ def cache_observations(
     with open(cache_file, 'wb') as f:
         pickle.dump(observations, f)
     
-    print(f"✓ Cache observations : {cache_path}")
+    print(f"✓ Cache observations: {cache_path}")
 
 
 def load_cached_observations(cache_path: str) -> List[Dict]:
@@ -337,10 +737,24 @@ def load_cached_observations(cache_path: str) -> List[Dict]:
     cache_file = Path(cache_path)
     
     if not cache_file.exists():
-        raise FileNotFoundError(f"Cache non trouvé : {cache_path}")
+        raise FileNotFoundError(f"Cache non trouvé: {cache_path}")
     
     with open(cache_file, 'rb') as f:
         observations = pickle.load(f)
     
-    print(f"✓ Chargé cache : {cache_path} ({len(observations)} observations)")
+    print(f"✓ Chargé cache: {cache_path} ({len(observations)} observations)")
     return observations
+
+
+# =============================================================================
+# EXCEPTIONS
+# =============================================================================
+
+class CriticalDiscoveryError(Exception):
+    """Exception découverte nécessitant arrêt."""
+    pass
+
+
+class ValidationError(Exception):
+    """Exception validation structure."""
+    pass

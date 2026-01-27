@@ -1,0 +1,122 @@
+================================================================================
+RAPPORT TEST - PROFILING R0
+================================================================================
+Généré le : 
+Axe analysé : test
+Entités profilées : 2
+Observations totales : 135
+
+================================================================================
+DISTRIBUTION RÉGIMES
+================================================================================
+
+
+
+CONSERVATION (régimes sains) :
+  CONSERVES_GRADIENT                  :   1 (50.0%)
+  CONSERVES_PATTERN                   :   1 (50.0%)
+
+PATHOLOGIES :
+
+MULTIMODALITÉ (MIXED::X) :
+
+================================================================================
+POUVOIR DISCRIMINANT (tests uniquement)
+================================================================================
+
+Tests les plus discriminants :
+
+PAT-001 :
+  Ratio discriminant    : 0.0
+  Variance inter-entités : 0.0
+  Variance intra-entité  : 0.0
+  Effect size (η²)       : 0.0
+  Kruskal-Wallis p-value : 1.0
+  Interprétation         : Insufficient entities for analysis
+  
+  Top 3 entités :
+
+GRA-001 :
+  Ratio discriminant    : 0.0
+  Variance inter-entités : 0.0
+  Variance intra-entité  : 0.0
+  Effect size (η²)       : 0.0
+  Kruskal-Wallis p-value : 1.0
+  Interprétation         : Insufficient entities for analysis
+  
+  Top 3 entités :
+
+Tests faiblement discriminants (ratio < 0.5) :
+  PAT-001 : ratio 0.0 (Insufficient entities for analysis)
+  GRA-001 : ratio 0.0 (Insufficient entities for analysis)
+
+
+================================================================================
+SIGNATURES DYNAMIQUES
+================================================================================
+
+
+GRA-001 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+PAT-001 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+================================================================================
+PROFILS INDIVIDUELS
+================================================================================
+
+
+GRA-001
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 60
+
+Régimes par test :
+  GRA-001         : CONSERVES_GRADIENT                  [stable] (low)
+
+Propriétés conservées :
+  GRADIENT
+
+
+PAT-001
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 75
+
+Régimes par test :
+  PAT-001         : CONSERVES_PATTERN                   [stable] (low)
+
+Propriétés conservées :
+  PATTERN
+
+
+================================================================================
+COMPARAISONS INTER-ENTITÉS
+================================================================================
+
+Régimes dominants :
+  CONSERVES_PATTERN                   : 1 entités (PAT-001)
+  CONSERVES_GRADIENT                  : 1 entités (GRA-001)
+
+Rankings par test (conservation) :
+
+GRA-001 :
+  Meilleur conservation : GRA-001
+  Pire conservation     : GRA-001
+  Top 5 : GRA-001
+PAT-001 :
+  Meilleur conservation : PAT-001
+  Pire conservation     : PAT-001
+  Top 5 : PAT-001
+
+================================================================================
+CONSULTATION DÉTAILLÉE
+================================================================================
+Profils complets JSON : profiles/test/
+Comparaisons          : comparisons/rankings_test.json
+Données brutes        : analysis_complete.json (section 'test')
+
+================================================================================

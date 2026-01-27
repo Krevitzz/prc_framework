@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-01-25T18:27:10.792558",
+  "engine_version": "6.1",
+  "architecture": "verdict_reporter_r0_phase4_multiaxis",
+  "configs_used": {
+    "params": "params_default_v1",
+    "verdict": "verdict_default_v1"
+  },
+  "data_summary": {
+    "total_observations": 45,
+    "valid_observations": 45,
+    "rejected_observations": 0,
+    "rejection_rate": 0.0,
+    "n_gammas": 2,
+    "n_tests": 2,
+    "n_modifiers": 1,
+    "n_encodings": 3,
+    "gammas_list": [
+      "GAM-001",
+      "GAM-013"
+    ],
+    "tests_list": [
+      "GRA-001",
+      "PAT-001"
+    ],
+    "modifiers_list": [
+      "M0"
+    ],
+    "encodings_list": [
+      "ASY-001",
+      "R3-001",
+      "SYM-001"
+    ]
+  },
+  "quality_flags": {
+    "observations_with_degeneracy": 0,
+    "degeneracy_rate": 0.0,
+    "observations_with_scale_outliers": 0,
+    "scale_outlier_rate": 0.0
+  },
+  "analysis_parameters": {
+    "factors_analyzed": [
+      "gamma_id",
+      "d_encoding_id",
+      "modifier_id",
+      "seed",
+      "test_name"
+    ],
+    "projections_analyzed": [
+      "value_final",
+      "value_mean",
+      "slope",
+      "volatility",
+      "relative_change"
+    ],
+    "testability_thresholds": {
+      "min_samples_per_group": 2,
+      "min_groups": 2,
+      "min_total_samples": 10
+    }
+  }
+}

@@ -7,6 +7,7 @@ HYP-GAM-001: Saturation pure pointwise (tanh)
 import numpy as np
 from typing import Callable
 
+PHASE = "R0"
 class PureSaturationGamma:
     """Γ de saturation pure pointwise."""
     
@@ -33,6 +34,7 @@ PARAM_GRID_PHASE2 = {
 
 METADATA = {
     'id': 'GAM-001',
+    'PHASE' : "R0",
     'name': 'Saturation pure pointwise',
     'family': 'markovian',
     'form': 'T_{n+1}[i,j] = tanh(β · T_n[i,j])',

@@ -1,0 +1,724 @@
+# 📋 PHASE 10 — PLAN FINALISÉ
+
+**Refonte Schema SQL + Batch Runner Intelligent + Unification Architecture**
+
+Version: 3.0 (validé)  
+Date: 2026-01-23
+
+---
+
+## 🎯 OBJECTIFS CONSOLIDÉS
+
+### Problèmes résolus
+1. ✅ Bases normalisées append-ready (identité complète sans JOIN)
+2. ✅ Détection différentielle rapide (<1s via registry JSON)
+3. ✅ Point d'entrée unique intelligent (classification branch A/B)
+4. ✅ Discovery unifié toutes entités (architecture homogène)
+5. ✅ Gestion lifecycle bases (init/clean/backup)
+
+### Décisions architecturales validées
+
+**D1 - Convention ID fonctions** : ✅ Option C (attribut statique)
+```python
+def create_random_asymmetric(n_dof: int, seed: int = None):
+    return state
+
+create_random_asymmetric.ID = "ASY-001"
+```
+
+**D2 - Multiples fonctions/fichier** : ❌ REJETÉ → Unification 1 fichier = 1 entité
+
+**D3 - Table snapshots** : ✅ Option A (table séparée, conservé actuel)
+
+**D4 - Gamma params storage** : ✅ JSON blob
+
+**D5 - Architecture unifiée** : ✅ VALIDÉ
+- Tests : 1 fichier = 1 test (inchangé)
+- Gammas : 1 fichier = 1 gamma (inchangé)
+- Encodings : 1 fichier = 1 encoding (REFACTORING)
+- Modifiers : 1 fichier = 1 modifier (REFACTORING)
+
+---
+
+## 📐 ARCHITECTURE UNIFIÉE CIBLE
+
+### Convention nommage fichiers
+
+```
+tests/
+├── test_uni_001.py          # UNIV-001
+├── test_sym_001.py          # SYM-001
+└── test_spe_001.py          # SPE-001
+
+operators/
+├── gamma_hyp_001.py         # GAM-001
+├── gamma_hyp_002.py         # GAM-002
+└── gamma_hyp_013.py         # GAM-013
+
+D_encodings/
+├── sym_001_circulant_symmetric.py       # SYM-001
+├── sym_002_toeplitz_symmetric.py        # SYM-002
+├── asy_001_random_asymmetric.py         # ASY-001
+├── asy_002_sparse_asymmetric.py         # ASY-002
+└── r3_001_uniform_correlations.py       # R3-001
+
+modifiers/
+├── m0_baseline.py           # M0
+├── m1_gaussian_noise.py     # M1
+└── m2_uniform_noise.py      # M2
+```
+
+### Template unifié (tous types)
+
+**Structure minimale obligatoire** :
+```python
+# {prefix}_{id}_{descriptif}.py
+"""Docstring descriptive."""
+
+import numpy as np
+
+# ============ METADATA (OBLIGATOIRE) ============
+PHASE = "R0"  # ou None pour tests (TEST_PHASE)
+
+METADATA = {
+    'id': 'XXX-NNN',       # Redondant avec .ID mais validation
+    'rank': 2,             # Encodings uniquement
+    'type': '...',         # symmetric/asymmetric/noise/...
+    'description': '...'
+}
+
+# ============ FONCTION PRINCIPALE ============
+def create(...):  # ou compute() pour tests
+    """..."""
+    return result
+```
+
+### Garde-fous architecturaux (CRITIQUES)
+
+**Règle G1 - Une brique = un mécanisme, pas un réglage**
+```
+✅ BON:
+    asy_001_random_asymmetric.py
+    asy_002_sparse_asymmetric.py    # Mécanisme différent
+
+❌ MAUVAIS:
+    asy_001_random.py
+    asy_001_random_low_variance.py  # Variation paramétrique
+    asy_001_random_high_variance.py # → Confondre param et brique
+```
+
+**Critère décision** : "Puis-je expliquer en une phrase ce que cette brique fait de différent ?"
+- OUI → nouveau fichier
+- NON → paramètre du même fichier
+
+**Règle G2 - Métadonnées obligatoires complètes**
+
+Minimum (OBLIGATOIRE) :
+- `ID` (attribut fonction)
+- `PHASE` (variable module)
+- `METADATA['description']`
+
+Discovery doit lever `CriticalDiscoveryError` si absent.
+
+**Règle G3 - Dépréciation explicite, jamais silencieuse**
+
+Jamais supprimer fichier sans :
+- `_deprecated_` dans nom fichier, OU
+- `DEPRECATED = True` dans module
+
+Protection :
+- Reproductibilité
+- Lecture historique
+- Backfills
+
+---
+
+## 📋 CHECKLIST TÂCHES COMPLÈTE
+
+### ÉTAPE 6 : TESTS VALIDATION
+
+**Fichiers à créer** :
+1. `tests/test_data_loading_discovery.py`
+2. `tests/test_batch_runner_integration.py`
+
+**Tests critiques** :
+- [ ] Discovery 1 fichier = 1 entité
+- [ ] CriticalDiscoveryError si PHASE absent
+- [ ] CriticalDiscoveryError si .ID absent
+- [ ] load_all_observations() une connexion
+- [ ] UNIQUE constraint détecte doublons
+- [ ] Branch A/B classification correcte
+- [ ] Dry-run complet OK
+
+---
+
+### ÉTAPE 7 : DOCUMENTATION
+
+**Fichiers à mettre à jour** :
+1. `functions_index.md`
+3. `HUB_catalog.md`
+4. `util_catalog.md`
+
+
+
+**Validation** :
+- [ ] FUNCTIONS_INDEX.md mis à jour
+- [ ] Catalogues HUB/UTIL mis à jour
+
+---
+
+## 📊 MÉTRIQUES SUCCÈS
+
+| Objectif | Métrique | Cible | Status |
+|----------|----------|-------|--------|
+| **Quick check** | Temps détection différentielle | <1s | [ ] |
+| **Append intelligent** | Reruns inutiles | 0% | [ ] |
+| **Intégrité données** | Doublons détectés | 100% (UNIQUE violations) | [ ] |
+| **Discovery** | Fichiers deprecated skippés | 100% | [ ] |
+| **Validation PHASE** | Erreurs fatales si absent | 100% (gammas/encodings/modifiers) | [ ] |
+| **Rapports** | Toujours générés | 100% (même si skip brut/test) | [ ] |
+| **I/O observations** | Connexions DB | 1 (vs 2 actuellement) | [ ] |
+| **Registry** | Taille fichier | <10KB | [ ] |
+| **Branch A** | Skip brut correct | 100% | [ ] |
+| **Branch B** | Run brut+test correct | 100% | [ ] |
+| **Architecture unifiée** | 1 fichier = 1 entité | 100% | [ ] |
+| **Code data_loading** | Réduction complexité | ~40% moins de code | [ ] |
+
+---
+
+## 🔄 PROCÉDURE DRY-RUN COMPLÈTE
+
+### Dry-run 1 : Bases vierges + premier run complet
+
+```bash
+# 1. Initialiser bases vierges
+python -m prc_automation.utils_databases --mode init --phase R0
+
+# Vérifications immédiates:
+# - prc_r0_raw.db créé
+# - prc_r0_results.db créé
+# - Tables conformes schema
+
+# 2. Premier run (full)
+python -m prc_automation.batch_runner
+
+# Vérifications attendues:
+# - Classification: 'causal_elements'
+# - "BRANCH B" affiché
+# - N exécutions kernel (N = gammas × encodings × modifiers × seeds)
+# - M observations tests (M = N × tests_applicables)
+# - Registry créé et rempli
+# - Rapports générés dans reports/verdicts/
+
+# 3. Validation post-run
+sqlite3 prc_r0_raw.db "SELECT COUNT(*) FROM executions;"
+# Attendu: N exécutions
+
+sqlite3 prc_r0_results.db "SELECT COUNT(*) FROM observations WHERE status='SUCCESS';"
+# Attendu: M observations
+
+cat prc_automation/prc_database/execution_registry_r0.json
+# Vérifier: loaded_entities remplis, counts corrects
+```
+
+**Checklist validation** :
+- [ ] Bases créées
+- [ ] Exécutions SUCCESS dans db_raw
+- [ ] Observations SUCCESS dans db_results
+- [ ] Registry rempli (counts > 0)
+- [ ] Rapports générés (timestamp récent)
+- [ ] Aucune erreur CriticalDiscoveryError
+
+---
+
+### Dry-run 2 : Second run immédiat (skip attendu)
+
+```bash
+# Run immédiatement après dry-run 1
+python -m prc_automation.batch_runner
+
+# Vérifications attendues:
+# - Classification: 'none'
+# - "Exécution: SKIP" affiché
+# - Aucune insertion db_raw
+# - Aucune insertion db_results
+# - Rapports régénérés quand même
+# - Registry last_update mis à jour
+```
+
+**Checklist validation** :
+- [ ] Classification = 'none'
+- [ ] Skip brut/test confirmé
+- [ ] Counts db inchangés
+- [ ] Rapports régénérés (nouveau timestamp)
+- [ ] Registry last_update actualisé
+
+---
+
+### Dry-run 3 : Ajout nouveau test (branch A)
+
+```bash
+# 1. Créer nouveau test
+cat > tests/test_new_001.py << 'EOF'
+"""Test NEW-001."""
+
+TEST_ID = "NEW-001"
+TEST_PHASE = None
+TEST_CATEGORY = "experimental"
+TEST_VERSION = "5.5"
+TEST_WEIGHT = 1.0
+
+APPLICABILITY_SPEC = {
+    'requires_rank': 2
+}
+
+COMPUTATION_SPECS = {
+    'test_metric': {
+        'registry_key': 'algebra.frobenius_norm',
+        'default_params': {},
+        'post_processor': 'round_4'
+    }
+}
+
+def compute(state, config_params):
+    """Compute test."""
+    return {
+        'statistics': {'test_metric': {'final': 1.0}},
+        'evolution': {'test_metric': {'slope': 0.0}}
+    }
+EOF
+
+# 2. Run batch_runner
+python -m prc_automation.batch_runner
+
+# Vérifications attendues:
+# - Classification: 'tests_only'
+# - "BRANCH A" affiché
+# - Skip brut (aucune insertion db_raw)
+# - Run test sur tous exec_ids existants
+# - Nouvelles observations db_results pour NEW-001
+# - Registry mis à jour (tests += NEW-001)
+```
+
+**Checklist validation** :
+- [ ] Classification = 'tests_only'
+- [ ] Branch A confirmée
+- [ ] db_raw inchangé (count executions identique)
+- [ ] db_results augmenté (nouvelles observations NEW-001)
+- [ ] Registry contient 'NEW-001' dans loaded_entities.tests
+
+---
+
+### Dry-run 4 : Ajout nouveau gamma (branch B)
+
+```bash
+# 1. Créer nouveau gamma
+cat > operators/gamma_hyp_020.py << 'EOF'
+"""Gamma HYP-020 - Test."""
+
+PHASE = "R0"
+
+METADATA = {
+    'gamma_id': 'GAM-020',
+    'family': 'experimental',
+    'd_applicability': ['SYM', 'ASY'],
+    'description': 'Test gamma for validation'
+}
+
+class GammaHyp020:
+    def __init__(self):
+        pass
+    
+    def __call__(self, state):
+        return state * 0.99
+    
+    def __repr__(self):
+        return "GammaHyp020()"
+
+def create_gamma_hyp_020():
+    return GammaHyp020()
+
+create_gamma_hyp_020.ID = "GAM-020"
+EOF
+
+# 2. Run batch_runner
+python -m prc_automation.batch_runner
+
+# Vérifications attendues:
+# - Classification: 'causal_elements'
+# - "BRANCH B" affiché
+# - Nouvelles exécutions db_raw (GAM-020 × encodings × modifiers × seeds)
+# - Nouvelles observations db_results (GAM-020 × tests applicables)
+# - Registry mis à jour (gammas += GAM-020)
+```
+
+**Checklist validation** :
+- [ ] Classification = 'causal_elements'
+- [ ] Branch B confirmée
+- [ ] db_raw augmenté (nouvelles exécutions GAM-020)
+- [ ] db_results augmenté (nouvelles observations GAM-020)
+- [ ] Registry contient 'GAM-020' dans loaded_entities.gammas
+
+---
+
+### Dry-run 5 : Test UNIQUE constraint
+
+```bash
+# 1. Tenter insertion doublon manuel
+sqlite3 prc_r0_raw.db << 'EOF'
+INSERT INTO executions (
+    gamma_id, d_encoding_id, modifier_id, seed, phase,
+    exec_id, timestamp, state_shape, n_iterations, status
+) VALUES (
+    'GAM-001', 'SYM-001', 'M0', 42, 'R0',
+    'test-uuid', '2026-01-23T10:00:00', '[10, 10]', 2000, 'SUCCESS'
+);
+EOF
+
+# Résultat attendu:
+# Error: UNIQUE constraint failed: executions.gamma_id, executions.d_encoding_id, ...
+```
+
+**Checklist validation** :
+- [ ] UNIQUE constraint lève erreur
+- [ ] Message erreur mentionne colonnes clé primaire
+
+---
+
+### Dry-run 6 : Test deprecated skip
+
+```bash
+# 1. Renommer fichier encoding
+mv D_encodings/sym_001_circulant_symmetric.py \
+   D_encodings/sym_001_circulant_symmetric_deprecated_.py
+
+# 2. Run discovery manuel
+python -c "
+from tests.utilities.data_loading import discover_entities
+encs = discover_entities('encoding', phase='R0')
+ids = [e['id'] for e in encs]
+assert 'SYM-001' not in ids, 'SYM-001 should be skipped'
+print('✓ Deprecated skip OK')
+"
+
+# 3. Restaurer fichier
+mv D_encodings/sym_001_circulant_symmetric_deprecated_.py \
+   D_encodings/sym_001_circulant_symmetric.py
+```
+
+**Checklist validation** :
+- [ ] Fichier `_deprecated_` skippé
+- [ ] Discovery ne retourne pas SYM-001
+
+---
+
+### Dry-run 7 : Test CriticalDiscoveryError
+
+```bash
+# 1. Créer encoding sans PHASE
+cat > D_encodings/test_no_phase.py << 'EOF'
+import numpy as np
+
+METADATA = {'id': 'TEST-999'}
+
+def create(n_dof, seed=None):
+    return np.zeros((n_dof, n_dof))
+
+create.ID = "TEST-999"
+EOF
+
+# 2. Tenter discovery
+python -c "
+from tests.utilities.data_loading import discover_entities, CriticalDiscoveryError
+try:
+    discover_entities('encoding', phase='R0')
+    print('❌ Should have raised CriticalDiscoveryError')
+except CriticalDiscoveryError as e:
+    print(f'✓ CriticalDiscoveryError raised: {e}')
+"
+
+# 3. Nettoyer
+rm D_encodings/test_no_phase.py
+```
+
+**Checklist validation** :
+- [ ] CriticalDiscoveryError levée
+- [ ] Message mentionne PHASE missing
+
+---
+
+## 🗂️ ORDRE IMPLÉMENTATION RECOMMANDÉ
+
+### Phase 0 : Préparation (3h)
+1. Backup bases legacy (5 min)
+2. Refactoring encodings → 13 fichiers (1h30)
+3. Refactoring modifiers → 3 fichiers (30 min)
+4. Tag PHASE modules existants (30 min)
+5. Validation structure (30 min)
+
+**Validation** : Tous fichiers ont PHASE/METADATA/.ID corrects
+
+---
+
+### Phase 1 : Schemas SQL (1h)
+1. Créer schema_raw_v2.sql (30 min)
+2. Créer schema_results_v2.sql (30 min)
+3. Validation syntax SQL (sqlite3 .schema)
+
+**Validation** : Schemas créent tables sans erreur
+
+---
+
+### Phase 2 : Utils databases (2h)
+1. Créer utils_databases.py (1h30)
+2. Tests manuels 3 modes (30 min)
+
+**Validation** : init/clean/backup fonctionnels
+
+---
+
+### Phase 3 : Data loading fusion (4h)
+1. Créer data_loading.py nouveau (3h)
+   - Discovery unifié (1h30)
+   - Applicability copié (15 min)
+   - I/O simplifié (1h)
+   - Exceptions (15 min)
+2. Tests unitaires discovery (1h)
+
+**Validation** : Discovery retourne entités correctes, CriticalDiscoveryError OK
+
+---
+
+### Phase 4 : Execution registry (1h30)
+1. Créer execution_registry_r0.json (5 min)
+2. Implémenter fonctions registry dans batch_runner.py (1h)
+3. Tests unitaires classification (25 min)
+
+**Validation** : Classification branch A/B/none correcte
+
+---
+
+### Phase 5 : Batch runner refonte (6h)
+1. Structure générale + imports (30 min)
+2. Detect missing combinations (1h)
+3. Run batch brut (2h)
+4. Run batch test (1h30)
+5. Run batch verdict (30 min)
+6. Pipeline main (30 min)
+
+**Validation** : Pipeline 7 étapes complet
+
+---
+
+### Phase 6 : Tests validation (3h)
+1. Tests unitaires (1h30)
+2. Dry-runs 1-7 (1h30)
+
+**Validation** : Tous dry-runs passent
+
+---
+
+### Phase 7 : Documentation (2h)
+1. FUNCTIONS_INDEX.md (45 min)
+2. Charter section 3.2 garde-fous (30 min)
+3. Catalogues HUB/UTIL (45 min)
+
+**Validation** : Documentation complète et cohérente
+
+---
+
+**TOTAL ESTIMÉ : ~22h30**
+
+---
+
+## ⚠️ POINTS CRITIQUES RÉCAPITULATIF
+
+### Validation PHASE stricte
+```python
+# Discovery DOIT lever CriticalDiscoveryError si:
+if entity_type in ['gamma', 'encoding', 'modifier']:
+    if not hasattr(module, 'PHASE'):
+        raise CriticalDiscoveryError(f"{module}: PHASE missing")
+```
+
+### Attribut .ID obligatoire
+```python
+# Discovery DOIT lever CriticalDiscoveryError si:
+entity_id = getattr(func, 'ID', None)
+if entity_id is None:
+    raise CriticalDiscoveryError(f"{module}.{func_name}: .ID missing")
+```
+
+### UNIQUE constraint actif
+```sql
+-- Schema DOIT inclure:
+PRIMARY KEY (gamma_id, d_encoding_id, modifier_id, seed, phase)
+```
+
+### I/O observations UNE connexion
+```python
+# load_all_observations() DOIT:
+# - Se connecter uniquement à db_results
+# - Query gamma_id, d_encoding_id directement (pas JOIN db_raw)
+```
+
+### Registry merge conservatif
+```python
+# update_execution_registry() DOIT:
+# - Union (pas remplacement) des IDs
+# - Conserver IDs même si fichiers supprimés (traçabilité)
+```
+
+### Rapports TOUJOURS générés
+```python
+# main() DOIT:
+# - Exécuter run_batch_verdict() même si classification == 'none'
+```
+
+### Garde-fous granularité
+```python
+# Fichiers DOIVENT respecter:
+# - 1 fichier = 1 mécanisme (pas 1 réglage paramétrique)
+# - METADATA complète (id, description minimum)
+# - Dépréciation explicite (_deprecated_ ou DEPRECATED=True)
+```
+
+---
+
+## 📚 RESSOURCES DISPONIBLES
+
+### Fichiers sources actuels à consulter
+- `prc_automation/prc_database/schema_raw.sql` (structure actuelle db_raw)
+- `prc_automation/prc_database/schema_results.sql` (structure actuelle db_results)
+- `prc_automation/init_databases.py` (logique init actuelle)
+- `tests/utilities/discovery.py` (discovery tests actuel)
+- `tests/utilities/applicability.py` (validators actuels)
+- `tests/utilities/data_loading.py` (I/O actuel avec double connexion)
+- `prc_automation/batch_runner.py` (pipeline actuel fragmenté)
+
+### Catalogues à consulter
+- `operators/gamma_catalog.md` (structure METADATA gammas)
+- `D_encodings/d_encoding_catalog.md` (encodings existants)
+- `tests/tests_catalog.md` (structure tests)
+- `tests/utilities/HUB_catalog.md` (fonctions HUB disponibles)
+
+### Documentation référence
+- `charter_6.1.md` Section 4.5 (méthodologie développement)
+- `functions_index.md` (index fonctions existantes)
+
+---
+
+## 🎯 WORKFLOW IMPLÉMENTATION PAR FICHIER
+
+**Pour CHAQUE fichier à créer/modifier** :
+
+### 1. Préparation
+- [ ] Questions bloquantes résolues ?
+- [ ] Template/structure validée ?
+- [ ] Sources actuelles consultées si nécessaire ?
+
+### 2. Production
+- [ ] **UN SEUL artefact** = **UN SEUL fichier complet**
+- [ ] Code complet (pas de `# TODO` ou `pass`)
+- [ ] Docstrings complètes
+- [ ] Validation interne cohérence
+
+### 3. Validation
+- [ ] Checklist fichier complète
+- [ ] Tests mentaux passés
+- [ ] Conformité Charter/plan
+
+### 4. Intégration
+- [ ] Mise à jour FUNCTIONS_INDEX.md si nouvelles fonctions publiques
+- [ ] Mise à jour catalogue si pertinent
+- [ ] Passage fichier suivant
+
+---
+
+## ✅ CHECKLIST FINALE PHASE 10
+
+### Préparation
+- [ ] Bases legacy backupées
+- [ ] 13 fichiers encodings créés (sym_*.py, asy_*.py, r3_*.py)
+- [ ] 3 fichiers modifiers créés (m*.py)
+- [ ] Tous modules ont PHASE/METADATA/.ID
+
+### Implémentation
+- [ ] schema_raw_v2.sql créé
+- [ ] schema_results_v2.sql créé
+- [ ] utils_databases.py créé (3 modes OK)
+- [ ] data_loading.py réécrit (discovery unifié)
+- [ ] execution_registry_r0.json créé
+- [ ] batch_runner.py réécrit (pipeline 7 étapes)
+
+### Tests
+- [ ] Tests unitaires discovery passent
+- [ ] Dry-run 1 : Premier run complet OK
+- [ ] Dry-run 2 : Skip intelligent OK
+- [ ] Dry-run 3 : Branch A (tests seuls) OK
+- [ ] Dry-run 4 : Branch B (gammas) OK
+- [ ] Dry-run 5 : UNIQUE constraint OK
+- [ ] Dry-run 6 : Skip deprecated OK
+- [ ] Dry-run 7 : CriticalDiscoveryError OK
+
+### Documentation
+- [ ] FUNCTIONS_INDEX.md mis à jour
+- [ ] Charter section 3.2 ajoutée (garde-fous)
+- [ ] HUB_catalog.md mis à jour
+- [ ] util_catalog.md mis à jour
+
+### Validation globale
+- [ ] Métriques succès atteintes (tableau ci-dessus)
+- [ ] Aucune régression détectée
+- [ ] Code conforme Charter strict
+- [ ] Architecture unifiée validée
+
+---
+
+## 📝 NOTES IMPLÉMENTATION
+
+### Convention .ID obligatoire
+```python
+# TOUS les fichiers encodings/modifiers/gammas DOIVENT:
+def create(...):  # ou apply() pour modifiers
+    # ...
+    return result
+
+create.ID = "XXX-NNN"  # OBLIGATOIRE
+```
+
+### Validation cohérence ID
+```python
+# Discovery DOIT warn si:
+if METADATA.get('id') != func.ID:
+    warnings.warn(f"Incohérence: METADATA['id']={METADATA['id']} != {func.ID}")
+```
+
+### Skip deprecated pattern
+```python
+# Discovery DOIT skip si:
+if '_deprecated_' in file.stem:
+    continue
+
+# OU si module contient:
+if getattr(module, 'DEPRECATED', False):
+    continue
+```
+
+### Gamma params JSON
+```python
+# Insertion executions DOIT:
+gamma_params_json = json.dumps(gamma_params, sort_keys=True)
+cursor.execute("""
+    INSERT INTO executions (..., gamma_params) VALUES (..., ?)
+""", (..., gamma_params_json))
+```
+
+---
+
+**FIN PHASE 10 - PLAN FINALISÉ COMPLET**
+
+**Ce document constitue la spécification exhaustive PHASE 10.**  
+**Prêt pour implémentation fichier par fichier.**
+
+**Status** : ✅ VALIDÉ - Prêt bibliothèque projet

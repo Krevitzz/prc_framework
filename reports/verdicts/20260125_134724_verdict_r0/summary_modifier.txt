@@ -1,0 +1,115 @@
+================================================================================
+RAPPORT MODIFIER - PROFILING R0
+================================================================================
+Généré le : 
+Axe analysé : modifier
+Entités profilées : 3
+Observations totales : 135
+
+================================================================================
+DISTRIBUTION RÉGIMES
+================================================================================
+
+
+
+CONSERVATION (régimes sains) :
+  CONSERVES_PATTERN                   :   3 (50.0%)
+  CONSERVES_GRADIENT                  :   1 (16.7%)
+  MIXED::CONSERVES_GRADIENT           :   1 (16.7%)
+
+PATHOLOGIES :
+  OSCILLATORY_UNSTABLE                :   1 (16.7%)
+
+MULTIMODALITÉ (MIXED::X) :
+  MIXED::CONSERVES_GRADIENT           :   1 (16.7%)
+
+
+================================================================================
+SIGNATURES DYNAMIQUES
+================================================================================
+
+
+M0 :
+  Timeline dominante : late_saturation_only (100% tests)
+
+
+M1 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+M2 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+================================================================================
+PROFILS INDIVIDUELS
+================================================================================
+
+
+M0
+--------------------------------------------------------------------------------
+Tests profilés : 2
+Runs totaux    : 45
+
+Régimes par test :
+  GRA-001         : MIXED::CONSERVES_GRADIENT           [mixed] (low)
+  PAT-001         : CONSERVES_PATTERN                   [stable] (low)
+
+Propriétés conservées :
+  GRADIENT, PATTERN
+
+
+M1
+--------------------------------------------------------------------------------
+Tests profilés : 2
+Runs totaux    : 45
+
+Régimes par test :
+  GRA-001         : CONSERVES_GRADIENT                  [stable] (low)
+  PAT-001         : CONSERVES_PATTERN                   [stable] (low)
+
+Propriétés conservées :
+  GRADIENT, PATTERN
+
+
+M2
+--------------------------------------------------------------------------------
+Tests profilés : 2
+Runs totaux    : 45
+
+Régimes par test :
+  GRA-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  PAT-001         : CONSERVES_PATTERN                   [stable] (low)
+
+Propriétés conservées :
+  PATTERN
+
+
+================================================================================
+COMPARAISONS INTER-ENTITÉS
+================================================================================
+
+Régimes dominants :
+  OSCILLATORY_UNSTABLE                : 1 entités (M2)
+  CONSERVES_GRADIENT                  : 1 entités (M1)
+  MIXED::CONSERVES_GRADIENT           : 1 entités (M0)
+
+Rankings par test (conservation) :
+
+GRA-001 :
+  Meilleur conservation : M1
+  Pire conservation     : M2
+  Top 5 : M1, M0, M2
+PAT-001 :
+  Meilleur conservation : M1
+  Pire conservation     : M2
+  Top 5 : M1, M0, M2
+
+================================================================================
+CONSULTATION DÉTAILLÉE
+================================================================================
+Profils complets JSON : profiles/modifier/
+Comparaisons          : comparisons/rankings_modifier.json
+Données brutes        : analysis_complete.json (section 'modifier')
+
+================================================================================

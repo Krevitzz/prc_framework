@@ -1,0 +1,212 @@
+{
+  "tests": {
+    "GRA-001": {
+      "test_name": "GRA-001",
+      "encoding_id": "SYM-001",
+      "prc_profile": {
+        "regime": "MIXED::SATURATES_HIGH",
+        "behavior": "mixed",
+        "dominant_timeline": {
+          "timeline_compact": "early_instability_to_saturation_complex",
+          "confidence": 0.3333333333333333,
+          "variants": {
+            "early_instability_to_saturation_complex": 10,
+            "late_saturation_only": 10,
+            "early_deviation_then_saturation": 7,
+            "oscillatory_early_deviation_then_saturation": 3
+          }
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        },
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false,
+          "degrading": false
+        },
+        "n_runs": 30,
+        "n_valid": 0,
+        "confidence": "low",
+        "confidence_metadata": {
+          "level": "low",
+          "criteria": {
+            "min_runs_high": 20,
+            "min_runs_medium": 10,
+            "max_cv_homogeneous": 0.5,
+            "min_timeline_confidence": 0.7
+          },
+          "rationale": "n_valid=0 < 10"
+        }
+      },
+      "diagnostic_signature": {
+        "dynamic_signature": {
+          "deviation_onset_median": 1.0,
+          "instability_onset_median": 0.0,
+          "oscillatory_fraction": 0.1,
+          "saturation_fraction": 1.0,
+          "collapse_fraction": 0.0
+        },
+        "timeline_distribution": {
+          "dominant_timeline": "early_instability_to_saturation_complex",
+          "timeline_confidence": 0.3333333333333333,
+          "timeline_variants": {
+            "early_instability_to_saturation_complex": 10,
+            "late_saturation_only": 10,
+            "early_deviation_then_saturation": 7,
+            "oscillatory_early_deviation_then_saturation": 3
+          }
+        },
+        "run_dispersion": {
+          "final_value_iqr_ratio": 10000000000.0,
+          "cv_across_runs": 0.7071067810804815,
+          "bimodal_detected": true
+        },
+        "thresholds_used": {
+          "timeline_early": 0.2,
+          "timeline_mid": 0.6,
+          "timeline_late": 0.6,
+          "instability_detection": "P90 * 10 (relative)",
+          "oscillatory_threshold": "10% sign changes",
+          "saturation_cv": "5%",
+          "bimodal_iqr_ratio": "3.0"
+        }
+      },
+      "instrumentation": {
+        "metric_name": "density",
+        "summary_metrics": {
+          "final_value": {
+            "median": 1.0,
+            "q1": 0.0,
+            "q3": 1.0,
+            "mean": 0.6666666666666666,
+            "std": 0.4714045207910317
+          },
+          "initial_value": 0.0,
+          "mean_value": 0.5348402228774543,
+          "cv": 0.7071067810804815
+        },
+        "data_completeness": {
+          "dynamic_events_present": true,
+          "timeseries_present": true,
+          "fallback_used": false
+        },
+        "computation_metadata": {
+          "profiling_version": "6.1",
+          "profiling_module": "profiling_common",
+          "profiling_axis": "encoding",
+          "timeline_architecture": "compositional_relative",
+          "n_runs": 30,
+          "n_valid": 0
+        }
+      }
+    },
+    "PAT-001": {
+      "test_name": "PAT-001",
+      "encoding_id": "SYM-001",
+      "prc_profile": {
+        "regime": "MIXED::CONSERVES_PATTERN",
+        "behavior": "mixed",
+        "dominant_timeline": {
+          "timeline_compact": "late_saturation_only",
+          "confidence": 0.5666666666666667,
+          "variants": {
+            "early_instability_to_saturation_complex": 10,
+            "late_saturation_only": 17,
+            "oscillatory_late_saturation_only": 3
+          }
+        },
+        "robustness": {
+          "homogeneous": false,
+          "mixed_behavior": true,
+          "numerically_stable": false
+        },
+        "pathologies": {
+          "numeric_instability": false,
+          "oscillatory": false,
+          "collapse": false,
+          "trivial": false,
+          "degrading": false
+        },
+        "n_runs": 30,
+        "n_valid": 0,
+        "confidence": "low",
+        "confidence_metadata": {
+          "level": "low",
+          "criteria": {
+            "min_runs_high": 20,
+            "min_runs_medium": 10,
+            "max_cv_homogeneous": 0.5,
+            "min_timeline_confidence": 0.7
+          },
+          "rationale": "n_valid=0 < 10"
+        }
+      },
+      "diagnostic_signature": {
+        "dynamic_signature": {
+          "deviation_onset_median": 1.0,
+          "instability_onset_median": 0.0,
+          "oscillatory_fraction": 0.1,
+          "saturation_fraction": 1.0,
+          "collapse_fraction": 0.0
+        },
+        "timeline_distribution": {
+          "dominant_timeline": "late_saturation_only",
+          "timeline_confidence": 0.5666666666666667,
+          "timeline_variants": {
+            "early_instability_to_saturation_complex": 10,
+            "late_saturation_only": 17,
+            "oscillatory_late_saturation_only": 3
+          }
+        },
+        "run_dispersion": {
+          "final_value_iqr_ratio": 5.172777777777778,
+          "cv_across_runs": 0.5845757662418472,
+          "bimodal_detected": true
+        },
+        "thresholds_used": {
+          "timeline_early": 0.2,
+          "timeline_mid": 0.6,
+          "timeline_late": 0.6,
+          "instability_detection": "P90 * 10 (relative)",
+          "oscillatory_threshold": "10% sign changes",
+          "saturation_cv": "5%",
+          "bimodal_iqr_ratio": "3.0"
+        }
+      },
+      "instrumentation": {
+        "metric_name": "diversity_simpson",
+        "summary_metrics": {
+          "final_value": {
+            "median": 0.4939,
+            "q1": 0.18,
+            "q3": 0.9311,
+            "mean": 0.5373333333333333,
+            "std": 0.31411204511907675
+          },
+          "initial_value": 0.876,
+          "mean_value": 0.5321200621832562,
+          "cv": 0.5845757662418472
+        },
+        "data_completeness": {
+          "dynamic_events_present": true,
+          "timeseries_present": true,
+          "fallback_used": false
+        },
+        "computation_metadata": {
+          "profiling_version": "6.1",
+          "profiling_module": "profiling_common",
+          "profiling_axis": "encoding",
+          "timeline_architecture": "compositional_relative",
+          "n_runs": 30,
+          "n_valid": 0
+        }
+      }
+    }
+  },
+  "n_tests": 2,
+  "n_total_runs": 60
+}

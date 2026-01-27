@@ -1,0 +1,149 @@
+================================================================================
+RAPPORT VERDICT R0 - SYNTHÈSE GLOBALE
+================================================================================
+Généré le : 2026-01-25T13:47:24.493405
+Version moteur : 6.1
+Architecture : verdict_reporter_r0_phase4_multiaxis
+
+================================================================================
+DONNÉES ANALYSÉES
+================================================================================
+Observations totales    : 135
+Observations valides    : 135
+Rejetées (artefacts)    : 0 (0.0%)
+
+Gammas analysés         : 2
+Tests analysés          : 2
+Modifiers analysés      : 3
+Encodings analysés      : 3
+
+================================================================================
+QUALITÉ DONNÉES
+================================================================================
+Dégénérescences détectées : 0 (0.0%)
+Ruptures échelle          : 0 (0.0%)
+
+================================================================================
+SYNTHÈSE PAR AXE PROFILING
+================================================================================
+
+TEST
+--------------------------------------------------------------------------------
+Entités profilées : 2
+Observations      : 135
+
+Régimes dominants (top 5) :
+  CONSERVES_PATTERN              : 1 entités
+  CONSERVES_GRADIENT             : 1 entités
+
+Pouvoir discriminant (top 3 tests) :
+  PAT-001              : ratio 0.0 (Insufficient entities for analysis)
+  GRA-001              : ratio 0.0 (Insufficient entities for analysis)
+
+GAMMA
+--------------------------------------------------------------------------------
+Entités profilées : 2
+Observations      : 135
+
+Régimes dominants (top 5) :
+  MIXED::OSCILLATORY_UNSTABLE    : 1 entités
+  CONSERVES_PATTERN              : 1 entités
+
+
+MODIFIER
+--------------------------------------------------------------------------------
+Entités profilées : 3
+Observations      : 135
+
+Régimes dominants (top 5) :
+  OSCILLATORY_UNSTABLE           : 1 entités
+  CONSERVES_GRADIENT             : 1 entités
+  MIXED::CONSERVES_GRADIENT      : 1 entités
+
+
+ENCODING
+--------------------------------------------------------------------------------
+Entités profilées : 3
+Observations      : 135
+
+Régimes dominants (top 5) :
+  MIXED::SATURATES_HIGH          : 1 entités
+  TRIVIAL                        : 1 entités
+  OSCILLATORY_UNSTABLE           : 1 entités
+
+
+
+================================================================================
+PATTERNS STRUCTURAUX (analyses globales)
+================================================================================
+
+GLOBAL
+--------------------------------------------------------------------------------
+Observations : 135
+Status       : SUCCESS
+
+Verdict      : WIP[R0-open]
+Raison       : 1 factors dominants | 3 interactions vraies | 2 paires redondantes
+
+Patterns détectés :
+  marginal_dominant : 1 occurrences
+  oriented_interactions : 3 occurrences
+  redundant : 1 occurrences
+
+STABLE
+--------------------------------------------------------------------------------
+Observations : 135
+Status       : SUCCESS
+
+Verdict      : WIP[R0-open]
+Raison       : 1 factors dominants | 3 interactions vraies | 2 paires redondantes
+
+Patterns détectés :
+  marginal_dominant : 1 occurrences
+  oriented_interactions : 3 occurrences
+  redundant : 1 occurrences
+
+EXPLOSIF
+--------------------------------------------------------------------------------
+Observations : 0
+Status       : INSUFFICIENT_DATA
+
+Message      : 
+
+
+================================================================================
+CONSULTATION DÉTAILLÉE
+================================================================================
+Rapports par axe :
+  summary_test.txt       : Profiling détaillé test
+  summary_gamma.txt       : Profiling détaillé gamma
+  summary_modifier.txt       : Profiling détaillé modifier
+  summary_encoding.txt       : Profiling détaillé encoding
+
+Profils individuels :
+  profiles/test/         : Profils JSON par entité
+  profiles/gamma/         : Profils JSON par entité
+  profiles/modifier/         : Profils JSON par entité
+  profiles/encoding/         : Profils JSON par entité
+
+Comparaisons :
+  comparisons/rankings_*.json      : Rankings multi-dimensionnels
+  comparisons/interactions_*.json  : Interactions pairwise (R0: concordance)
+
+Analyses globales :
+  analysis_complete.json           : Données complètes structurées
+  structural_patterns.json         : Patterns détectés (3 strates)
+  diagnostics.json                 : Diagnostics numériques
+
+Données brutes :
+  marginal_variance_*.csv          : Analyses variance (GLOBAL/STABLE/EXPLOSIF)
+
+================================================================================
+PROCHAINES ÉTAPES R0
+================================================================================
+1. Consulter summary_{axe}.txt pour insights détaillés
+2. Examiner profiles/{axe}/ pour profils individuels
+3. Vérifier structural_patterns.json pour décisions HYP
+4. Mettre à jour statuts catalogues (SURVIVES, WIP, REJECTED)
+
+================================================================================

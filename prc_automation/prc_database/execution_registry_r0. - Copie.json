@@ -1,0 +1,23 @@
+{
+  "version": "1.0",
+  "phase": "R0",
+  "last_update": "2026-01-25T13:37:49.285559",
+  "loaded_files": {
+    "gammas": [
+    ],
+    "encodings": [
+    ],
+    "modifiers": [
+    ],
+    "tests": [
+    ],
+    "configs": []
+  },
+  "counts": {
+    "gammas": 0,
+    "encodings": 0,
+    "modifiers": 0,
+    "tests": 0,
+    "total_combinations": 0
+  }
+}

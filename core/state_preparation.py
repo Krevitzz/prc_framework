@@ -1,64 +1,108 @@
 """
 core/state_preparation.py
 
-Composition aveugle d'états D à partir de sources multiples.
+Composition aveugle d'états D - REFONTE PHASE 10.
 
-RESPONSABILITÉ UNIQUE:
-- Appliquer séquentiellement des modificateurs sur un tenseur de base
-- AUCUNE connaissance du contenu, dimension, ou interprétation
+CHANGEMENT MAJEUR:
+- Centralisation seed (R0)
+- Encodings + modifiers appelés depuis prepare_state
+- Plus de gestion seed dispersée
 
-USAGE:
-    D_base = create_base_state(50)
-    D_final = prepare_state(D_base, [
-        add_noise(sigma=0.05),
-        apply_constraint(params)
-    ])
+BREAKING CHANGE:
+- Ancienne signature abandonnée
+- Encodings n'ont plus de param seed
 """
 
 import numpy as np
-from typing import List, Callable, Optional
+from typing import Callable, Optional, Dict, List
 
 
-def prepare_state(base: np.ndarray,
-                  modifiers: Optional[List[Callable[[np.ndarray], np.ndarray]]] = None) -> np.ndarray:
+def prepare_state(
+    encoding_func: Callable[..., np.ndarray],
+    encoding_params: Dict,
+    modifiers: Optional[List[Callable]] = None,
+    modifier_configs: Optional[Dict[Callable, Dict]] = None,
+    seed: Optional[int] = None
+) -> np.ndarray:
     """
-    Compose un état D par application séquentielle de modificateurs.
+    Compose un état D avec centralisation seed.
+    
+    SEED MANAGEMENT:
+    - Seed fixé UNE FOIS au début
+    - Tous appels aléatoires reproductibles
+    - Encodings et modifiers n'ont PLUS de param seed
     
     FONCTION AVEUGLE:
-    - Ne connaît ni la dimension du tenseur
-    - Ne connaît ni sa structure (symétrie, bornes, etc.)
-    - Ne connaît ni son interprétation (corrélations, champ, etc.)
-    
-    Applique simplement: state → modifier_1 → modifier_2 → ... → state_final
+    - Ne connaît ni dimension ni structure
+    - Applique séquentiellement: encoding → modifier_1 → modifier_2 → ...
     
     Args:
-        base: Tenseur de base (np.ndarray de shape quelconque)
-        modifiers: Liste de fonctions (np.ndarray → np.ndarray)
-                   Chaque fonction transforme le tenseur
-                   Si None ou [], retourne base inchangé
+        encoding_func: Fonction création tenseur base
+                      Signature: (**params) -> np.ndarray
+                      Ex: create(n_dof=10)
+        
+        encoding_params: Paramètres encoding
+                        Ex: {'n_dof': 10}
+        
+        modifiers: Liste fonctions modification (optionnel)
+                  Signature: (state, **params) -> np.ndarray
+                  Ex: [apply_gaussian_noise, apply_uniform_noise]
+        
+        modifier_configs: Params par modifier (optionnel)
+                         Ex: {apply_gaussian_noise: {'sigma': 0.05}}
+        
+        seed: Graine aléatoire globale (optionnel)
+             Si None, état aléatoire non fixé
     
     Returns:
         Tenseur composé final (np.ndarray)
     
-    Exemples:
-        # Sans modificateur
-        D = prepare_state(base_state)
+    Examples:
+        # Sans modifier
+        D = prepare_state(
+            encoding_func=create_symmetric,
+            encoding_params={'n_dof': 10},
+            seed=42
+        )
         
-        # Avec modificateurs
-        D = prepare_state(base_state, [
-            add_gaussian_noise(sigma=0.05),
-            apply_periodic_constraint()
-        ])
+        # Avec modifiers
+        D = prepare_state(
+            encoding_func=create_symmetric,
+            encoding_params={'n_dof': 10},
+            modifiers=[apply_noise],
+            modifier_configs={apply_noise: {'sigma': 0.05}},
+            seed=42
+        )
+        
+        # M0 baseline (sans modifier)
+        D = prepare_state(
+            encoding_func=create_symmetric,
+            encoding_params={'n_dof': 10},
+            modifiers=None,
+            seed=42
+        )
     
     Notes:
-        - Chaque modifier reçoit le résultat du précédent
-        - Les modifiers sont définis HORS du core (dans modifiers/)
-        - Le core ne valide RIEN sur le contenu
+        - Seed fixé AVANT encoding
+        - Modifiers appliqués séquentiellement
+        - Core reste aveugle au contenu
     """
-    state = base.copy()
+    # Fixer seed global si fourni
+    if seed is not None:
+        np.random.seed(seed)
     
+    # Créer tenseur base
+    state = encoding_func(**encoding_params)
+    
+    # Appliquer modifiers séquentiellement
     if modifiers is not None and len(modifiers) > 0:
-        for modifier in modifiers:
-            state = modifier(state)
+        for modifier_func in modifiers:
+            # Extraire params pour ce modifier
+            modifier_params = {}
+            if modifier_configs and modifier_func in modifier_configs:
+                modifier_params = modifier_configs[modifier_func]
+            
+            # Appliquer
+            state = modifier_func(state, **modifier_params)
     
     return state

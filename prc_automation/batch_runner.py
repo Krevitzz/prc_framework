@@ -1,311 +1,709 @@
-# prc_automation/batch_runner.py
+#!/usr/bin/env python3
 """
-Batch Runner Charter 5.5 - Pipeline exécution complet.
+Batch Runner PHASE 10 - Pipeline intelligent append-only.
 
-Modes:
-- --brut: Collecte données (db_raw)
-- --test: Application tests (db_results)
-- --verdict: Génération verdicts exploratoires (rapports)
-- --all: Pipeline complet
+Architecture:
+1. Load registry
+2. Discover entities (tous types)
+3. Detect missing combinations
+4. Classify nouveauté (branch A/B)
+5. Execute (différentiel)
+6. Update registry
+7. Generate reports (toujours)
+
+Usage:
+    python -m prc_automation.batch_runner --phase R0
 """
 
 import argparse
 import sys
 import sqlite3
 import json
+import gzip
+import pickle
+import numpy as np
 from datetime import datetime
 from pathlib import Path
+from typing import Dict, List, Any, Literal
 
-from tests.utilities.utils.discovery import discover_active_tests
-from tests.utilities.utils.applicability import check as check_applicability
+# Imports PRC
+from tests.utilities.utils.data_loading import (
+    discover_entities,
+    check_applicability,
+    CriticalDiscoveryError
+)
 from tests.utilities.HUB.test_engine import TestEngine
+from tests.utilities.HUB.verdict_reporter import generate_verdict_report
+from core.kernel import run_kernel
+from core.state_preparation import prepare_state
 
 
-class CriticalTestError(Exception):
-    """Exception pour erreurs critiques nécessitant arrêt."""
+# =============================================================================
+# CONFIGURATION GLOBALE
+# =============================================================================
+
+SEEDS = [42, 123, 456, 789, 1011]  # Grille seeds R0
+MAX_ITERATIONS = 2000
+SNAPSHOT_INTERVAL = 10
+
+DB_DIR = Path("./prc_automation/prc_database")
+
+
+def get_db_paths(phase: str = 'R0') -> Dict[str, Path]:
+    """Retourne chemins bases pour phase."""
+    return {
+        'raw': DB_DIR / f"prc_{phase.lower()}_raw.db",
+        'results': DB_DIR / f"prc_{phase.lower()}_results.db"
+    }
+
+
+# =============================================================================
+# EXCEPTIONS
+# =============================================================================
+
+class CriticalBatchError(Exception):
+    """Exception batch nécessitant arrêt."""
     pass
 
 
 # =============================================================================
-# MODE BRUT (collecte données)
+# REGISTRY MANAGEMENT (ÉTAPE 4)
 # =============================================================================
 
-def run_batch_brut(args):
+def load_execution_registry(phase: str = 'R0') -> Dict[str, Any]:
+    """Charge registry JSON ou crée vide si absent."""
+    registry_path = DB_DIR / f"execution_registry_{phase.lower()}.json"
+    
+    if not registry_path.exists():
+        return {
+            "version": "1.0",
+            "phase": phase,
+            "last_update": None,
+            "loaded_files": {
+                "gammas": [],
+                "encodings": [],
+                "modifiers": [],
+                "tests": []
+            },
+            "counts": {
+                "gammas": 0,
+                "encodings": 0,
+                "modifiers": 0,
+                "tests": 0,
+                "total_combinations": 0
+            }
+        }
+    
+    with open(registry_path, 'r') as f:
+        return json.load(f)
+
+
+def update_execution_registry(
+    registry: Dict[str, Any],
+    new_files: Dict[str, List[str]],
+    phase: str = 'R0'
+) -> None:
+    """Met à jour registry avec nouveaux fichiers (merge conservatif)."""
+    # Merge conservatif
+    for entity_type, file_list in new_files.items():
+        existing = set(registry['loaded_files'].get(entity_type, []))
+        new_set = set(file_list)
+        
+        # Ajout nouveaux, conservation anciens (traçabilité)
+        merged = existing.union(new_set)
+        registry['loaded_files'][entity_type] = sorted(merged)
+    
+    # Update counts
+    registry['counts'] = {
+        'gammas': len(registry['loaded_files'].get('gammas', [])),
+        'encodings': len(registry['loaded_files'].get('encodings', [])),
+        'modifiers': len(registry['loaded_files'].get('modifiers', [])),
+        'tests': len(registry['loaded_files'].get('tests', [])),
+        'total_combinations': (
+            len(registry['loaded_files'].get('gammas', [])) *
+            len(registry['loaded_files'].get('encodings', [])) *
+            len(registry['loaded_files'].get('modifiers', [])) *
+            len(SEEDS)
+        )
+    }
+    
+    # Update timestamp
+    registry['last_update'] = datetime.now().isoformat()
+    
+    # Sauvegarder
+    registry_path = DB_DIR / f"execution_registry_{phase.lower()}.json"
+    with open(registry_path, 'w') as f:
+        json.dump(registry, f, indent=2)
+
+
+def classify_new_files(
+    new_files: Dict[str, List],
+    registry: Dict[str, Any]
+) -> Literal['tests_only', 'causal_elements', 'none']:
     """
-    Exécute kernel pour toutes configs.
-    Stocke dans db_raw uniquement.
+    Détermine branche exécution (A: tests seuls, B: éléments causaux).
+    
+    Args:
+        new_files: Fichiers découverts par discover_entities()
+        registry: Registry courant
+    
+    Returns:
+        'tests_only': Nouveaux tests uniquement → skip brut
+        'causal_elements': Nouveaux gamma/encoding/modifier → run brut
+        'none': Aucun nouveau fichier
     """
-    print(f"\n{'='*70}")
-    print("MODE BRUT - Collecte données")
-    print(f"{'='*70}\n")
+    has_new_tests = len(new_files.get('tests', [])) > 0
+    has_new_causal = (
+        len(new_files.get('gammas', [])) > 0 or
+        len(new_files.get('encodings', [])) > 0 or
+        len(new_files.get('modifiers', [])) > 0
+    )
     
-    gamma_id = args.gamma
+    if has_new_causal:
+        return 'causal_elements'  # Branch B (prioritaire)
+    elif has_new_tests:
+        return 'tests_only'       # Branch A
+    else:
+        return 'none'             # Skip brut/test
+
+
+# =============================================================================
+# DETECTION MISSING COMBINATIONS
+# =============================================================================
+
+def detect_missing_combinations(
+    registry: Dict[str, Any],
+    active_entities: Dict[str, List[Dict]],
+    phase: str = 'R0'
+) -> List[Dict[str, Any]]:
+    """
+    Détecte combinaisons non encore exécutées.
     
-    # TODO: Implémenter génération configs + exécution kernel
-    # Pour l'instant, assume que db_raw existe déjà
+    NOUVEAU (Phase 10):
+    - Filtre combinaisons incompatibles via d_applicability
+    - Évite génération combinaisons invalides
     
-    print(f"⚠️ Mode --brut assume db_raw existante")
-    print(f"  Vérifier executions pour {gamma_id}...")
+    Args:
+        registry: Registry courant
+        active_entities: Entités découvertes
+        phase: Phase cible
     
-    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_raw.db')
+    Returns:
+        Liste combinaisons manquantes valides :
+        [
+            {
+                'gamma_id': 'GAM-001',
+                'd_encoding_id': 'SYM-003',
+                'modifier_id': 'M1',
+                'seed': 42
+            },
+            ...
+        ]
+    """
+    db_path = get_db_paths(phase)['raw']
+    
+    if not db_path.exists():
+        raise FileNotFoundError(f"Base manquante: {db_path}")
+    
+    # Charger combinaisons existantes
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM Executions WHERE gamma_id = ?", (gamma_id,))
-    count = cursor.fetchone()[0]
+    
+    cursor.execute("""
+        SELECT DISTINCT gamma_id, d_encoding_id, modifier_id, seed
+        FROM executions
+        WHERE phase = ?
+    """, (phase,))
+    
+    existing = set()
+    for row in cursor.fetchall():
+        existing.add((row[0], row[1], row[2], row[3]))
+    
     conn.close()
     
-    if count == 0:
-        print(f"\n❌ Aucune exécution trouvée pour {gamma_id} dans db_raw")
-        print(f"   Action: Exécuter kernel manuellement ou implémenter génération configs")
-        sys.exit(1)
+    # ✅ NOUVEAU: Générer cartésien AVEC VALIDATION
+    expected = set()
+    skipped_incompatible = 0
     
-    print(f"✓ {count} exécutions trouvées pour {gamma_id}")
+    for gamma in active_entities['gammas']:
+        gamma_id = gamma['id']
+        gamma_metadata = gamma.get('metadata', {})
+        d_applicability = gamma_metadata.get('d_applicability', [])
+        
+        for encoding in active_entities['encodings']:
+            encoding_id = encoding['id']
+            encoding_prefix = encoding_id.split('-')[0]  # 'SYM', 'ASY', 'R3'
+            
+            # ✅ Vérifier applicabilité
+            if d_applicability:
+                if encoding_prefix not in d_applicability:
+                    skipped_incompatible += 1
+                    continue
+            
+            for modifier in active_entities['modifiers']:
+                for seed in SEEDS:
+                    expected.add((
+                        gamma_id,
+                        encoding_id,
+                        modifier['id'],
+                        seed
+                    ))
+    
+    if skipped_incompatible > 0:
+        print(f"   ⊘ Skipped {skipped_incompatible} incompatible gamma×encoding pairs")
+    
+    # Différence
+    missing = expected - existing
+    
+    # Convertir en liste dicts
+    missing_combinations = [
+        {
+            'gamma_id': combo[0],
+            'd_encoding_id': combo[1],
+            'modifier_id': combo[2],
+            'seed': combo[3]
+        }
+        for combo in missing
+    ]
+    
+    return missing_combinations
 
 
 # =============================================================================
-# MODE TEST (observations)
+# EXECUTION KERNEL (MODE BRUT DIFFÉRENTIEL)
 # =============================================================================
 
-def run_batch_test(args):
+def run_batch_brut(
+    missing_combinations: List[Dict],
+    active_entities: Dict[str, List[Dict]],
+    phase: str = 'R0'
+) -> List[str]:
     """
-    Applique tests sur runs existants.
-    Calcule observations.
-    Stocke dans db_results.
+    Execute kernel pour combinaisons manquantes (différentiel).
+    
+    NOUVEAU (Phase 10):
+    - Double-check applicabilité (défense en profondeur)
+    - Status NON_APPLICABLE vs ERROR
+    - Retourne UNIQUEMENT exec_ids SUCCESS
+    
+    Args:
+        missing_combinations: Combinaisons à exécuter
+        active_entities: Entités découvertes (pour résolution factories)
+        phase: Phase cible
+    
+    Returns:
+        Liste exec_ids SUCCESS uniquement (avec snapshots)
     """
     print(f"\n{'='*70}")
-    print("MODE TEST - Application tests")
+    print(f"MODE BRUT - Exécution kernel ({len(missing_combinations)} runs)")
     print(f"{'='*70}\n")
     
-    gamma_id = args.gamma
-    params_config_id = args.params
+    db_path = get_db_paths(phase)['raw']
+    conn = sqlite3.connect(db_path)
     
-    # Vérifier db_raw
-    exec_ids = get_exec_ids_for_gamma(gamma_id)
-    if not exec_ids:
-        print(f"❌ Aucune exécution trouvée pour {gamma_id} dans db_raw")
-        print(f"   Action: Exécuter --brut d'abord")
-        sys.exit(1)
+    # Index entités par ID
+    gammas_by_id = {g['id']: g for g in active_entities['gammas']}
+    encodings_by_id = {e['id']: e for e in active_entities['encodings']}
+    modifiers_by_id = {m['id']: m for m in active_entities['modifiers']}
     
-    print(f"✓ {len(exec_ids)} exécutions trouvées")
+    exec_ids_success = []  # ✅ RENOMMÉ pour clarté
+    completed = 0
+    errors = 0
+    non_applicable = 0
     
-    # Découvrir tests actifs
-    print("\nDécouverte tests...")
-    all_tests = discover_active_tests()
-    print(f"✓ {len(all_tests)} tests actifs découverts")
+    for i, combo in enumerate(missing_combinations, 1):
+        gamma_id = combo['gamma_id']
+        d_encoding_id = combo['d_encoding_id']
+        modifier_id = combo['modifier_id']
+        seed = combo['seed']
+        
+        print(f"[{i}/{len(missing_combinations)}] {gamma_id}_{d_encoding_id}_{modifier_id}_s{seed}")
+        
+        # ✅ DOUBLE-CHECK applicabilité (défense en profondeur)
+        gamma_info = gammas_by_id.get(gamma_id)
+        if not gamma_info:
+            print(f"  ✗ Gamma {gamma_id} introuvable")
+            errors += 1
+            continue
+        
+        gamma_metadata = gamma_info.get('metadata', {})
+        d_applicability = gamma_metadata.get('d_applicability', [])
+        encoding_prefix = d_encoding_id.split('-')[0]
+        
+        if d_applicability and encoding_prefix not in d_applicability:
+            # Log NON_APPLICABLE (pas ERROR)
+            try:
+                exec_id = insert_execution(
+                    conn, phase,
+                    gamma_id, d_encoding_id, modifier_id, seed,
+                    (0,), 0, 'NON_APPLICABLE',
+                    [], error_message=f"Gamma {gamma_id} non applicable à {d_encoding_id}"
+                )
+                print(f"  ⊘ Non applicable: {gamma_id} incompatible avec {d_encoding_id}")
+                non_applicable += 1
+            except Exception as e:
+                print(f"  ⚠ Erreur log NON_APPLICABLE: {e}")
+                errors += 1
+            continue  # ← PAS dans exec_ids_success
+        
+        # Exécution normale
+        try:
+            # Résoudre entités
+            encoding_info = encodings_by_id[d_encoding_id]
+            modifier_info = modifiers_by_id.get(modifier_id)
+            
+            # Créer D_base
+            encoding_module = encoding_info['module']
+            encoding_func_name = encoding_info['function_name']
+            encoding_func = getattr(encoding_module, encoding_func_name)
+            
+            try:
+                D_base = encoding_func(n_dof=10, seed=seed)
+            except TypeError:
+                try:
+                    D_base = encoding_func(seed=seed)
+                except TypeError:
+                    D_base = encoding_func()
+            
+            # Appliquer modifier
+            
+            modifier_func_name = modifier_info['function_name']  # 'apply'
+            modifier_func = getattr(modifier_module, modifier_func_name)
+            
+            # ✅ Appel direct (pas via prepare_state)
+            D_final = modifier_func(D_base, seed=seed)
+            
+            # Créer gamma
+            gamma_module = gamma_info['module']
+            factory_name = gamma_info['function_name']
+            factory = getattr(gamma_module, factory_name)
+            gamma = factory()  # Params default pour R0
+            
+            # Reset mémoire si non-markovien
+            if hasattr(gamma, 'reset'):
+                gamma.reset()
+            
+            # Exécuter kernel
+            snapshots = []
+            
+            for iteration, state in run_kernel(
+                D_final, gamma,
+                max_iterations=MAX_ITERATIONS,
+                record_history=False
+            ):
+                # Sauvegarder snapshot
+                if iteration % SNAPSHOT_INTERVAL == 0:
+                    snap = {
+                        'iteration': iteration,
+                        'state': state.copy(),
+                        'norm_frobenius': float(np.linalg.norm(state.flatten())),
+                        'min_value': float(np.min(state)),
+                        'max_value': float(np.max(state)),
+                        'mean_value': float(np.mean(state)),
+                        'std_value': float(np.std(state)),
+                    }
+                    
+                    # Norme spectrale si rang 2 carré
+                    if state.ndim == 2 and state.shape[0] == state.shape[1]:
+                        try:
+                            eigs = np.linalg.eigvalsh(state)
+                            snap['norm_spectral'] = float(np.max(np.abs(eigs)))
+                        except:
+                            snap['norm_spectral'] = None
+                    else:
+                        snap['norm_spectral'] = None
+                    
+                    snapshots.append(snap)
+                
+                # Détection explosion
+                if np.any(np.isnan(state)) or np.any(np.isinf(state)):
+                    print(f"  ⚠ Explosion détectée: iter={iteration}")
+                    break
+            
+            final_iteration = iteration
+            status = 'SUCCESS'
+            
+            # Insérer dans DB
+            exec_id = insert_execution(
+                conn, phase,
+                gamma_id, d_encoding_id, modifier_id, seed,
+                D_final.shape, final_iteration, status,
+                snapshots
+            )
+            
+            exec_ids_success.append(exec_id)  # ✅ Seulement SUCCESS
+            completed += 1
+            print(f"  ✓ exec_id={exec_id}, {final_iteration} iterations")
+        
+        except Exception as e:
+            print(f"  ✗ Erreur compute: {e}")
+            errors += 1
+            
+            # Insérer ERROR (pas dans exec_ids_success)
+            try:
+                exec_id = insert_execution(
+                    conn, phase,
+                    gamma_id, d_encoding_id, modifier_id, seed,
+                    (0,), 0, 'ERROR',
+                    [], error_message=str(e)
+                )
+                print(f"  ⚠ Erreur loggée: exec_id={exec_id}")
+            except Exception as insert_error:
+                print(f"  ⚠ Erreur insertion ERROR: {insert_error}")
     
-    # Initialiser engine
+    conn.close()
+    
+    print(f"\n{'='*70}")
+    print(f"RÉSUMÉ MODE BRUT")
+    print(f"{'='*70}")
+    print(f"Complétés:       {completed}")
+    print(f"Non applicables: {non_applicable}")
+    print(f"Erreurs:         {errors}")
+    print(f"{'='*70}\n")
+    
+    return exec_ids_success  # ✅ Seulement SUCCESS avec snapshots
+
+
+def insert_execution(
+    conn: sqlite3.Connection,
+    phase: str,
+    gamma_id: str,
+    d_encoding_id: str,
+    modifier_id: str,
+    seed: int,
+    state_shape: tuple,
+    n_iterations: int,
+    status: str,
+    snapshots: List[Dict],
+    error_message: str = None
+) -> str:
+    """
+    Insère exécution dans db_raw.
+    
+    NOUVEAU (Phase 10):
+    - Support status='NON_APPLICABLE'
+    - Snapshots vides autorisés pour ERROR et NON_APPLICABLE
+    - Validation stricte pour SUCCESS
+    
+    Args:
+        status: 'SUCCESS', 'ERROR', ou 'NON_APPLICABLE'
+        snapshots: Liste snapshots (vide si ERROR/NON_APPLICABLE)
+    
+    Returns:
+        exec_id (UUID)
+    
+    Raises:
+        ValueError: Si SUCCESS sans snapshots
+    """
+    import uuid
+    
+    exec_id = str(uuid.uuid4())
+    cursor = conn.cursor()
+    
+    try:
+        # Insertion executions
+        cursor.execute("""
+            INSERT INTO executions (
+                gamma_id, d_encoding_id, modifier_id, seed, phase,
+                exec_id, timestamp, state_shape, n_iterations, status
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            gamma_id, d_encoding_id, modifier_id, seed, phase,
+            exec_id,
+            datetime.now().isoformat(),
+            json.dumps(list(state_shape)),
+            n_iterations,
+            status
+        ))
+        
+        # ✅ Snapshots vides autorisés pour ERROR et NON_APPLICABLE
+        if len(snapshots) == 0:
+            if status in ('ERROR', 'NON_APPLICABLE'):
+                conn.commit()
+                return exec_id
+            else:
+                conn.rollback()
+                raise ValueError(f"Status {status} nécessite snapshots, reçu 0")
+        
+        # Insertion snapshots (si présents)
+        snapshots_inserted = 0
+        for snap in snapshots:
+            try:
+                state_compressed = gzip.compress(pickle.dumps(snap['state']))
+                
+                cursor.execute("""
+                    INSERT INTO snapshots (
+                        exec_id, iteration, state_blob,
+                        norm_frobenius, norm_spectral,
+                        min_value, max_value, mean_value, std_value
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    exec_id,
+                    snap['iteration'],
+                    state_compressed,
+                    snap['norm_frobenius'],
+                    snap.get('norm_spectral'),
+                    snap['min_value'],
+                    snap['max_value'],
+                    snap['mean_value'],
+                    snap['std_value']
+                ))
+                snapshots_inserted += 1
+            
+            except Exception as e:
+                print(f"    ⚠ Erreur insertion snapshot iter={snap['iteration']}: {e}")
+                continue
+        
+        # Validation: au moins 1 snapshot inséré si liste non vide
+        if len(snapshots) > 0 and snapshots_inserted == 0:
+            conn.rollback()
+            raise ValueError(f"Aucun snapshot inséré sur {len(snapshots)} tentatives")
+        
+        # Commit transaction
+        conn.commit()
+        
+        if snapshots_inserted < len(snapshots):
+            print(f"    ⚠ {snapshots_inserted}/{len(snapshots)} snapshots insérés")
+        
+        return exec_id
+    
+    except Exception as e:
+        conn.rollback()
+        print(f"    ✗ Erreur insertion execution: {e}")
+        raise
+
+
+# =============================================================================
+# APPLICATION TESTS (DIFFÉRENTIEL)
+# =============================================================================
+
+def run_batch_test(
+    exec_ids: List[str],
+    active_tests: List[Dict],
+    params_config_id: str = 'params_default_v1',
+    phase: str = 'R0'
+) -> None:
+    """
+    Applique tests sur exec_ids ciblés (différentiel).
+    
+    Args:
+        exec_ids: Exécutions à tester
+        active_tests: Tests découverts
+        params_config_id: Config params
+        phase: Phase cible
+    """
+    print(f"\n{'='*70}")
+    print(f"MODE TEST - Application tests ({len(exec_ids)} exec_ids)")
+    print(f"{'='*70}\n")
+    
+    db_raw_path = get_db_paths(phase)['raw']
+    db_results_path = get_db_paths(phase)['results']
+    
     engine = TestEngine()
     
-    # Compteurs
     total_observations = 0
-    errors = []
+    errors = 0
     
-    # Pour chaque run
     for i, exec_id in enumerate(exec_ids, 1):
-        print(f"\n[{i}/{len(exec_ids)}] Processing exec_id={exec_id}")
+        print(f"[{i}/{len(exec_ids)}] exec_id={exec_id}")
         
         try:
             # Charger contexte
-            context = load_execution_context(exec_id)
+            context = load_execution_context(exec_id, db_raw_path)
             
-            # Charger premier snapshot pour state_shape
-            first_snapshot = load_first_snapshot(exec_id)
+            # Charger premier snapshot (state_shape)
+            first_snapshot = load_first_snapshot(exec_id, db_raw_path)
             context['state_shape'] = first_snapshot.shape
-            context['exec_id'] = exec_id  # ⚠️ TRAÇABILITÉ
+            context['exec_id'] = exec_id
             
             # Filtrer tests applicables
-            applicable_tests = {}
-            for test_id, test_module in all_tests.items():
+            applicable_tests = []
+            for test_info in active_tests:
+                test_module = test_info['module']
                 applicable, reason = check_applicability(test_module, context)
                 if applicable:
-                    applicable_tests[test_id] = test_module
+                    applicable_tests.append(test_info)
             
-            print(f"  {len(applicable_tests)}/{len(all_tests)} tests applicables")
+            print(f"  {len(applicable_tests)}/{len(active_tests)} tests applicables")
             
             if not applicable_tests:
                 continue
             
-            # Charger history complète
-            history = load_execution_history(exec_id)
+            # Charger history
+            history = load_execution_history(exec_id, db_raw_path)
             
-            # Appliquer chaque test
-            for test_id, test_module in applicable_tests.items():
+            # Appliquer tests
+            for test_info in applicable_tests:
+                test_module = test_info['module']
+                
                 try:
-                    # Phase : Observation
                     observation = engine.execute_test(
                         test_module, context, history, params_config_id
                     )
                     
                     # Stocker observation
-                    store_test_observation(exec_id, observation)
-                    total_observations += 1
+                    store_test_observation(
+                        db_results_path, phase,
+                        context['gamma_id'],
+                        context['d_encoding_id'],
+                        context['modifier_id'],
+                        context['seed'],
+                        observation
+                    )
                     
-                    status = observation['status']
-                    print(f"    ✓ {test_id}: {status}")
+                    total_observations += 1
+                    print(f"    ✓ {test_info['id']}: {observation['status']}")
                 
                 except Exception as e:
-                    error_msg = f"exec_id={exec_id}, test={test_id}: {str(e)}"
-                    errors.append(error_msg)
-                    print(f"    ✗ {test_id}: {str(e)}")
+                    errors += 1
+                    print(f"    ✗ {test_info['id']}: {e}")
         
         except Exception as e:
-            error_msg = f"exec_id={exec_id}: {str(e)}"
-            errors.append(error_msg)
-            print(f"  ✗ Erreur run: {str(e)}")
+            print(f"  ✗ Erreur run: {e}")
+            errors += 1
     
-    # Résumé
     print(f"\n{'='*70}")
-    print("RÉSUMÉ MODE TEST")
+    print(f"RÉSUMÉ MODE TEST")
     print(f"{'='*70}")
-    print(f"Observations générées: {total_observations}")
-    print(f"Erreurs:               {len(errors)}")
-    
-    if errors:
-        print("\nErreurs détaillées:")
-        for err in errors[:10]:  # Limiter affichage
-            print(f"  - {err}")
-
-
-# =============================================================================
-# MODE VERDICT (analyse exploratoire)
-# =============================================================================
-
-def run_batch_verdict(args):
-    """
-    Génère verdicts exploratoires sur observations existantes.
-    
-    Architecture 5.5 (NOUVEAU):
-    - verdict_reporter orchestre verdict_engine + gamma_profiling
-    - Génération rapports structurés selon Charter R0
-    """
-    print(f"\n{'='*70}")
-    print("MODE VERDICT - Analyse exploratoire R0")
+    print(f"Observations: {total_observations}")
+    print(f"Erreurs:      {errors}")
     print(f"{'='*70}\n")
-    
-    params_config_id = args.params
-    verdict_config_id = args.verdict
-    
-    print(f"Params config:  {params_config_id}")
-    print(f"Verdict config: {verdict_config_id}\n")
-    
-    # Vérifier que observations existent
-    n_observations = count_observations(params_config_id)
-    if n_observations == 0:
-        print(f"❌ Aucune observation trouvée pour params={params_config_id}")
-        print(f"   Action: Exécuter --mode test d'abord")
-        sys.exit(1)
-    
-    print(f"✓ {n_observations} observations trouvées\n")
-    
-    # Import verdict_reporter (NOUVEAU)
-    try:
-        from tests.utilities.HUB.verdict_reporter import generate_verdict_report
-    except ImportError as e:
-        print(f"❌ Erreur import verdict_reporter: {e}")
-        sys.exit(1)
-    
-    # Exécution pipeline (SIMPLIFIÉ)
-    try:
-        results = generate_verdict_report(
-            params_config_id=params_config_id,
-            verdict_config_id=verdict_config_id
-        )
-        
-        # Résumé rapide
-        print("="*70)
-        print("VERDICT GÉNÉRÉ")
-        print("="*70)
-        print(f"Répertoire      : {Path(results['report_paths']['summary_global']).parent}")
-        print(f"Rapport global  : summary_global.txt")
-        print(f"Rapports axes   : summary_test.txt, summary_gamma.txt, summary_modifier.txt, summary_encoding.txt")
-        print(f"Fichiers totaux : {len(results['report_paths'])}")
-        print("="*70)
-        
-    except Exception as e:
-        print(f"\n❌ Erreur génération verdict: {e}")
-        import traceback
-        traceback.print_exc()
-        sys.exit(1)
 
 
-# =============================================================================
-# MODE ALL (pipeline complet)
-# =============================================================================
-
-def run_batch_all(args):
-    """Exécute pipeline complet en une commande."""
-    print(f"\n{'#'*70}")
-    print("# PIPELINE COMPLET: brut → test → verdict")
-    print(f"{'#'*70}\n")
-    
-    # run_batch_brut(args)  # Si gamma spécifié
-    # run_batch_test(args)  # Si gamma spécifié
-    run_batch_verdict(args)
-    
-    print(f"\n{'#'*70}")
-    print("# PIPELINE TERMINÉ")
-    print(f"{'#'*70}\n")
-
-
-# =============================================================================
-# UTILITAIRES DATABASE
-# =============================================================================
-
-def get_exec_ids_for_gamma(gamma_id: str) -> list:
-    """Récupère tous exec_ids pour une gamma."""
-    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_raw.db')
-    cursor = conn.cursor()
-    cursor.execute("SELECT id FROM Executions WHERE gamma_id = ?", (gamma_id,))
-    rows = cursor.fetchall()
-    conn.close()
-    return [row[0] for row in rows]
-
-
-def count_observations(params_config_id: str) -> int:
-    """Compte observations SUCCESS pour une config."""
-    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_results.db')
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT COUNT(*) FROM TestObservations 
-        WHERE params_config_id = ? AND status = 'SUCCESS'
-    """, (params_config_id,))
-    count = cursor.fetchone()[0]
-    conn.close()
-    return count
-
-
-def load_execution_context(exec_id: int) -> dict:
+def load_execution_context(exec_id: str, db_path: Path) -> Dict:
     """Charge contexte depuis db_raw."""
-    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_raw.db')
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
     cursor.execute("""
-        SELECT gamma_id, d_encoding_id, modifier_id, seed, run_id
-        FROM Executions WHERE id = ?
+        SELECT gamma_id, d_encoding_id, modifier_id, seed
+        FROM executions
+        WHERE exec_id = ?
     """, (exec_id,))
     
     row = cursor.fetchone()
     conn.close()
     
     if not row:
-        raise ValueError(f"exec_id={exec_id} non trouvé dans db_raw")
+        raise ValueError(f"exec_id={exec_id} non trouvé")
     
     return {
-        'gamma_id': row[0],
-        'd_encoding_id': row[1],
-        'modifier_id': row[2],
-        'seed': row[3],
-        'run_id': row[4]
+        'gamma_id': row['gamma_id'],
+        'd_encoding_id': row['d_encoding_id'],
+        'modifier_id': row['modifier_id'],
+        'seed': row['seed']
     }
 
 
-def load_first_snapshot(exec_id: int):
-    """Charge premier snapshot pour déduire state_shape."""
-    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_raw.db')
+def load_first_snapshot(exec_id: str, db_path: Path):
+    """Charge premier snapshot."""
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     cursor.execute("""
         SELECT state_blob
-        FROM Snapshots
+        FROM snapshots
         WHERE exec_id = ?
         ORDER BY iteration
         LIMIT 1
@@ -317,24 +715,18 @@ def load_first_snapshot(exec_id: int):
     if not row:
         raise ValueError(f"Aucun snapshot pour exec_id={exec_id}")
     
-    # Décompresser
-    import gzip
-    import pickle
     state = pickle.loads(gzip.decompress(row[0]))
     return state
 
 
-def load_execution_history(exec_id: int) -> list:
-    """Charge history complète depuis db_raw."""
-    import gzip
-    import pickle
-    
-    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_raw.db')
+def load_execution_history(exec_id: str, db_path: Path) -> List:
+    """Charge history complète."""
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
     cursor.execute("""
         SELECT iteration, state_blob
-        FROM Snapshots
+        FROM snapshots
         WHERE exec_id = ?
         ORDER BY iteration
     """, (exec_id,))
@@ -348,12 +740,20 @@ def load_execution_history(exec_id: int) -> list:
     return history
 
 
-def store_test_observation(exec_id: int, observation: dict):
+def store_test_observation(
+    db_path: Path,
+    phase: str,
+    gamma_id: str,
+    d_encoding_id: str,
+    modifier_id: str,
+    seed: int,
+    observation: Dict
+) -> None:
     """Stocke observation dans db_results."""
-    conn = sqlite3.connect('./prc_automation/prc_database/prc_r0_results.db')
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Extraire stats pour colonnes rapides
+    # Extraire projections rapides (première métrique)
     stats = observation.get('statistics', {})
     first_metric = list(stats.keys())[0] if stats else None
     
@@ -361,49 +761,45 @@ def store_test_observation(exec_id: int, observation: dict):
         stat_data = stats[first_metric]
         stat_initial = stat_data.get('initial')
         stat_final = stat_data.get('final')
-        stat_min = stat_data.get('min')
-        stat_max = stat_data.get('max')
         stat_mean = stat_data.get('mean')
         stat_std = stat_data.get('std')
     else:
-        stat_initial = stat_final = stat_min = None
-        stat_max = stat_mean = stat_std = None
+        stat_initial = stat_final = stat_mean = stat_std = None
     
-    # Extraire evolution
     evol = observation.get('evolution', {})
     first_evol = list(evol.keys())[0] if evol else None
     
     if first_evol:
         evol_data = evol[first_evol]
-        evolution_transition = evol_data.get('transition')
-        evolution_trend = evol_data.get('trend')
-        evolution_trend_coefficient = evol_data.get('slope')
+        evolution_slope = evol_data.get('slope')
+        evolution_relative_change = evol_data.get('relative_change')
     else:
-        evolution_transition = evolution_trend = None
-        evolution_trend_coefficient = None
+        evolution_slope = evolution_relative_change = None
     
     cursor.execute("""
-        INSERT OR REPLACE INTO TestObservations (
-            exec_id, test_name, test_category,
-            params_config_id,
-            applicable, status, message,
-            stat_initial, stat_final, stat_min, stat_max, stat_mean, stat_std,
-            evolution_transition, evolution_trend, evolution_trend_coefficient,
-            observation_data,
-            computed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT OR REPLACE INTO observations (
+            test_name, gamma_id, d_encoding_id, modifier_id, seed, phase,
+            exec_id, timestamp, test_category, params_config_id,
+            status, message, observation_data,
+            stat_initial, stat_final, stat_mean, stat_std,
+            evolution_slope, evolution_relative_change
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
-        exec_id,
         observation['test_name'],
+        gamma_id,
+        d_encoding_id,
+        modifier_id,
+        seed,
+        phase,
+        observation.get('exec_id', ''),
+        datetime.now().isoformat(),
         observation['test_category'],
         observation['config_params_id'],
-        observation['status'] not in ['NOT_APPLICABLE', 'SKIPPED'],
         observation['status'],
-        observation['message'],
-        stat_initial, stat_final, stat_min, stat_max, stat_mean, stat_std,
-        evolution_transition, evolution_trend, evolution_trend_coefficient,
+        observation.get('message', ''),
         json.dumps(observation),
-        datetime.now().isoformat()
+        stat_initial, stat_final, stat_mean, stat_std,
+        evolution_slope, evolution_relative_change
     ))
     
     conn.commit()
@@ -411,65 +807,228 @@ def store_test_observation(exec_id: int, observation: dict):
 
 
 # =============================================================================
-# MAIN
+# GÉNÉRATION RAPPORTS
 # =============================================================================
 
-def parse_args():
+def run_batch_verdict(
+    params_config_id: str = 'params_default_v1',
+    verdict_config_id: str = 'verdict_default_v1',
+    phase: str = 'R0'
+) -> None:
+    """
+    Génère rapports (TOUJOURS exécuté).
+    
+    Args:
+        params_config_id: Config params
+        verdict_config_id: Config verdict
+        phase: Phase cible
+    """
+    print(f"\n{'='*70}")
+    print(f"MODE VERDICT - Génération rapports")
+    print(f"{'='*70}\n")
+    
+    # Vérifier observations existent
+    db_results_path = get_db_paths(phase)['results']
+    conn = sqlite3.connect(db_results_path)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT COUNT(*) FROM observations
+        WHERE params_config_id = ? AND phase = ? AND status = 'SUCCESS'
+    """, (params_config_id, phase))
+    
+    n_observations = cursor.fetchone()[0]
+    conn.close()
+    
+    if n_observations == 0:
+        print(f"⚠ Aucune observation SUCCESS trouvée")
+        print(f"   Skip génération rapports")
+        return
+    
+    print(f"✓ {n_observations} observations trouvées\n")
+    
+    # Exécuter pipeline verdict
+    try:
+        results = generate_verdict_report(
+            params_config_id=params_config_id,
+            verdict_config_id=verdict_config_id
+        )
+        
+        print(f"{'='*70}")
+        print(f"RAPPORTS GÉNÉRÉS")
+        print(f"{'='*70}")
+        print(f"Répertoire: {Path(results['report_paths']['summary_global']).parent}")
+        print(f"Fichiers:   {len(results['report_paths'])}")
+        print(f"{'='*70}\n")
+    
+    except Exception as e:
+        print(f"✗ Erreur génération rapports: {e}")
+        raise
+
+
+# =============================================================================
+# PIPELINE PRINCIPAL
+# =============================================================================
+
+def main():
     parser = argparse.ArgumentParser(
-        description="Batch Runner Charter 5.5",
+        description="Batch Runner PHASE 10 - Pipeline intelligent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples:
-  # Mode brut (collecte données)
-  python -m prc_automation.batch_runner --mode brut --gamma GAM-001
+  # Exécution R0 (détection automatique)
+  python -m prc_automation.batch_runner --phase R0
   
-  # Mode test (observations)
-  python -m prc_automation.batch_runner --mode test --gamma GAM-001 --params params_default_v1
-  
-  # Mode verdict (analyse exploratoire, configs par défaut)
-  python -m prc_automation.batch_runner --mode verdict
-  
-  # Mode verdict (configs spécifiques)
-  python -m prc_automation.batch_runner --mode verdict --params params_default_v1 --verdict verdict_strict_v1
-  
-  # Pipeline complet
-  python -m prc_automation.batch_runner --mode all --gamma GAM-001
+  # Avec configs custom
+  python -m prc_automation.batch_runner --phase R0 \\
+      --params params_custom_v1 --verdict verdict_strict_v1
         """
     )
     
-    parser.add_argument('--mode', required=True,
-                       choices=['brut', 'test', 'verdict', 'all'],
-                       help="Mode exécution")
-    
-    parser.add_argument('--gamma', default=None,
-                       help="Gamma ID (ex: GAM-001) - Requis pour modes brut/test")
+    parser.add_argument('--phase', default='R0',
+                       help="Phase cible (défaut: R0)")
     
     parser.add_argument('--params', default='params_default_v1',
-                       help="Params config ID (défaut: params_default_v1)")
+                       help="Params config ID")
     
     parser.add_argument('--verdict', default='verdict_default_v1',
-                       help="Verdict config ID (défaut: verdict_default_v1)")
+                       help="Verdict config ID")
     
-    return parser.parse_args()
-
-
-def main():
-    args = parse_args()
+    args = parser.parse_args()
     
-    # Validation arguments
-    if args.mode in ['brut', 'test'] and not args.gamma:
-        print("❌ Erreur: --gamma requis pour modes 'brut' et 'test'")
+    print(f"\n{'#'*70}")
+    print(f"# BATCH RUNNER PHASE 10 - {args.phase}")
+    print(f"{'#'*70}\n")
+    
+    try:
+        # 1. Load registry
+        print("1. Chargement registry...")
+        registry = load_execution_registry(args.phase)
+        print(f"   ✓ Registry chargé ({registry['counts']['total_combinations']} combinaisons)")
+        
+        # 2. Discover entities
+        print("\n2. Découverte entités...")
+        active_entities = {
+            'tests': discover_entities('test', args.phase),
+            'gammas': discover_entities('gamma', args.phase),
+            'encodings': discover_entities('encoding', args.phase),
+            'modifiers': discover_entities('modifier', args.phase),
+        }
+        print(f"   ✓ Tests:     {len(active_entities['tests'])}")
+        print(f"   ✓ Gammas:    {len(active_entities['gammas'])}")
+        print(f"   ✓ Encodings: {len(active_entities['encodings'])}")
+        print(f"   ✓ Modifiers: {len(active_entities['modifiers'])}")
+        
+        # 3. Detect missing
+        print("\n3. Détection combinaisons manquantes...")
+        missing = detect_missing_combinations(registry, active_entities, args.phase)
+        print(f"   ✓ Manquantes: {len(missing)}")
+        
+        # 4. Classify
+        print("\n4. Classification nouveauté...")
+        
+        # Extraire fichiers nouveaux
+        new_files = {
+            'tests': [t['module_path'] for t in active_entities['tests']
+                     if t['module_path'] not in registry['loaded_files'].get('tests', [])],
+            'gammas': [g['module_path'] for g in active_entities['gammas']
+                      if g['module_path'] not in registry['loaded_files'].get('gammas', [])],
+            'encodings': [e['module_path'] for e in active_entities['encodings']
+                         if e['module_path'] not in registry['loaded_files'].get('encodings', [])],
+            'modifiers': [m['module_path'] for m in active_entities['modifiers']
+                         if m['module_path'] not in registry['loaded_files'].get('modifiers', [])],
+        }
+        
+        classification = classify_new_files(new_files, registry)
+        print(f"   ✓ Classification: {classification}")
+            
+            # 5. Execute
+        if classification == 'none':
+            print("\n5. Exécution: SKIP (aucun nouveau fichier)")
+            exec_ids_all = []
+        
+        elif classification == 'tests_only':
+            print("\n5. Exécution: BRANCH A (tests seuls)")
+            # Charger tous exec_ids existants
+            db_path = get_db_paths(args.phase)['raw']
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT DISTINCT exec_id FROM executions
+                WHERE phase = ? AND status = 'SUCCESS'
+            """, (args.phase,))
+            
+            exec_ids_all = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            
+            print(f"   ✓ {len(exec_ids_all)} exec_ids existants")
+            
+            # Skip brut, appliquer tests
+            run_batch_test(
+                exec_ids_all,
+                active_entities['tests'],
+                args.params,
+                args.phase
+            )
+        
+        elif classification == 'causal_elements':
+            print("\n5. Exécution: BRANCH B (éléments causaux)")
+            
+            # Exécuter kernel (brut)
+            new_exec_ids = run_batch_brut(
+                missing,
+                active_entities,
+                args.phase
+            )
+            
+            # Appliquer tests
+            run_batch_test(
+                new_exec_ids,
+                active_entities['tests'],
+                args.params,
+                args.phase
+            )
+            
+            exec_ids_all = new_exec_ids
+        
+        # 6. Update registry
+        print("\n6. Mise à jour registry...")
+        
+        # Extraire tous fichiers actifs (nouveaux + anciens)
+        all_files = {
+            'tests': [t['module_path'] for t in active_entities['tests']],
+            'gammas': [g['module_path'] for g in active_entities['gammas']],
+            'encodings': [e['module_path'] for e in active_entities['encodings']],
+            'modifiers': [m['module_path'] for m in active_entities['modifiers']],
+        }
+        
+        update_execution_registry(registry, all_files, args.phase)
+        print(f"   ✓ Registry mis à jour")
+        
+        # 7. Generate reports (TOUJOURS)
+        print("\n7. Génération rapports...")
+        run_batch_verdict(args.params, args.verdict, args.phase)
+        
+        print(f"\n{'#'*70}")
+        print(f"# PIPELINE TERMINÉ")
+        print(f"{'#'*70}\n")
+    
+    except CriticalDiscoveryError as e:
+        print(f"\n✗ ERREUR CRITIQUE (Discovery): {e}")
+        print(f"   → Vérifier PHASE présent dans modules")
         sys.exit(1)
     
-    # Exécution
-    if args.mode == 'brut':
-        run_batch_brut(args)
-    elif args.mode == 'test':
-        run_batch_test(args)
-    elif args.mode == 'verdict':
-        run_batch_verdict(args)
-    elif args.mode == 'all':
-        run_batch_all(args)
+    except FileNotFoundError as e:
+        print(f"\n✗ ERREUR: {e}")
+        print(f"   → Initialiser bases: python -m prc_automation.utils_databases --mode init --phase {args.phase}")
+        sys.exit(1)
+    
+    except Exception as e:
+        print(f"\n✗ ERREUR INATTENDUE: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 
 if __name__ == "__main__":

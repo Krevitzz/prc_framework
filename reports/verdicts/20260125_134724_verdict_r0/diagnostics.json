@@ -1,0 +1,50 @@
+{
+  "numeric_artifacts": {
+    "total_observations": 135,
+    "valid_observations": 135,
+    "rejected_observations": 0,
+    "rejection_rate": 0.0,
+    "rejected_by_test": {}
+  },
+  "degeneracy": {
+    "total_observations": 135,
+    "observations_with_flags": 0,
+    "flag_rate": 0.0,
+    "flag_counts": {},
+    "flags_by_test": {},
+    "flags_by_projection": {}
+  },
+  "scale_outliers": {
+    "total_observations": 135,
+    "observations_with_outliers": 0,
+    "outlier_rate": 0.0,
+    "contexts_analyzed": 23,
+    "contexts_with_outliers": 0,
+    "outliers_by_context": {},
+    "thresholds": {
+      "('GRA-001', 'density', 'value_final')": 0.0,
+      "('GRA-001', 'density', 'value_mean')": -0.00019212597049877178,
+      "('GRA-001', 'density', 'slope')": -0.9783680276702716,
+      "('GRA-001', 'density', 'relative_change')": 10.0,
+      "('GRA-001', 'clustering_local', 'value_final')": 0.0,
+      "('GRA-001', 'clustering_local', 'value_mean')": -0.0001893807166643095,
+      "('GRA-001', 'clustering_local', 'slope')": -1.0080541309307134,
+      "('GRA-001', 'clustering_local', 'relative_change')": 10.0,
+      "('GRA-001', 'degree_variance', 'value_mean')": -0.25112982462658073,
+      "('GRA-001', 'degree_variance', 'slope')": -1.1986179962208472,
+      "('GRA-001', 'degree_variance', 'relative_change')": -9.533196685330445e-12,
+      "('PAT-001', 'diversity_simpson', 'value_final')": -0.023650544226104707,
+      "('PAT-001', 'diversity_simpson', 'value_mean')": -0.02228415577753425,
+      "('PAT-001', 'diversity_simpson', 'slope')": -2.1977119778216188,
+      "('PAT-001', 'diversity_simpson', 'relative_change')": -0.31026207002890716,
+      "('PAT-001', 'concentration_top10', 'value_final')": 0.0,
+      "('PAT-001', 'concentration_top10', 'value_mean')": 0.0,
+      "('PAT-001', 'concentration_top10', 'slope')": -1.3132904954958895,
+      "('PAT-001', 'concentration_top10', 'relative_change')": 0.12160155476211644,
+      "('PAT-001', 'uniformity', 'value_final')": -0.014574027722378207,
+      "('PAT-001', 'uniformity', 'value_mean')": -0.013235864472366889,
+      "('PAT-001', 'uniformity', 'slope')": -2.1977119778216188,
+      "('PAT-001', 'uniformity', 'relative_change')": -0.31904131545238856
+    }
+  }
+}

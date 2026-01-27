@@ -1,57 +1,101 @@
 ## ⚠️ AVANT DE CODER
 
+## utils_databases.py
+  # Initialiser bases R0
+  python -m prc_automation.utils_databases --mode init --phase R0
+  
+  # Nettoyer entrées obsolètes
+  python -m prc_automation.utils_databases --mode clean --phase R0
+  
+  # Backup avant modifications
+  python -m prc_automation.utils_databases --mode backup --phase R0
+  
+  # Export schema uniquement (léger)
+  python -m prc_automation.utils_databases --mode export_schema --phase R0
+  
+  # Export complet JSON (lourd)
+  python -m prc_automation.utils_databases --mode export_json --phase R0
+  
+  # Export JSON avec BLOBs encodés
+  python -m prc_automation.utils_databases --mode export_json --phase R0 --include-blobs
+        """
 ** PRC_AUTOMATION (batch_runner.py) **
 
 ### Fonctions publiques
-| run_batch_brut | Publique | Collecte données (db_raw) |
-| run_batch_test | Publique | Application tests (db_results) |
-| run_batch_verdict | Publique | Génération verdicts |
-| run_batch_all | Publique | Pipeline complet |
-| parse_args | Publique | Parse arguments CLI |
-| main | Publique | Point d'entrée principal |
+| Fonction | Type | Responsabilité |
+|----------|------|----------------|
+| run_batch_brut | Publique | Exécution kernel combinaisons manquantes (différentiel) |
+| run_batch_test | Publique | Application tests sur exec_ids ciblés (différentiel) |
+| run_batch_verdict | Publique | Génération rapports (toujours exécuté) |
+| main | Publique | Pipeline 7 étapes (point d'entrée) |
+| get_db_paths | Publique | Retourne chemins bases pour phase |
+
+### Fonctions registry
+| Fonction | Type | Responsabilité |
+|----------|------|----------------|
+| load_execution_registry | Publique | Charge registry JSON ou crée vide |
+| update_execution_registry | Publique | Mise à jour registry (merge conservatif) |
+| classify_new_files | Publique | Classification branch A/B/none |
 
 ### Fonctions helpers
-| get_exec_ids_for_gamma | Module-level | Récupère exec_ids pour gamma |
-| count_observations | Module-level | Compte observations SUCCESS |
-| load_execution_context | Module-level | Charge contexte depuis db_raw |
-| load_first_snapshot | Module-level | Charge premier snapshot (state_shape) |
-| load_execution_history | Module-level | Charge history complète |
-| store_test_observation | Module-level | Stocke observation db_results |
+| Fonction | Type | Responsabilité |
+|----------|------|----------------|
+| detect_missing_combinations | Publique | Détecte combinaisons non exécutées |
+| insert_execution | Publique | Insère exécution dans db_raw |
+| load_execution_context | Publique | Charge contexte depuis db_raw |
+| load_first_snapshot | Publique | Charge premier snapshot (state_shape) |
+| load_execution_history | Publique | Charge history complète |
+| store_test_observation | Publique | Stocke observation db_results |
 
 ### Exceptions
-| CriticalTestError | Exception | Erreurs critiques nécessitant arrêt |
+| Exception | Type | Usage |
+|-----------|------|-------|
+| CriticalBatchError | Exception | Erreurs batch nécessitant arrêt |
 
-**Fonctions existantes du core** :
-| Fonction | Fichier | Responsabilité |
-|----------|---------|----------------|
-| `prepare_state()` | state_preparation.py | Composition séquentielle modifiers sur tenseur base |
-| `run_kernel()` | kernel.py | Itération aveugle state_{n+1} = gamma(state_n) |
+### Configuration globale
+| Constante | Type | Valeur/Description |
+|-----------|------|-------------------|
+| SEEDS | List[int] | [42, 123, 456, 789, 1011] |
+| MAX_ITERATIONS | int | 2000 |
+| SNAPSHOT_INTERVAL | int | 10 |
+| DB_DIR | Path | ./prc_automation/prc_database |
 
-**Encodings existants** :
-| ID | Fichier | Type | Propriétés clés |
-|----|---------|------|-----------------|
-| SYM-001 à SYM-006 | rank2_symmetric.py | Rang 2 symétrique | Diverses structures |
-| create_circulant_asymmetric | Publique | Matrice circulante asymétrique |
-| create_sparse_asymmetric | Publique | Matrice asymétrique sparse |
-| ASY-001 à ASY-004 | rank2_asymmetric.py | Rang 2 asymétrique | Brisure symétrie |
-| create_uniform | Publique | Corrélations uniformes |
-| create_random | Publique | Corrélations aléatoires (helper) |
-| R3-001 à R3-003 | rank3_correlations.py | Rang 3 | Couplages d'ordre supérieur |
-| create_fully_symmetric_rank3 | Publique | Tenseur totalement symétrique (bonus) |
-| create_diagonal_rank3 | Publique | Tenseur diagonal (bonus) |
-| create_separable_rank3 | Publique | Tenseur séparable (bonus) |
-| create_block_rank3 | Publique | Tenseur par blocs (bonus) |
+## D_ENCODINGS - ENCODINGS DISPONIBLES
+
+| ID | Type | Rang | Propriétés clés | Description courte |
+|----|------|------|-----------------|-------------------|
+| **SYM-001** | symmetric | 2 | identity, sparse | Matrice identité |
+| **SYM-002** | symmetric | 2 | uniform_distribution | Aléatoire uniforme symétrisé |
+| **SYM-003** | symmetric | 2 | gaussian_distribution | Aléatoire gaussien symétrisé |
+| **SYM-004** | symmetric | 2 | positive_definite, unit_diagonal | Matrice corrélation (SPD) |
+| **SYM-005** | symmetric | 2 | banded, sparse | Bande symétrique |
+| **SYM-006** | symmetric | 2 | block_structure, hierarchical | Hiérarchique par blocs |
+| **SYM-007** | symmetric | 2 | uniform_correlation, unit_diagonal | Corrélations uniformes |
+| **SYM-008** | symmetric | 2 | parametric_normal, clipped | Aléatoire paramétrable clippé |
+| **ASY-001** | asymmetric | 2 | bounded | Aléatoire asymétrique |
+| **ASY-002** | asymmetric | 2 | triangular, sparse | Triangulaire inférieure |
+| **ASY-003** | asymmetric | 2 | antisymmetric, zero_diagonal | Antisymétrique |
+| **ASY-004** | asymmetric | 2 | linear_gradient | Gradient directionnel |
+| **ASY-005** | asymmetric | 2 | circulant, periodic | Structure circulante |
+| **ASY-006** | asymmetric | 2 | sparse, controlled_density | Sparse densité contrôlée |
+| **R3-001** | random | 3 | no_symmetry | Aléatoire uniforme rang 3 |
+| **R3-002** | partial_symmetric | 3 | partial_symmetry | Symétrique partiel (indices 2-3) |
+| **R3-003** | local_coupling | 3 | sparse, geometric_locality | Couplages locaux |
+| **R3-004** | fully_symmetric | 3 | full_symmetry, permutation_invariant | Symétrique total (6 permutations) |
+| **R3-005** | diagonal | 3 | very_sparse, diagonal | Diagonal pur |
+| **R3-006** | separable | 3 | factorized, low_rank | Séparable (produit externe) |
+| **R3-007** | block_structure | 3 | hierarchical, modular | Par blocs 3D |
 
 **Modifiers existants** :
-| ID | Fichier | Type | Paramètres clés |
-|----|---------|------|-----------------|
-| M0 | (implicite) | Baseline | Aucune modification |
-| M1 | noise.py::add_gaussian_noise() | Bruit gaussien | sigma=0.05 |
-| M2 | noise.py::add_uniform_noise() | Bruit uniforme | amplitude=0.1 |
+| ID | Fichier | Type | Transformation |
+|----|---------|------|----------------|
+| **M0** | m0_baseline.py | baseline | D' = D |
+| **M1** | m1_gaussian_noise.py | noise | D' = D + N(0,σ) |
+| **M2** | m2_uniform_noise.py | noise | D' = D + U[-a,+a] |
 
 **Gammas existants** :
 | {GammaClass}.__init__ | Publique | Initialise paramètres + validation |
-| {GammaClass}.__call__ | Publique | Applique transformation Δ |
+| {GammaClass}.__call__ | Publique | Applique transformation Gamma |
 | {GammaClass}.__repr__ | Publique | Représentation string |
 | {GammaClass}.reset | Publique | Réinitialise mémoire (si non-markovien) |
 | create_gamma_hyp_{NNN} | Publique | Factory création gamma |
@@ -248,14 +292,6 @@
 | `compute_dominant_value()` | Publique | **Non implémenté** (placeholder futur) |
 | `aggregate_event_counts()` | Publique | **Non implémenté** (placeholder futur) |
 
-### applicability.py (Validation applicabilité)
-| Fonction | Type | Responsabilité |
-|----------|------|----------------|
-| `check()` | Publique | Vérifie applicabilité test sur run_metadata |
-| `add_validator()` | Publique | Ajoute validator custom |
-| `VALIDATORS` | Global dict | Registre validators extensible |
-
-
 ### config_loader.py (Chargement configs YAML)
 | Fonction | Type | Responsabilité |
 |----------|------|----------------|
@@ -284,24 +320,27 @@
 | `detect_global_signatures()` | Publique | **Placeholder R1+** (vocabulaire interprét.) |
 | `_compute_concordance_matrix()` | Privée | Matrice concordance 2 axes |
 
-### data_loading.py (I/O observations)
+### data_loading.py (Discovery + Applicabilité + I/O)
 | Fonction | Type | Responsabilité |
 |----------|------|----------------|
-| `load_all_observations()` | Publique | Charge obs SUCCESS avec métadonnées (2 DBs) |
-| `observations_to_dataframe()` | Publique | Convertit obs → DataFrame normalisé |
-| `cache_observations()` | Publique | Cache obs disque (pickle) |
-| `load_cached_observations()` | Publique | Charge cache observations |
+| discover_entities | Publique | Découvre entités actives (test/gamma/encoding/modifier) |
+| check_applicability | Publique | Vérifie applicabilité test sur run_metadata |
+| add_validator | Publique | Ajoute validator custom |
+| load_all_observations | Publique | Charge obs SUCCESS (db_results uniquement) |
+| observations_to_dataframe | Publique | Convertit obs → DataFrame normalisé |
+| cache_observations | Publique | Cache obs disque (pickle) |
+| load_cached_observations | Publique | Charge cache observations |
+| db_connection | Publique | Context manager connexion DB |
+| _discover_tests | Privée | Découvre tests actifs |
+| _discover_gammas | Privée | Découvre gammas actifs |
+| _discover_encodings | Privée | Découvre encodings actifs |
+| _discover_modifiers | Privée | Découvre modifiers actifs |
+| _validate_test_structure | Privée | Valide structure test 5.5 |
+| VALIDATORS | Global dict | Registre validators extensible |
 
 | db_connection | Publique | Gestionnaire contexte DB (context manager) |
 | decompress_snapshot | Publique | Décompresse snapshot gzip+pickle |
 | extract_metric_data | Publique | Extrait statistics + evolution métrique |
-
-### discovery.py (Découverte tests)
-| Fonction | Type | Responsabilité |
-|----------|------|----------------|
-| `discover_active_tests()` | Publique | Découvre tests actifs (non _deprecated) |
-| `validate_test_structure()` | Publique | Valide structure test 5.4 conforme |
-| `REQUIRED_ATTRIBUTES` | Global list | Attributs requis architecture 5.5 |
 
 ### profiling_common.py (Profiling générique tous axes)
 

@@ -136,10 +136,11 @@ Aucun module PRC ne doit tenter de les automatiser.
    └── ...
 ```
 
+
+
 ### Règles Directionnelles (Architecture)
 
 #### Dépendances autorisées
-
 ```
 core → operators, encodings, modifiers
 prc_automation → core, tests, HUB
@@ -149,7 +150,6 @@ registries → (rien)
 ```
 
 #### Interdictions strictes
-
 ```
 ❌ UTIL → HUB
 ❌ HUB → core
@@ -180,7 +180,6 @@ registries → (rien)
 ### Vérification Avant Merge
 
 **Checklist obligatoire** :
-
 - [ ] Pas de `from HUB import` dans UTIL
 - [ ] Pas de duplication fonction (vérifier tables "AVANT DE CODER")
 - [ ] Imports circulaires détectés : `python -m pycircular tests/`
@@ -294,7 +293,6 @@ Applicabilité : SYM, ASY (rang 2 uniquement)
 ```
 
 #### Validation Étape 1
-
 - [ ] Objectif consensuel (équipe)
 - [ ] Métriques justifiées (pas arbitraires)
 - [ ] Exclusions documentées (alternatives considérées)
@@ -305,11 +303,9 @@ Applicabilité : SYM, ASY (rang 2 uniquement)
 ### ÉTAPE 2 : ORGANIGRAMME
 
 #### Objectif
-
 Définir **ARCHITECTURE** avant code.
 
 #### Livrables
-
 **Diagramme modules** :
 ```
 HUB (orchestration)
@@ -339,7 +335,6 @@ rapports (JSON, TXT, CSV)
 ```
 
 #### Validation Étape 2
-
 - [ ] Zéro dépendance circulaire (vérifier `pycircular`)
 - [ ] Modules UTIL purs (zéro dépendance interne PRC)
 - [ ] HUB délègue strictement (pas de calcul inline)
@@ -350,11 +345,9 @@ rapports (JSON, TXT, CSV)
 ### ÉTAPE 3 : STRUCTURE
 
 #### Objectif
-
 Définir **INTERFACES** avant implémentation.
 
 #### Livrables
-
 **Signatures fonctions** :
 ```python
 def profile_all_gammas(observations: List[dict]) -> dict:
@@ -389,7 +382,6 @@ def profile_all_gammas(observations: List[dict]) -> dict:
 - Registries : `registry.function_name`
 
 #### Validation Étape 3
-
 - [ ] Signatures types annotations complètes
 - [ ] Format retour documenté (docstring)
 - [ ] Respect conventions Charter
@@ -400,7 +392,6 @@ def profile_all_gammas(observations: List[dict]) -> dict:
 ### ÉTAPE 4 : CODE
 
 #### Objectif
-
 Implémenter **PROPREMENT** avec documentation.
 
 #### Livrables
@@ -487,7 +478,6 @@ def test_some_gamma():
 ```
 
 #### Validation Étape 4
-
 - [ ] Docstrings complètes (module, classe, méthodes)
 - [ ] Tests unitaires passent
 - [ ] Validation contraintes (assertions)
@@ -501,7 +491,6 @@ def test_some_gamma():
 #### Avant TOUTE Nouvelle Fonction
 
 **Checklist obligatoire** :
-
 1. ✅ Consulter table "⚠️ AVANT DE CODER" du catalogue concerné
 2. ✅ Vérifier PRC_DEPENDENCY_RULES.md (dépendances autorisées)
 3. ✅ Chercher dans `registries/README.md` (si calcul mathématique)
@@ -511,7 +500,6 @@ def test_some_gamma():
 #### Si Fonction EXISTE Déjà
 
 **INTERDICTION ABSOLUE de la recréer**
-
 ```python
 # ❌ INTERDIT
 def extract_conserved_properties(...):
@@ -523,7 +511,6 @@ from .regime_utils import extract_conserved_properties
 ```
 
 #### Si Fonction N'EXISTE PAS
-
 **Créer dans le bon module** (selon PRC_DEPENDENCY_RULES.md) :
 
 ```python
@@ -602,7 +589,6 @@ tests = discover_active_tests()  # Découverte filesystem
 ### Checklist Validation Globale
 
 **Avant merge** :
-
 - [ ] Étapes 1-4 complètes
 - [ ] Docstrings sources complètes
 - [ ] Tests unitaires passent
@@ -1144,6 +1130,29 @@ SPA-001              # Spatial
 GRA-001              # Graphe
 TOP-001              # Topologique
 ```
+
+### Gestions fichiers:
+#### Règle G1 : Une brique = un mécanisme = un fichier, pas un réglage
+
+Critère : "Puis-je expliquer en une phrase ce que cette brique fait de différent ?"
+- OUI → nouveau fichier
+- NON → paramètre
+
+#### Règle G2 : Métadonnées obligatoires complètes
+
+Minimum :
+- ID (attribut fonction)
+- PHASE (variable module)
+- METADATA['description']
+
+Discovery lève CriticalDiscoveryError si absent.
+
+#### Règle G3 : Dépréciation explicite
+
+Jamais supprimer fichier sans :
+- `_deprecated_` dans nom, OU
+- `DEPRECATED = True` dans module
+
 
 ### Termes actualisés
 | Terme | Définition | Remplace |

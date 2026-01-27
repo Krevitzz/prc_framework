@@ -33,32 +33,12 @@
 
 **Placeholders futurs** :
 - `compute_dominant_value()` : Mode/médiane/moyenne catégorielle
-- `aggregate_event_counts()` : Comptage événements boolénsa
+- `aggregate_event_counts()` : Comptage événements booléens
 
 **Notes** :
 - Protection division par zéro (+ 1e-10)
 - IQR ratio : Q3 / max(Q1, 1e-10)
 - CV : std(final) / |mean(final)|
-
-### applicability.py
-**Responsabilité** : Validation applicabilité tests
-
-**Fonctions publiques** :
-- `check(test_module, run_metadata)` : Vérifie applicabilité
-  - Retour : `(applicable: bool, reason: str)`
-  - Validation sur metadata uniquement (pas sur state)
-- `add_validator(name, validator)` : Ajoute validator custom
-
-**Validators disponibles** (VALIDATORS dict) :
-- `requires_rank` : None ou int (vérifie len(state_shape))
-- `requires_square` : bool (vérifie shape[0] == shape[1])
-- `allowed_d_types` : list (vérifie encoding dans liste)
-- `requires_even_dimension` : bool (vérifie dim % 2 == 0)
-- `minimum_dimension` : None ou int (vérifie dim >= min)
-
-**Notes** :
-- None/False = pas de contrainte
-- Extensible via add_validator()
 
 ### config_loader.py
 **Responsabilité** : Chargement configs YAML avec fusion
@@ -117,44 +97,52 @@ tests/config/
 - Interaction vraie : VR(A|B) >> VR(A) marginal
 
 ### data_loading.py
-**Responsabilité** : I/O observations depuis DBs
+**Responsabilité** : Discovery unifiée + Applicabilité + I/O observations
 
-**Double connexion** :
-- `prc_r0_results.db` : TestObservations
-- `prc_r0_raw.db` : Executions (métadonnées runs)
+**Fusion modules** : discovery.py, applicability.py, data_loading.py (legacy)
 
 **Fonctions publiques** :
-- `load_all_observations(params_config_id, db_results_path, db_raw_path)` : Charge obs + metadata
-  - Retour : Liste dicts `{observation_id, exec_id, run_id, gamma_id, d_encoding_id, modifier_id, seed, test_name, params_config_id, observation_data, computed_at}`
+- `discover_entities(entity_type, phase)` : Découvre entités actives
+  - Types : 'test', 'gamma', 'encoding', 'modifier'
+  - Retour : `[{id, module_path, module, function_name, phase, metadata}, ...]`
+- `check_applicability(test_module, run_metadata)` : Vérifie applicabilité
+  - Retour : `(applicable: bool, reason: str)`
+- `add_validator(name, validator)` : Ajoute validator custom
+- `load_all_observations(params_config_id, phase, db_results_path)` : Charge obs SUCCESS
+  - Retour : `[{gamma_id, d_encoding_id, modifier_id, seed, test_name, observation_data, ...}, ...]`
+  - Connexion unique : db_results uniquement
 - `observations_to_dataframe(observations)` : Convertit obs → DataFrame
-  - Projections : value_final, value_initial, value_mean, slope, volatility, relative_change, transition, trend
 - `cache_observations(observations, cache_path)` : Cache pickle
 - `load_cached_observations(cache_path)` : Charge cache
 
+**Helpers internes** :
+- `_discover_tests(phase)` : Tests actifs (skip _deprecated)
+- `_discover_gammas(phase)` : Gammas (1 fichier = 1 gamma)
+- `_discover_encodings(phase)` : Encodings (1 fichier = 1 encoding)
+- `_discover_modifiers(phase)` : Modifiers (1 fichier = 1 modifier)
+- `_validate_test_structure(module)` : Valide structure 5.5
+
+**Validators disponibles** (VALIDATORS dict) :
+- `requires_rank` : None ou int
+- `requires_square` : bool
+- `allowed_d_types` : list
+- `requires_even_dimension` : bool
+- `minimum_dimension` : None ou int
+
+**Exceptions** :
+- `CriticalDiscoveryError` : PHASE absent (gammas/encodings/modifiers)
+- `ValidationError` : Structure module invalide
+
 **Notes** :
-- Fusion exec_id (clé primaire double connexion)
-- Filtre NaN (lignes sans aucune projection valide)
+- PHASE obligatoire pour gammas/encodings/modifiers
+- Extraction ID depuis METADATA['id']
+- Pattern fichiers : {sym,asy,r3}_*.py, m*.py, gamma_hyp_*.py, test_*.py
+- Context manager : `with db_connection(db_path) as conn`
 
-### discovery.py
-**Responsabilité** : Découverte automatique tests actifs
-
-**Fonctions publiques** :
-- `discover_active_tests()` : Découvre tests (skip _deprecated)
-  - Retour : `{test_id: module}`
-- `validate_test_structure(module)` : Valide structure 5.5
-  - Vérifie : Attributs requis, types, version 5.5, format TEST_ID, COMPUTATION_SPECS
-
-**Attributs requis** (REQUIRED_ATTRIBUTES) :
-- TEST_ID, TEST_CATEGORY, TEST_VERSION, APPLICABILITY_SPEC, COMPUTATION_SPECS
-
-**Validations** :
-- TEST_VERSION == '5.5'
-- TEST_ID format : `^[A-Z]{3,4}-\d{3}$`
-- COMPUTATION_SPECS : 1-5 métriques
-- Chaque métrique : registry_key + default_params
-- Pas de FORMULAS legacy
+---
 
 ### profiling_common.py
+
 **Responsabilité** : Profiling générique tous axes (gamma, modifier, encoding, test)
 
 **Architecture unifiée** : Moteur générique avec API découvrable
@@ -178,7 +166,20 @@ tests/config/
 - `_profile_entity_axis()` : Générique tous axes
 - `_compare_entities_summary()` : Comparaisons cross-entities
 
+**Global constant** :
+```python
+ENTITY_KEY_MAP = {
+    'test': 'test_name',
+    'gamma': 'gamma_id',
+    'modifier': 'modifier_id',
+    'encoding': 'd_encoding_id'
+}
+```
+
+---
+
 ### regime_utils.py
+
 **Responsabilité** : Stratification et classification régimes
 
 **Fonctions publiques** :
@@ -199,7 +200,10 @@ tests/config/
 
 **Qualificatif** : MIXED::{régime_base} si bimodal détecté
 
+---
+
 ### report_writers.py
+
 **Responsabilité** : Formatage rapports structurés
 
 **Fonctions publiques** :
@@ -217,7 +221,10 @@ tests/config/
 - Formatage TXT lisible humains
 - Sections standardisées (header, body, footer)
 
+---
+
 ### statistical_utils.py
+
 **Responsabilité** : Outils statistiques réutilisables
 
 **Calculs variance** :
@@ -245,7 +252,10 @@ tests/config/
 - Filtrage groupes vides automatique
 - Diagnostics contextuels (test×métrique×projection)
 
+---
+
 ### timeline_utils.py
+
 **Responsabilité** : Timelines dynamiques compositionnels
 
 **Architecture** : Seuils globaux relatifs (TIMELINE_THRESHOLDS)
@@ -268,6 +278,28 @@ tests/config/
 - `early_instability_then_collapse`
 - `mid_deviation_then_saturation`
 - `oscillatory_early_deviation_only`
+
+---
+
+## DÉPENDANCES AUTORISÉES
+
+```
+UTIL Niveau 1:
+  → NumPy, Pandas, SciPy
+
+UTIL Niveau 2:
+  → Niveau 1
+
+UTIL Niveau 3:
+  → Niveau 2 + timeline_utils, aggregation_utils, regime_utils
+
+UTIL Niveau 4:
+  → Niveau 3 + profiling_common
+
+INTERDICTIONS:
+  ❌ UTIL → HUB
+  ❌ UTIL → core, operators, D_encodings, modifiers, tests
+```
 
 ## DÉPENDANCES AUTORISÉES
 
@@ -310,4 +342,6 @@ INTERDICTIONS:
 - ❌ Fonctions spécifiques 1 cas d'usage (pas génériques)
 - ❌ Dépendances UTIL → HUB (violé hiérarchie)
 
-**FIN UTIL CATALOG**
+---
+
+**FIN UTIL CATALOG v2.0 (PHASE 10)**

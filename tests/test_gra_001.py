@@ -27,6 +27,7 @@ TEST_ID = "GRA-001"
 TEST_CATEGORY = "GRAPH"
 TEST_VERSION = "5.5" 
 TEST_WEIGHT = 1.0   
+TEST_PHASE = None  # Applicable toutes phases
   
 APPLICABILITY_SPEC = {
     "requires_rank": 2,

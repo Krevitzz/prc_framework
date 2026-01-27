@@ -1,0 +1,98 @@
+================================================================================
+RAPPORT GAMMA - PROFILING R0
+================================================================================
+Généré le : 
+Axe analysé : gamma
+Entités profilées : 2
+Observations totales : 135
+
+================================================================================
+DISTRIBUTION RÉGIMES
+================================================================================
+
+
+
+CONSERVATION (régimes sains) :
+  CONSERVES_PATTERN                   :   1 (25.0%)
+  CONSERVES_GRADIENT                  :   1 (25.0%)
+
+PATHOLOGIES :
+  OSCILLATORY_UNSTABLE                :   1 (25.0%)
+
+MULTIMODALITÉ (MIXED::X) :
+  MIXED::OSCILLATORY_UNSTABLE         :   1 (25.0%)
+
+
+================================================================================
+SIGNATURES DYNAMIQUES
+================================================================================
+
+
+GAM-001 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+GAM-013 :
+  Timeline dominante : early_deviation_then_saturation (50% tests)
+  Variantes (2 distinctes) :
+    - oscillatory_late_saturation_only (1 tests)
+
+
+================================================================================
+PROFILS INDIVIDUELS
+================================================================================
+
+
+GAM-001
+--------------------------------------------------------------------------------
+Tests profilés : 2
+Runs totaux    : 75
+
+Régimes par test :
+  GRA-001         : CONSERVES_GRADIENT                  [stable] (low)
+  PAT-001         : CONSERVES_PATTERN                   [stable] (low)
+
+Propriétés conservées :
+  PATTERN, GRADIENT
+
+
+GAM-013
+--------------------------------------------------------------------------------
+Tests profilés : 2
+Runs totaux    : 60
+
+Régimes par test :
+  GRA-001         : MIXED::OSCILLATORY_UNSTABLE         [mixed] (low)
+  PAT-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+
+Propriétés conservées :
+  Aucune propriété systématiquement conservée
+
+
+================================================================================
+COMPARAISONS INTER-ENTITÉS
+================================================================================
+
+Régimes dominants :
+  MIXED::OSCILLATORY_UNSTABLE         : 1 entités (GAM-013)
+  CONSERVES_PATTERN                   : 1 entités (GAM-001)
+
+Rankings par test (conservation) :
+
+GRA-001 :
+  Meilleur conservation : GAM-001
+  Pire conservation     : GAM-013
+  Top 5 : GAM-001, GAM-013
+PAT-001 :
+  Meilleur conservation : GAM-001
+  Pire conservation     : GAM-013
+  Top 5 : GAM-001, GAM-013
+
+================================================================================
+CONSULTATION DÉTAILLÉE
+================================================================================
+Profils complets JSON : profiles/gamma/
+Comparaisons          : comparisons/rankings_gamma.json
+Données brutes        : analysis_complete.json (section 'gamma')
+
+================================================================================

@@ -1,0 +1,118 @@
+================================================================================
+RAPPORT ENCODING - PROFILING R0
+================================================================================
+Généré le : 
+Axe analysé : encoding
+Entités profilées : 3
+Observations totales : 135
+
+================================================================================
+DISTRIBUTION RÉGIMES
+================================================================================
+
+
+
+CONSERVATION (régimes sains) :
+  MIXED::CONSERVES_PATTERN            :   1 (20.0%)
+
+PATHOLOGIES :
+  OSCILLATORY_UNSTABLE                :   2 (40.0%)
+  TRIVIAL                             :   1 (20.0%)
+
+MULTIMODALITÉ (MIXED::X) :
+  MIXED::SATURATES_HIGH               :   1 (20.0%)
+  MIXED::CONSERVES_PATTERN            :   1 (20.0%)
+
+
+================================================================================
+SIGNATURES DYNAMIQUES
+================================================================================
+
+
+ASY-001 :
+  Timeline dominante : early_instability_then_saturation (50% tests)
+  Variantes (2 distinctes) :
+    - early_instability_to_saturation_complex (1 tests)
+
+
+R3-001 :
+  Timeline dominante : early_instability_to_saturation_complex (100% tests)
+
+
+SYM-001 :
+  Timeline dominante : early_instability_to_saturation_complex (50% tests)
+  Variantes (2 distinctes) :
+    - late_saturation_only (1 tests)
+
+
+================================================================================
+PROFILS INDIVIDUELS
+================================================================================
+
+
+ASY-001
+--------------------------------------------------------------------------------
+Tests profilés : 2
+Runs totaux    : 60
+
+Régimes par test :
+  GRA-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+  PAT-001         : OSCILLATORY_UNSTABLE                [unstable] (low)
+
+Propriétés conservées :
+  Aucune propriété systématiquement conservée
+
+
+R3-001
+--------------------------------------------------------------------------------
+Tests profilés : 1
+Runs totaux    : 15
+
+Régimes par test :
+  PAT-001         : TRIVIAL                             [stable] (low)
+
+Propriétés conservées :
+  Aucune propriété systématiquement conservée
+
+
+SYM-001
+--------------------------------------------------------------------------------
+Tests profilés : 2
+Runs totaux    : 60
+
+Régimes par test :
+  GRA-001         : MIXED::SATURATES_HIGH               [mixed] (low)
+  PAT-001         : MIXED::CONSERVES_PATTERN            [mixed] (low)
+
+Propriétés conservées :
+  PATTERN
+
+
+================================================================================
+COMPARAISONS INTER-ENTITÉS
+================================================================================
+
+Régimes dominants :
+  MIXED::SATURATES_HIGH               : 1 entités (SYM-001)
+  TRIVIAL                             : 1 entités (R3-001)
+  OSCILLATORY_UNSTABLE                : 1 entités (ASY-001)
+
+Rankings par test (conservation) :
+
+GRA-001 :
+  Meilleur conservation : ASY-001
+  Pire conservation     : SYM-001
+  Top 5 : ASY-001, SYM-001
+PAT-001 :
+  Meilleur conservation : SYM-001
+  Pire conservation     : ASY-001
+  Top 5 : SYM-001, R3-001, ASY-001
+
+================================================================================
+CONSULTATION DÉTAILLÉE
+================================================================================
+Profils complets JSON : profiles/encoding/
+Comparaisons          : comparisons/rankings_encoding.json
+Données brutes        : analysis_complete.json (section 'encoding')
+
+================================================================================
