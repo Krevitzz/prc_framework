@@ -1,0 +1,67 @@
+{
+  "version": "1.0",
+  "phase": "R0",
+  "last_update": "2026-01-28T13:32:38.483875",
+  "loaded_files": {
+    "gammas": [
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_001.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_002.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_003.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_004.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_005.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_006.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_007.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_008.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_009.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_010.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_012.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\operators\\gamma_hyp_013.py"
+    ],
+    "encodings": [
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\asy_001_random_asymmetric.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\asy_002_lower_triangular.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\asy_003_antisymmetric.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\asy_004_directional_gradient.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\asy_005_circulant.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\asy_006_sparse.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\r3_001_random_uniform.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\r3_002_partial_symmetric.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\r3_003_local_coupling.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\r3_004_fully_symmetric.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\r3_005_diagonal.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\r3_006_separable.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\r3_007_block_structure.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\sym_001_identity.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\sym_002_random_uniform.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\sym_003_random_gaussian.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\sym_004_correlation_matrix.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\sym_005_banded.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\sym_006_block_hierarchical.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\sym_007_uniform_correlation.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\D_encodings\\sym_008_random_clipped.py"
+    ],
+    "modifiers": [
+      "C:\\Users\\Windows-Pc\\prc_framework\\modifiers\\m0_baseline.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\modifiers\\m1_gaussian_noise.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\modifiers\\m2_uniform_noise.py"
+    ],
+    "tests": [
+      "C:\\Users\\Windows-Pc\\prc_framework\\tests\\test_gra_001.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\tests\\test_pat_001.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\tests\\test_spa_001.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\tests\\test_spe_001.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\tests\\test_spe_002.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\tests\\test_sym_001.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\tests\\test_top_001.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\tests\\test_uni_001.py",
+      "C:\\Users\\Windows-Pc\\prc_framework\\tests\\test_uni_002.py"
+    ]
+  },
+  "counts": {
+    "gammas": 12,
+    "encodings": 21,
+    "modifiers": 3,
+    "tests": 9,
+    "total_combinations": 3780
+  }
+}

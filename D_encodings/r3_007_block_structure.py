@@ -25,7 +25,7 @@ METADATA = {
 }
 
 # ============ FONCTION PRINCIPALE ============
-def create(n_dof: int, n_blocks: int = 4) -> np.ndarray:
+def create(n_dof: int, n_blocks: int = 5) -> np.ndarray:
     """
     Crée tenseur par blocs.
     

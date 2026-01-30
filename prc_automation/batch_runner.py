@@ -364,7 +364,7 @@ def run_batch_brut(
             modifier_func = getattr(modifier_module, modifier_func_name)
             
             # 2. Préparer encoding_params (n_dof obligatoire)
-            encoding_params = {'n_dof': 100}
+            encoding_params = {'n_dof': 50}
             
             # 3. Préparer modifiers et configs
             modifiers_list = [modifier_func]
