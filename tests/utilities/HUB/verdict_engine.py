@@ -178,8 +178,14 @@ def analyze_marginal_variance(
                 })
     
     print(f"   ⊘ Skipped {skipped_testability} groups (min_samples)")
-    
-    return pd.DataFrame(results).sort_values('variance_ratio', ascending=False)
+
+    # Protection cas limite : données insuffisantes
+    df_results = pd.DataFrame(results)
+    if df_results.empty:
+        print(f"   ⚠️ Aucun groupe testable (tous < {MIN_TOTAL_SAMPLES} observations)")
+        return pd.DataFrame()  # Retour vide propre
+
+    return df_results.sort_values('variance_ratio', ascending=False)
 
 
 # =============================================================================
@@ -435,21 +441,24 @@ def interpret_patterns(
         'redundant': []
     }
     
-    # 1. Variance marginale dominante
-    dominant = marginal_variance[
-        (marginal_variance['variance_ratio'] > 0.5) &
-        (marginal_variance['significant'])
-    ]
-    
-    if not dominant.empty:
-        for factor in dominant['factor'].unique():
-            subset = dominant[dominant['factor'] == factor]
-            patterns_global['marginal_dominant'].append({
-                'factor': factor,
-                'n_metrics': len(subset),
-                'projections': subset['projection'].unique().tolist(),
-                'max_variance_ratio': float(subset['variance_ratio'].max())
-            })
+  # 1. Variance marginale dominante
+    if not marginal_variance.empty:  # ← Protection ajoutée
+        dominant = marginal_variance[
+            (marginal_variance['variance_ratio'] > 0.5) &
+            (marginal_variance['significant'])
+        ]
+        
+        if not dominant.empty:
+            for factor in dominant['factor'].unique():
+                subset = dominant[dominant['factor'] == factor]
+                patterns_global['marginal_dominant'].append({
+                    'factor': factor,
+                    'n_metrics': len(subset),
+                    'projections': subset['projection'].unique().tolist(),
+                    'max_variance_ratio': float(subset['variance_ratio'].max())
+                })
+
+
     
     # 2. Interactions orientées (VRAIES)
     if not oriented_interactions.empty:
@@ -466,12 +475,14 @@ def interpret_patterns(
             })
     
     # 3. Non discriminant
-    non_disc = discrimination[discrimination['non_discriminant']]
-    if not non_disc.empty:
-        patterns_global['non_discriminant'].append({
-            'n_metrics': len(non_disc),
-            'projections': non_disc['projection'].unique().tolist()
-        })
+    if not discrimination.empty:  # ← Protection ajoutée
+        non_disc = discrimination[discrimination['non_discriminant']]
+        if not non_disc.empty:
+            patterns_global['non_discriminant'].append({
+                'n_metrics': len(non_disc),
+                'projections': non_disc['projection'].unique().tolist()
+            })
+
     
     # 4. Redondant
     if not correlations.empty:
@@ -503,18 +514,19 @@ def interpret_patterns(
         }
         
         # Dominant dans gamma
-        dominant_gamma = gamma_marginal[
-            (gamma_marginal['variance_ratio'] > 0.5) &
-            (gamma_marginal['significant'])
-        ]
-        
-        if not dominant_gamma.empty:
-            for factor in dominant_gamma['factor'].unique():
-                subset = dominant_gamma[dominant_gamma['factor'] == factor]
-                patterns_gamma['marginal_dominant'].append({
-                    'factor': factor,
-                    'n_metrics': len(subset)
-                })
+        if not gamma_marginal.empty:  # ← Protection ajoutée
+            dominant_gamma = gamma_marginal[
+                (gamma_marginal['variance_ratio'] > 0.5) &
+                (gamma_marginal['significant'])
+            ]
+            
+            if not dominant_gamma.empty:
+                for factor in dominant_gamma['factor'].unique():
+                    subset = dominant_gamma[dominant_gamma['factor'] == factor]
+                    patterns_gamma['marginal_dominant'].append({
+                        'factor': factor,
+                        'n_metrics': len(subset)
+                    })
         
         # Interactions dans gamma (simplifié pour drill-down)
         if not oriented_interactions.empty:

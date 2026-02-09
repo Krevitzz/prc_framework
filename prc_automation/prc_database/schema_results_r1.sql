@@ -1,4 +1,3 @@
-
 -- File: prc_automation/prc_database/schema_results_r1.sql
 
 -- =============================================================================
@@ -42,20 +41,20 @@ CREATE TABLE IF NOT EXISTS observations (
     evolution_relative_change REAL,
     
     -- Contraintes
-    PRIMARY KEY (test_name, sequence_exec_id, d_encoding_id, modifier_id, seed, phase) 
-        WHERE sequence_exec_id IS NOT NULL,
-    PRIMARY KEY (test_name, gamma_id, d_encoding_id, modifier_id, seed, phase) 
-        WHERE gamma_id IS NOT NULL,
     CHECK (status IN ('SUCCESS', 'ERROR', 'NOT_APPLICABLE')),
     CHECK ((sequence_exec_id IS NOT NULL AND gamma_id IS NULL) OR 
-           (sequence_exec_id IS NULL AND gamma_id IS NOT NULL))
+           (sequence_exec_id IS NULL AND gamma_id IS NOT NULL)),
+    
+    -- Unicité selon contexte (R0 vs R1)
+    UNIQUE (test_name, sequence_exec_id, d_encoding_id, modifier_id, seed, phase),
+    UNIQUE (test_name, gamma_id, d_encoding_id, modifier_id, seed, phase)
 );
 
 -- Index performance
-CREATE INDEX idx_obs_r1_sequence ON observations(sequence_exec_id, phase);
-CREATE INDEX idx_obs_r1_seq_length ON observations(sequence_length, phase);
-CREATE INDEX idx_obs_r1_test ON observations(test_name, phase);
-CREATE INDEX idx_obs_r1_status ON observations(status, phase);
+CREATE INDEX IF NOT EXISTS idx_obs_r1_sequence ON observations(sequence_exec_id, phase);
+CREATE INDEX IF NOT EXISTS idx_obs_r1_seq_length ON observations(sequence_length, phase);
+CREATE INDEX IF NOT EXISTS idx_obs_r1_test ON observations(test_name, phase);
+CREATE INDEX IF NOT EXISTS idx_obs_r1_status ON observations(status, phase);
 
 -- =============================================================================
 -- FIN SCHEMA

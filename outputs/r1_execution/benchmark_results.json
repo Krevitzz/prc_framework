@@ -1,0 +1,200 @@
+{
+  "metadata": {
+    "timestamp": "2026-02-01T06:32:17.897415",
+    "n_tests": 6,
+    "n_successes": 4
+  },
+  "results": [
+    {
+      "config": {
+        "name": "doublet_sym",
+        "sequence": [
+          "GAM-001",
+          "GAM-002"
+        ],
+        "d_encoding_id": "SYM-001",
+        "modifier_id": "M0",
+        "seed": 42
+      },
+      "sequence_exec_id": "ee4a097d-f68d-4184-8fb2-556ef33989be",
+      "success": true,
+      "time": {
+        "elapsed_seconds": 0.8651673793792725,
+        "elapsed_minutes": 0.014419456322987875
+      },
+      "storage": {
+        "delta_bytes": 552960,
+        "delta_mb": 0.52734375,
+        "delta_sequences": 1,
+        "delta_snapshots": 402,
+        "bytes_per_sequence": 552960.0,
+        "bytes_per_snapshot": 1375.5223880597016
+      },
+      "metrics": {
+        "seconds_per_gamma": 0.43258368968963623,
+        "mb_per_gamma": 0.263671875,
+        "snapshots_per_sequence": 402
+      }
+    },
+    {
+      "config": {
+        "name": "doublet_asy",
+        "sequence": [
+          "GAM-001",
+          "GAM-002"
+        ],
+        "d_encoding_id": "ASY-001",
+        "modifier_id": "M0",
+        "seed": 42
+      },
+      "sequence_exec_id": "d1c883dc-c159-48c6-9831-68403824aa4e",
+      "success": true,
+      "time": {
+        "elapsed_seconds": 8.814282894134521,
+        "elapsed_minutes": 0.14690471490224202
+      },
+      "storage": {
+        "delta_bytes": 16596992,
+        "delta_mb": 15.828125,
+        "delta_sequences": 1,
+        "delta_snapshots": 402,
+        "bytes_per_sequence": 16596992.0,
+        "bytes_per_snapshot": 41286.04975124378
+      },
+      "metrics": {
+        "seconds_per_gamma": 4.407141447067261,
+        "mb_per_gamma": 7.9140625,
+        "snapshots_per_sequence": 402
+      }
+    },
+    {
+      "config": {
+        "name": "doublet_r3",
+        "sequence": [
+          "GAM-001",
+          "GAM-002"
+        ],
+        "d_encoding_id": "R3-001",
+        "modifier_id": "M0",
+        "seed": 42
+      },
+      "success": false,
+      "error": "PureDiffusionGamma applicable uniquement rang 2, re\u00e7u rang 3"
+    },
+    {
+      "config": {
+        "name": "triplet_sym",
+        "sequence": [
+          "GAM-001",
+          "GAM-002",
+          "GAM-003"
+        ],
+        "d_encoding_id": "SYM-001",
+        "modifier_id": "M0",
+        "seed": 42
+      },
+      "sequence_exec_id": "237bbdeb-2af4-4a1a-808c-082926c7d99f",
+      "success": true,
+      "time": {
+        "elapsed_seconds": 1.132272720336914,
+        "elapsed_minutes": 0.018871212005615236
+      },
+      "storage": {
+        "delta_bytes": 999424,
+        "delta_mb": 0.953125,
+        "delta_sequences": 1,
+        "delta_snapshots": 603,
+        "bytes_per_sequence": 999424.0,
+        "bytes_per_snapshot": 1657.4195688225539
+      },
+      "metrics": {
+        "seconds_per_gamma": 0.3774242401123047,
+        "mb_per_gamma": 0.3177083333333333,
+        "snapshots_per_sequence": 603
+      }
+    },
+    {
+      "config": {
+        "name": "triplet_asy",
+        "sequence": [
+          "GAM-001",
+          "GAM-002",
+          "GAM-003"
+        ],
+        "d_encoding_id": "ASY-001",
+        "modifier_id": "M0",
+        "seed": 42
+      },
+      "sequence_exec_id": "ff90e765-2943-48d3-83ac-c753fd1ded56",
+      "success": true,
+      "time": {
+        "elapsed_seconds": 9.837172985076904,
+        "elapsed_minutes": 0.16395288308461506
+      },
+      "storage": {
+        "delta_bytes": 32243712,
+        "delta_mb": 30.75,
+        "delta_sequences": 1,
+        "delta_snapshots": 603,
+        "bytes_per_sequence": 32243712.0,
+        "bytes_per_snapshot": 53472.159203980096
+      },
+      "metrics": {
+        "seconds_per_gamma": 3.2790576616923013,
+        "mb_per_gamma": 10.25,
+        "snapshots_per_sequence": 603
+      }
+    },
+    {
+      "config": {
+        "name": "triplet_r3",
+        "sequence": [
+          "GAM-001",
+          "GAM-002",
+          "GAM-003"
+        ],
+        "d_encoding_id": "R3-001",
+        "modifier_id": "M0",
+        "seed": 42
+      },
+      "success": false,
+      "error": "PureDiffusionGamma applicable uniquement rang 2, re\u00e7u rang 3"
+    }
+  ],
+  "summary": {
+    "doublets": {
+      "n_tests": 2,
+      "avg_time_seconds": 4.839725136756897,
+      "avg_storage_mb": 8.177734375
+    },
+    "triplets": {
+      "n_tests": 2,
+      "avg_time_seconds": 5.484722852706909,
+      "avg_storage_mb": 15.8515625
+    },
+    "constants": {
+      "time_per_gamma_seconds": 2.064889597892761,
+      "storage_per_gamma_mb": 4.805859375
+    }
+  },
+  "extrapolations": {
+    "full_config": {
+      "n_runs": 11340,
+      "time_hours": 17.887106141746045,
+      "time_days": 0.7452960892394186,
+      "storage_gb": 146.35812950134277
+    },
+    "reduced_3enc_5seeds": {
+      "time_hours": 2.555300877392292,
+      "storage_gb": 20.90830421447754
+    },
+    "reduced_21enc_2seeds": {
+      "time_hours": 7.154842456698418,
+      "storage_gb": 58.543251800537114
+    },
+    "reduced_3enc_2seeds": {
+      "time_hours": 1.0221203509569168,
+      "storage_gb": 8.363321685791016
+    }
+  }
+}

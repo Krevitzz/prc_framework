@@ -127,10 +127,16 @@ class AlgebraRegistry(BaseRegistry):
             return float(np.sum(np.linalg.svd(state, compute_uv=False)))
         
         elif isinstance(norm_type, int):
+            # ✅ INT natif (Python direct)
             return float(np.linalg.norm(state.flatten(), norm_type))
         
         else:
-            raise ValueError(f"Type norme inconnu: {norm_type}")
+            # ✅ FIX: Tentative conversion string → int (YAML/JSON)
+            try:
+                norm_type_int = int(norm_type)
+                return float(np.linalg.norm(state.flatten(), norm_type_int))
+            except (ValueError, TypeError):
+                raise ValueError(f"Type norme inconnu: {norm_type}")
     
     @register_function("frobenius_norm")
     def compute_frobenius(

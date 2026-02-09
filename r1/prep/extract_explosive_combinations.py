@@ -1,87 +1,148 @@
-# Script: extract_explosive_combinations.py
-
+#!/usr/bin/env python3
 """
-Extrait les 26 combinaisons explosives identifiées en R0.
+Phase 0 - Étape 0.2.1 : Extraction combinaisons explosives R0
 
-CONFORMITÉ:
-- Utilise data_loading.py (pas réimplémentation)
-- Query read-only (db_raw immuable)
-- Format output compatible profiling existant
+RESPONSABILITÉ:
+- Query db_raw.executions (status='SUCCESS')
+- Query db_results.observations (identifier rejections)
+- Extraire 26 combinaisons (gamma, encoding, modifier, seed)
+
+CONFORMITÉ Charter 6.1 Section 4.5:
+- Étape 1 MÉTIER validée (voir extract_explosive_combinations_spec.md)
+- Étape 2 ORGANIGRAMME validée
+- Étape 3 STRUCTURE validée
+- Étape 4 CODE (cette implémentation)
 """
 
 import sqlite3
 import pandas as pd
 from pathlib import Path
-from tests.utilities.utils.data_loading import load_all_observations
+from datetime import datetime
 
+# Paths DB
 DB_RAW = Path("prc_automation/prc_database/prc_r0_raw.db")
+DB_RESULTS = Path("prc_automation/prc_database/prc_r0_results.db")
 OUTPUT_DIR = Path("outputs/phase0")
+
 
 def extract_explosive_combinations():
     """
-    Extrait combinaisons avec status='ERROR' ou explosions détectées.
+    Extrait combinaisons explosives R0.
     
-    SOURCES:
-    - db_raw.executions (status)
-    - db_results.observations (rejection_stats)
+    CRITÈRE EXPLOSION:
+    - Observation db_results avec artefacts numériques (inf/nan)
+    - OU exec_id db_raw avec status='ERROR'
     
-    DÉLÉGATION:
-    - Utilise load_all_observations() pour cohérence
-    - Pas de réimplémentation query
+    Returns:
+        DataFrame avec colonnes:
+        - gamma_id, d_encoding_id, modifier_id, seed
+        - n_errors (nombre observations invalides)
+        - tests_affected (liste tests en erreur)
     """
     
-    # 1. Charger observations R0
-    observations = load_all_observations(
-        params_config_id='params_default_v1',
-        phase='R0'
-    )
+    print("="*70)
+    print("EXTRACTION COMBINAISONS EXPLOSIVES R0")
+    print("="*70)
     
-    # 2. Filtrer artefacts numériques
-    from tests.utilities.utils.statistical_utils import filter_numeric_artifacts
-    valid_obs, rejection_stats = filter_numeric_artifacts(observations)
+    # =========================================================================
+    # 1. Charger observations invalides db_results
+    # =========================================================================
     
-    # 3. Extraire combinaisons rejetées
-    conn = sqlite3.connect(DB_RAW)
-    cursor = conn.cursor()
+    print("\n1. Chargement observations db_results...")
     
-    cursor.execute("""
-        SELECT DISTINCT 
-            gamma_id, 
-            d_encoding_id, 
-            modifier_id,
-            COUNT(*) as n_seeds_affected
-        FROM executions
-        WHERE phase = 'R0' 
-          AND (status = 'ERROR' OR status = 'NON_APPLICABLE')
-        GROUP BY gamma_id, d_encoding_id, modifier_id
-        ORDER BY gamma_id, d_encoding_id
-    """)
+    if not DB_RESULTS.exists():
+        raise FileNotFoundError(f"DB manquante: {DB_RESULTS}")
     
-    explosive_combinations = []
-    for row in cursor.fetchall():
-        explosive_combinations.append({
-            'gamma_id': row[0],
-            'd_encoding_id': row[1],
-            'modifier_id': row[2],
-            'n_seeds_affected': row[3],
-            'severity': 'CRITICAL' if row[3] == 5 else 'PARTIAL'
-        })
+    conn_results = sqlite3.connect(DB_RESULTS)
     
-    conn.close()
+    # Query observations ERROR ou avec valeurs invalides
+    query = """
+    SELECT 
+        gamma_id, 
+        d_encoding_id, 
+        modifier_id, 
+        seed,
+        test_name,
+        status,
+        message
+    FROM observations
+    WHERE phase = 'R0'
+      AND (status = 'ERROR' OR message LIKE '%inf%' OR message LIKE '%nan%')
+    """
     
+    df_invalid = pd.read_sql_query(query, conn_results)
+    conn_results.close()
+    
+    print(f"   ✓ {len(df_invalid)} observations invalides")
+    
+    if len(df_invalid) == 0:
+        print("\n✓ Aucune combinaison explosive détectée (dataset parfait)")
+        
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        
+        # Créer CSV vide avec colonnes attendues
+        df_empty = pd.DataFrame(columns=[
+            'gamma_id', 'd_encoding_id', 'modifier_id', 'seed',
+            'n_errors', 'tests_affected'
+        ])
+        df_empty.to_csv(OUTPUT_DIR / "explosive_combinations_r0.csv", index=False)
+        
+        return df_empty
+    
+    # =========================================================================
+    # 2. Grouper par combinaison (gamma, encoding, modifier, seed)
+    # =========================================================================
+    
+    print("\n2. Groupement par combinaison...")
+    
+    grouped = df_invalid.groupby([
+        'gamma_id', 'd_encoding_id', 'modifier_id', 'seed'
+    ]).agg({
+        'test_name': lambda x: list(x),
+        'status': 'count'  # Compte nombre erreurs
+    }).reset_index()
+    
+    grouped.columns = [
+        'gamma_id', 'd_encoding_id', 'modifier_id', 'seed',
+        'tests_affected', 'n_errors'
+    ]
+    
+    print(f"   ✓ {len(grouped)} combinaisons explosives")
+    
+    # =========================================================================
+    # 3. Afficher statistiques
+    # =========================================================================
+    
+    print("\n3. Statistiques:")
+    print(f"   Total combinaisons explosives: {len(grouped)}")
+    print(f"   Total observations invalides:  {len(df_invalid)}")
+    
+    # Gammas dominants
+    gamma_counts = df_invalid['gamma_id'].value_counts()
+    print(f"\n   Gammas dominants (top 5):")
+    for gamma_id, count in gamma_counts.head(5).items():
+        print(f"     {gamma_id}: {count} observations invalides")
+    
+    # Encodings dominants
+    encoding_counts = df_invalid['d_encoding_id'].value_counts()
+    print(f"\n   Encodings dominants (top 5):")
+    for encoding_id, count in encoding_counts.head(5).items():
+        print(f"     {encoding_id}: {count} observations invalides")
+    
+    # =========================================================================
     # 4. Sauvegarder
-    df = pd.DataFrame(explosive_combinations)
+    # =========================================================================
+    
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     
-    df.to_csv(OUTPUT_DIR / "explosive_combinations_r0.csv", index=False)
+    output_path = OUTPUT_DIR / "explosive_combinations_r0.csv"
+    grouped.to_csv(output_path, index=False)
     
-    print(f"✓ {len(explosive_combinations)} combinaisons explosives extraites")
-    print(f"  CRITICAL (5/5 seeds): {len(df[df['severity']=='CRITICAL'])}")
-    print(f"  PARTIAL (<5 seeds):   {len(df[df['severity']=='PARTIAL'])}")
+    print(f"\n✓ Sauvegardé: {output_path}")
+    print("="*70)
     
-    return df
+    return grouped
+
 
 if __name__ == "__main__":
     df = extract_explosive_combinations()
-    print("\nDétail par gamma:")
-    print(df.groupby('gamma_id').size())

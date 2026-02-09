@@ -1,16 +1,26 @@
 #!/usr/bin/env python3
 """
-Utilitaires gestion bases de données PRC.
+Utilitaires gestion bases de données PRC (V2 - Sans db_raw).
+
+CHANGEMENTS V2:
+- Suppression db_raw (pipeline unifié batch_runner_v3)
+- R0 : Une seule DB (prc_r0_results.db)
+- R1 : Deux DBs (prc_r1_results.db + prc_r1_sequences.db)
 
 Modes:
 - init: Création schéma vierge
-- clean: Nettoyage sélectif (deprecated, rejected)
+- clean: Nettoyage sélectif (deprecated)
 - backup: Sauvegarde timestampée
 - export_schema: Export structure sans données
 - export_json: Export complet en JSON
 
 Usage:
+    # R0 (1 DB)
     python -m prc_automation.utils_databases --mode init --phase R0
+    
+    # R1 (2 DBs)
+    python -m prc_automation.utils_databases --mode init --phase R1
+    
     python -m prc_automation.utils_databases --mode clean --phase R0
     python -m prc_automation.utils_databases --mode backup --phase R0
     python -m prc_automation.utils_databases --mode export_schema --phase R0
@@ -25,7 +35,7 @@ import shutil
 import tarfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, List
 
 
 # =============================================================================
@@ -33,76 +43,115 @@ from typing import Dict, Any
 # =============================================================================
 
 DB_DIR = Path("./prc_automation/prc_database")
-SCHEMA_RAW = DB_DIR / "schema_raw.sql"
-SCHEMA_RESULTS = DB_DIR / "schema_results.sql"
 
-
-def get_db_paths(phase: str = 'R0') -> Dict[str, Path]:
-    """Retourne chemins bases pour phase donnée."""
-    return {
-        'raw': DB_DIR / f"prc_{phase.lower()}_raw.db",
-        'results': DB_DIR / f"prc_{phase.lower()}_results.db"
+# Schemas par phase
+SCHEMAS = {
+    'R0': {
+        'results': DB_DIR / "schema_results.sql"
+    },
+    'R1': {
+        'results': DB_DIR / "schema_results_r1.sql",
+        'sequences': DB_DIR / "schema_sequences_r1.sql"
     }
+}
+
+
+def get_db_paths(phase: str) -> Dict[str, Path]:
+    """
+    Retourne chemins DBs pour phase donnée.
+    
+    Args:
+        phase: 'R0' ou 'R1'
+    
+    Returns:
+        R0: {'results': prc_r0_results.db}
+        R1: {'results': prc_r1_results.db, 'sequences': prc_r1_sequences.db}
+    """
+    phase_lower = phase.lower()
+    
+    if phase == 'R0':
+        return {
+            'results': DB_DIR / f"prc_{phase_lower}_results.db"
+        }
+    elif phase == 'R1':
+        return {
+            'results': DB_DIR / f"prc_{phase_lower}_results.db",
+            'sequences': DB_DIR / f"prc_{phase_lower}_sequences.db"
+        }
+    else:
+        raise ValueError(f"Phase inconnue: {phase} (attendu 'R0' ou 'R1')")
 
 
 # =============================================================================
 # MODE INIT
 # =============================================================================
 
-def init_databases(phase: str = 'R0') -> None:
+def init_databases(phase: str) -> None:
     """
     Crée schéma bases vierges.
     
+    R0: Crée prc_r0_results.db
+    R1: Crée prc_r1_results.db + prc_r1_sequences.db
+    
     Args:
-        phase: Phase cible ('R0', 'R1', etc.)
+        phase: Phase cible ('R0', 'R1')
     
     Raises:
         FileExistsError: Si bases existent déjà
+        FileNotFoundError: Si schemas manquants
     """
     print(f"\n{'='*70}")
     print(f"INITIALISATION BASES {phase}")
     print(f"{'='*70}\n")
     
+    # Vérifier phase supportée
+    if phase not in SCHEMAS:
+        raise ValueError(f"Phase non supportée: {phase} (disponibles: {list(SCHEMAS.keys())})")
+    
     paths = get_db_paths(phase)
+    schemas = SCHEMAS[phase]
     
     # Vérifier existence
-    if paths['raw'].exists() or paths['results'].exists():
+    existing = [name for name, path in paths.items() if path.exists()]
+    if existing:
         raise FileExistsError(
-            f"Bases {phase} existent déjà. Utiliser --mode backup puis supprimer."
+            f"Bases {phase} existent déjà: {', '.join(existing)}\n"
+            f"→ Utiliser --mode backup puis supprimer manuellement."
         )
     
     # Créer répertoire
     DB_DIR.mkdir(parents=True, exist_ok=True)
     
-    # Vérifier schemas
-    if not SCHEMA_RAW.exists():
-        raise FileNotFoundError(f"Schema manquant: {SCHEMA_RAW}")
-    if not SCHEMA_RESULTS.exists():
-        raise FileNotFoundError(f"Schema manquant: {SCHEMA_RESULTS}")
+    # Vérifier schemas disponibles
+    missing_schemas = [name for name, path in schemas.items() if not path.exists()]
+    if missing_schemas:
+        raise FileNotFoundError(
+            f"Schemas manquants pour {phase}: {', '.join(missing_schemas)}\n"
+            f"Attendus:\n" + '\n'.join(f"  - {schemas[name]}" for name in missing_schemas)
+        )
     
-    # Créer db_raw
-    print(f"Création {paths['raw']}...")
-    with open(SCHEMA_RAW, 'r') as f:
-        schema_raw = f.read()
+    # Créer bases
+    for db_name, db_path in paths.items():
+        schema_path = schemas[db_name]
+        
+        print(f"Création {db_path}...")
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            schema_sql = f.read()
+        
+        conn = sqlite3.connect(db_path)
+        conn.executescript(schema_sql)
+        conn.commit()
+        
+        # Lister tables créées
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        
+        print(f"  ✓ Tables: {', '.join(tables)}")
+        print()
     
-    conn = sqlite3.connect(paths['raw'])
-    conn.executescript(schema_raw)
-    conn.commit()
-    conn.close()
-    print(f"  ✓ Tables: executions, snapshots, metrics")
-    
-    # Créer db_results
-    print(f"\nCréation {paths['results']}...")
-    with open(SCHEMA_RESULTS, 'r') as f:
-        schema_results = f.read()
-    
-    conn = sqlite3.connect(paths['results'])
-    conn.executescript(schema_results)
-    conn.commit()
-    conn.close()
-    print(f"  ✓ Tables: observations")
-    
-    print(f"\n{'='*70}")
+    print(f"{'='*70}")
     print(f"INITIALISATION {phase} TERMINÉE")
     print(f"{'='*70}\n")
 
@@ -111,9 +160,9 @@ def init_databases(phase: str = 'R0') -> None:
 # MODE CLEAN
 # =============================================================================
 
-def clean_databases(phase: str = 'R0') -> Dict[str, Any]:
+def clean_databases(phase: str) -> Dict[str, any]:
     """
-    Supprime entrées obsolètes.
+    Supprime entrées obsolètes (deprecated).
     
     Args:
         phase: Phase cible
@@ -122,6 +171,7 @@ def clean_databases(phase: str = 'R0') -> Dict[str, Any]:
         Rapport traçabilité:
         {
             'timestamp': str,
+            'phase': str,
             'deleted_count': int,
             'deleted_entries': List[dict],
             'disk_freed_mb': float
@@ -133,65 +183,90 @@ def clean_databases(phase: str = 'R0') -> Dict[str, Any]:
     
     paths = get_db_paths(phase)
     
-    if not paths['raw'].exists():
-        raise FileNotFoundError(f"Base manquante: {paths['raw']}")
+    # Vérifier existence
+    missing = [name for name, path in paths.items() if not path.exists()]
+    if missing:
+        raise FileNotFoundError(
+            f"Bases manquantes pour {phase}: {', '.join(missing)}"
+        )
     
     # Taille initiale
-    size_before = paths['raw'].stat().st_size + paths['results'].stat().st_size
+    size_before = sum(path.stat().st_size for path in paths.values())
     
     deleted_entries = []
     
-    # Clean db_raw
-    conn_raw = sqlite3.connect(paths['raw'])
-    cursor_raw = conn_raw.cursor()
+    # Clean db_results (observations deprecated)
+    results_path = paths['results']
+    conn = sqlite3.connect(results_path)
+    cursor = conn.cursor()
     
-    # Deprecated (gamma_id/d_encoding_id/modifier_id contenant '_deprecated_')
-    cursor_raw.execute("""
-        SELECT exec_id, gamma_id, d_encoding_id, modifier_id
-        FROM executions
+    # Lister deprecated avant suppression
+    cursor.execute("""
+        SELECT test_name, gamma_id, d_encoding_id, modifier_id, seed
+        FROM observations
         WHERE gamma_id LIKE '%_deprecated_%'
            OR d_encoding_id LIKE '%_deprecated_%'
            OR modifier_id LIKE '%_deprecated_%'
     """)
     
-    for row in cursor_raw.fetchall():
+    for row in cursor.fetchall():
         deleted_entries.append({
-            'exec_id': row[0],
+            'test_name': row[0],
             'gamma_id': row[1],
             'd_encoding_id': row[2],
             'modifier_id': row[3],
-            'reason': 'deprecated'
+            'seed': row[4],
+            'reason': 'deprecated',
+            'db': 'results'
         })
     
-    cursor_raw.execute("""
-        DELETE FROM executions
-        WHERE gamma_id LIKE '%_deprecated_%'
-           OR d_encoding_id LIKE '%_deprecated_%'
-           OR modifier_id LIKE '%_deprecated_%'
-    """)
-    
-    # Rejected (nécessite lecture catalogues - TODO)
-    # Pour l'instant skip (implémentation manuelle si nécessaire)
-    
-    conn_raw.commit()
-    conn_raw.close()
-    
-    # Clean db_results (correspondance)
-    conn_results = sqlite3.connect(paths['results'])
-    cursor_results = conn_results.cursor()
-    
-    cursor_results.execute("""
+    # Supprimer
+    cursor.execute("""
         DELETE FROM observations
         WHERE gamma_id LIKE '%_deprecated_%'
            OR d_encoding_id LIKE '%_deprecated_%'
            OR modifier_id LIKE '%_deprecated_%'
     """)
     
-    conn_results.commit()
-    conn_results.close()
+    conn.commit()
+    conn.close()
+    
+    # Clean db_sequences si R1
+    if 'sequences' in paths:
+        sequences_path = paths['sequences']
+        conn_seq = sqlite3.connect(sequences_path)
+        cursor_seq = conn_seq.cursor()
+        
+        # Lister deprecated sequences
+        cursor_seq.execute("""
+            SELECT sequence_exec_id, sequence_gammas, d_encoding_id, modifier_id
+            FROM sequences
+            WHERE d_encoding_id LIKE '%_deprecated_%'
+               OR modifier_id LIKE '%_deprecated_%'
+        """)
+        
+        for row in cursor_seq.fetchall():
+            deleted_entries.append({
+                'sequence_exec_id': row[0],
+                'sequence_gammas': row[1],
+                'd_encoding_id': row[2],
+                'modifier_id': row[3],
+                'reason': 'deprecated',
+                'db': 'sequences'
+            })
+        
+        # Supprimer
+        cursor_seq.execute("""
+            DELETE FROM sequences
+            WHERE d_encoding_id LIKE '%_deprecated_%'
+               OR modifier_id LIKE '%_deprecated_%'
+        """)
+        
+        conn_seq.commit()
+        conn_seq.close()
     
     # Taille après
-    size_after = paths['raw'].stat().st_size + paths['results'].stat().st_size
+    size_after = sum(path.stat().st_size for path in paths.values())
     disk_freed_mb = (size_before - size_after) / (1024 * 1024)
     
     # Rapport
@@ -205,10 +280,13 @@ def clean_databases(phase: str = 'R0') -> Dict[str, Any]:
     
     # Sauvegarder rapport
     report_path = DB_DIR / f"cleaned_entries_{phase}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    with open(report_path, 'w') as f:
+    with open(report_path, 'w', encoding='utf-8') as f:
         json.dump(report, f, indent=2)
     
     print(f"Entrées supprimées: {len(deleted_entries)}")
+    print(f"  - db_results:     {sum(1 for e in deleted_entries if e['db'] == 'results')}")
+    if 'sequences' in paths:
+        print(f"  - db_sequences:   {sum(1 for e in deleted_entries if e['db'] == 'sequences')}")
     print(f"Espace libéré:      {disk_freed_mb:.2f} MB")
     print(f"Rapport:            {report_path}")
     print(f"\n{'='*70}\n")
@@ -220,9 +298,12 @@ def clean_databases(phase: str = 'R0') -> Dict[str, Any]:
 # MODE BACKUP
 # =============================================================================
 
-def backup_databases(phase: str = 'R0') -> str:
+def backup_databases(phase: str) -> str:
     """
     Sauvegarde timestampée bases.
+    
+    R0: Archive prc_r0_results.db
+    R1: Archive prc_r1_results.db + prc_r1_sequences.db
     
     Args:
         phase: Phase cible
@@ -236,8 +317,12 @@ def backup_databases(phase: str = 'R0') -> str:
     
     paths = get_db_paths(phase)
     
-    if not paths['raw'].exists():
-        raise FileNotFoundError(f"Base manquante: {paths['raw']}")
+    # Vérifier existence
+    missing = [name for name, path in paths.items() if not path.exists()]
+    if missing:
+        raise FileNotFoundError(
+            f"Bases manquantes pour {phase}: {', '.join(missing)}"
+        )
     
     # Nom archive
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -246,14 +331,15 @@ def backup_databases(phase: str = 'R0') -> str:
     
     # Créer archive
     with tarfile.open(archive_path, 'w:gz') as tar:
-        tar.add(paths['raw'], arcname=paths['raw'].name)
-        tar.add(paths['results'], arcname=paths['results'].name)
+        for db_name, db_path in paths.items():
+            print(f"Ajout {db_path.name}...")
+            tar.add(db_path, arcname=db_path.name)
     
-    size_mb = archive_path.stat().st_size / (1024 * 1024)
+    archive_size_mb = archive_path.stat().st_size / (1024 * 1024)
     
-    print(f"Archive créée: {archive_path}")
-    print(f"Taille:        {size_mb:.2f} MB")
-    print(f"\n{'='*70}\n")
+    print(f"\n✓ Backup créé: {archive_path}")
+    print(f"  Taille: {archive_size_mb:.2f} MB")
+    print(f"{'='*70}\n")
     
     return str(archive_path)
 
@@ -262,7 +348,7 @@ def backup_databases(phase: str = 'R0') -> str:
 # MODE EXPORT JSON
 # =============================================================================
 
-def export_database_to_json(db_path: str, output_path: str, include_blobs: bool = False):
+def export_database_to_json(db_path: Path, output_path: Path, include_blobs: bool = False):
     """
     Exporte une base SQLite en JSON.
     
@@ -272,42 +358,42 @@ def export_database_to_json(db_path: str, output_path: str, include_blobs: bool 
         include_blobs: Si True, encode les BLOB en base64 (augmente taille)
     """
     print(f"\n{'='*70}")
-    print(f"EXPORT JSON: {db_path}")
+    print(f"EXPORT JSON: {db_path.name}")
     print(f"{'='*70}\n")
     
     conn = sqlite3.connect(db_path)
-    conn.row_factory = sqlite3.Row  # Permet d'accéder aux colonnes par nom
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     
-    # Lister toutes les tables
+    # Lister tables
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
     tables = [row[0] for row in cursor.fetchall()]
     
-    print(f"Tables trouvées: {', '.join(tables)}\n")
+    print(f"Tables: {', '.join(tables)}\n")
     
     data = {
-        'database': db_path,
+        'database': str(db_path),
         'export_timestamp': datetime.now().isoformat(),
         'tables': {}
     }
     
     for table_name in tables:
-        print(f"Exportation table: {table_name}")
+        print(f"Export {table_name}...")
         
-        # Récupérer infos colonnes
+        # Colonnes
         cursor.execute(f"PRAGMA table_info({table_name})")
         columns_info = cursor.fetchall()
         column_names = [col[1] for col in columns_info]
         column_types = {col[1]: col[2] for col in columns_info}
         
-        # Récupérer données
+        # Données
         cursor.execute(f"SELECT * FROM {table_name}")
         rows = cursor.fetchall()
         
         print(f"  - {len(rows)} lignes")
-        print(f"  - Colonnes: {', '.join(column_names)}")
+        print(f"  - {len(column_names)} colonnes")
         
-        # Convertir en format sérialisable
+        # Convertir
         table_data = []
         blobs_skipped = 0
         
@@ -316,17 +402,14 @@ def export_database_to_json(db_path: str, output_path: str, include_blobs: bool 
             for col_name in column_names:
                 value = row[col_name]
                 
-                # Gérer les bytes
                 if isinstance(value, bytes):
                     if include_blobs:
-                        # Encoder en base64
                         row_dict[col_name] = {
                             '_type': 'blob',
                             '_size_bytes': len(value),
                             'data': base64.b64encode(value).decode('utf-8')
                         }
                     else:
-                        # Juste indiquer la présence
                         row_dict[col_name] = {
                             '_type': 'blob',
                             '_size_bytes': len(value),
@@ -339,7 +422,7 @@ def export_database_to_json(db_path: str, output_path: str, include_blobs: bool 
             table_data.append(row_dict)
         
         if blobs_skipped > 0:
-            print(f"  - {blobs_skipped} BLOBs non exportés (utilisez --include-blobs)")
+            print(f"  - {blobs_skipped} BLOBs skippés (--include-blobs pour exporter)")
         
         data['tables'][table_name] = {
             'columns': column_names,
@@ -351,16 +434,16 @@ def export_database_to_json(db_path: str, output_path: str, include_blobs: bool 
     
     conn.close()
     
-    # Sauvegarder JSON
-    print(f"Écriture vers: {output_path}")
+    # Sauvegarder
+    print(f"Écriture {output_path.name}...")
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     
-    file_size = Path(output_path).stat().st_size / 1024 / 1024  # MB
-    print(f"✓ Export terminé ({file_size:.2f} MB)\n")
+    file_size_mb = output_path.stat().st_size / (1024 * 1024)
+    print(f"✓ Export terminé ({file_size_mb:.2f} MB)\n")
 
 
-def export_database_schema_only(db_path: str, output_path: str):
+def export_database_schema_only(db_path: Path, output_path: Path):
     """
     Exporte uniquement le schéma (structure) sans les données.
     
@@ -369,13 +452,13 @@ def export_database_schema_only(db_path: str, output_path: str):
         output_path: Chemin fichier JSON de sortie
     """
     print(f"\n{'='*70}")
-    print(f"EXPORT SCHEMA: {db_path}")
+    print(f"EXPORT SCHEMA: {db_path.name}")
     print(f"{'='*70}\n")
     
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
-    # Récupérer tout le schéma
+    # Schema complet
     cursor.execute("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL")
     schema_statements = [row[0] for row in cursor.fetchall()]
     
@@ -393,7 +476,7 @@ def export_database_schema_only(db_path: str, output_path: str):
     conn.close()
     
     data = {
-        'database': db_path,
+        'database': str(db_path),
         'export_timestamp': datetime.now().isoformat(),
         'schema': schema_statements,
         'table_stats': stats
@@ -402,7 +485,7 @@ def export_database_schema_only(db_path: str, output_path: str):
     with open(output_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
     
-    print(f"\n✓ Schema exporté vers: {output_path}\n")
+    print(f"\n✓ Schema exporté: {output_path.name}\n")
 
 
 # =============================================================================
@@ -411,12 +494,15 @@ def export_database_schema_only(db_path: str, output_path: str):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Utilitaires gestion bases de données PRC",
+        description="Utilitaires gestion bases de données PRC (V2 - Sans db_raw)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Exemples:
-  # Initialiser bases R0
+  # Initialiser R0 (1 DB)
   python -m prc_automation.utils_databases --mode init --phase R0
+  
+  # Initialiser R1 (2 DBs)
+  python -m prc_automation.utils_databases --mode init --phase R1
   
   # Nettoyer entrées obsolètes
   python -m prc_automation.utils_databases --mode clean --phase R0
@@ -431,7 +517,7 @@ Exemples:
   python -m prc_automation.utils_databases --mode export_json --phase R0
   
   # Export JSON avec BLOBs encodés
-  python -m prc_automation.utils_databases --mode export_json --phase R0 --include-blobs
+  python -m prc_automation.utils_databases --mode export_json --phase R1 --include-blobs
         """
     )
     
@@ -443,7 +529,7 @@ Exemples:
                        help="Phase cible (défaut: R0)")
     
     parser.add_argument('--include-blobs', action='store_true',
-                       help='Inclure BLOBs encodés en base64 (mode export_json uniquement)')
+                       help='Inclure BLOBs encodés base64 (mode export_json uniquement)')
     
     args = parser.parse_args()
     
@@ -458,44 +544,35 @@ Exemples:
             backup_databases(args.phase)
         
         elif args.mode == 'export_schema':
-            # Export schema des deux bases
             paths = get_db_paths(args.phase)
-            
-            if not paths['raw'].exists():
-                raise FileNotFoundError(f"Base manquante: {paths['raw']}")
-            
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             
-            export_database_schema_only(
-                str(paths['raw']),
-                str(DB_DIR / f"prc_{args.phase.lower()}_raw_schema_{timestamp}.json")
-            )
-            
-            export_database_schema_only(
-                str(paths['results']),
-                str(DB_DIR / f"prc_{args.phase.lower()}_results_schema_{timestamp}.json")
-            )
+            for db_name, db_path in paths.items():
+                if not db_path.exists():
+                    print(f"⚠️  {db_path.name} n'existe pas (skip)")
+                    continue
+                
+                output_name = f"{db_path.stem}_schema_{timestamp}.json"
+                export_database_schema_only(
+                    db_path,
+                    DB_DIR / output_name
+                )
         
         elif args.mode == 'export_json':
-            # Export complet des deux bases
             paths = get_db_paths(args.phase)
-            
-            if not paths['raw'].exists():
-                raise FileNotFoundError(f"Base manquante: {paths['raw']}")
-            
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             
-            export_database_to_json(
-                str(paths['raw']),
-                str(DB_DIR / f"prc_{args.phase.lower()}_raw_full_{timestamp}.json"),
-                args.include_blobs
-            )
-            
-            export_database_to_json(
-                str(paths['results']),
-                str(DB_DIR / f"prc_{args.phase.lower()}_results_full_{timestamp}.json"),
-                args.include_blobs
-            )
+            for db_name, db_path in paths.items():
+                if not db_path.exists():
+                    print(f"⚠️  {db_path.name} n'existe pas (skip)")
+                    continue
+                
+                output_name = f"{db_path.stem}_full_{timestamp}.json"
+                export_database_to_json(
+                    db_path,
+                    DB_DIR / output_name,
+                    args.include_blobs
+                )
     
     except Exception as e:
         print(f"\n✗ Erreur: {e}\n")

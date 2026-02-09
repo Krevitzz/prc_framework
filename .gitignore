@@ -101,3 +101,4 @@ reports/verdicts/20260128_133529_verdict_r0/marginal_variance_global.csv
 reports/verdicts/20260128_133529_verdict_r0/marginal_variance_explosif.csv
 reports/verdicts/20260128_133529_verdict_r0/diagnostics.json
 D_encodings/r3_007_block_structure.py
+/reports

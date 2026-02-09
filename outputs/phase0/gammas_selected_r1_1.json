@@ -1,0 +1,16 @@
+{
+  "gamma_ids": [
+    "GAM-001",
+    "GAM-002",
+    "GAM-003"
+  ],
+  "n_gammas_selected": 3,
+  "explosion_rate_mean": 0.02,
+  "explosion_rate_max": 0.05,
+  "selection_criteria": {
+    "explosion_rate_threshold": 0.1,
+    "minimum_gammas": 3
+  },
+  "n_excluded": 0,
+  "excluded_gamma_ids": []
+}

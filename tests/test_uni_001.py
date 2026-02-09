@@ -26,7 +26,7 @@ TEST_PHASE = None  # Applicable toutes phases
 
 
 APPLICABILITY_SPEC = {
-    "requires_rank": None,
+    "requires_rank": 2,
     "requires_square": False,
     "allowed_d_types": ["ALL"],
     "minimum_dimension": None,

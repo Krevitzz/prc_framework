@@ -17,10 +17,17 @@
 **Poids** : 1.0
 
 **Applicabilité** :
-- Rang : Tous
+- Rang : 2 (matrices uniquement)  ← CHANGÉ (était "Tous")
 - Carré : Non requis
 - Types D : Tous
 - Dimension minimale : Aucune
+
+...
+
+**Notes** :
+- Norme Frobenius classique (np.linalg.norm(A, 'fro'))
+- Pour tenseurs rang 3+ : Utiliser UNIV-003
+- Équivalence rang 2 : UNIV-001 ≡ UNIV-003 (vérifiable)
 
 **Métriques** :
 - `frobenius_norm` : Discrimine explosions/effondrements/stabilité
@@ -59,6 +66,32 @@
 - Valeurs propres individuelles : Redondant avec tests spectraux
 
 ---
+
+### UNIV-003 - Norme Euclidienne Généralisée
+**Fichier** : `test_uni_003.py`  
+**Objectif** : Mesurer stabilité globale tenseur (tous rangs)  
+**Catégorie** : UNIV  
+**Version** : 5.5  
+**Poids** : 1.0
+
+**Applicabilité** :
+- Rang : Tous (2, 3, N)
+- Carré : Non requis
+- Types D : Tous
+- Dimension minimale : Aucune
+
+**Métriques** :
+- `euclidean_norm` : Norme L2 vecteur aplati (généralisation Frobenius)
+
+**Algorithmes** :
+- `algebra.matrix_norm` (norm_type=2) : Norme euclidienne, O(n²)
+
+**Exclusions** :
+- Frobenius native (UNIV-001) : Rang 2 uniquement
+
+**Relation UNIV-001** :
+- Sur rang 2 : UNIV-001 ≡ UNIV-003 (équivalence mathématique)
+- Sur rang 3+ : UNIV-003 seul applicable
 
 ## TESTS SYMÉTRIE (SYM-*)
 
