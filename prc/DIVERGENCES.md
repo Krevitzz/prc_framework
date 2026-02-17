@@ -57,6 +57,18 @@ Aucun écart silencieux. Aucun "quick fix" non documenté.
 
 ---
 
+### D4 — Format fichiers atomics
+
+| Champ | Valeur |
+|-------|--------|
+| **Référence charter** | Catalogs legacy — `PHASE`, `METADATA` dict complet, `PARAM_GRID`, `create_gamma_hyp_NNN()`, `d_applicability` |
+| **Nouveau pipeline** | `ID = "XXX-NNN"` uniquement, `create()` uniforme, défauts dans signature, paramètres dans YAML, applicabilité par runtime catch |
+| **Justification** | Séparation mécanique pure (Python) / configuration expérimentale (YAML). Supprime couplage fort entre fichiers atomics et phases d'exploration. Cohérence avec principe YAML partout (Charter 4.4). |
+| **Impact** | Discovery cherche `ID` et `create()`/`apply()` — plus `PHASE` ni `METADATA`. Catalogs legacy (`gamma_catalog.md`, `d_encoding_catalog.md`, `modifier_catalog.md`) remplacés par `atomics/atomics_catalog.md`. Fichiers legacy dans `atomics/` sont brouillons à réécrire. |
+| **Validé par** | Utilisateur — 2026-02-17 |
+
+---
+
 ## Divergences archivées
 
 _(aucune pour l'instant)_
