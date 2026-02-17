@@ -1,0 +1,81 @@
+# =============================================================================
+# PHASE DEFINITIONS - Campagnes d'exploration PRC
+# =============================================================================
+# 
+# ATTENTION SÉMANTIQUE:
+# - Phase campagne (R0, R1, R2) = Quel type d'exploration ?
+# - Phase entité (PHASE dans modules) = Quel type d'entité (atomic/composed) ?
+# 
+# Le phase_filter fait le lien entre les deux concepts.
+# 
+# ÉVOLUTION CAMPAGNES:
+# - R0: Gammas atomiques × Encodings atomiques × Modifiers atomiques
+# - R1: Gammas COMPOSITIONS × Encodings atomiques × Modifiers atomiques
+# 
+# IMPORTANT:
+# - phase_filter est passé à discover_entities(entity_type, phase=phase_filter)
+# - Pour gammas: phase_filter='R1' déclenche _generate_compositions_dynamic()
+# - Pour autres: phase_filter filtre selon PHASE déclarée dans modules
+# 
+# Version: 1.0
+# Date: 2025-02-12
+# =============================================================================
+
+R0:
+  name: "Atomic Gammas Exploration"
+  description: "Test all atomic gammas against all atomic encodings/modifiers"
+  
+  entities:
+    gamma:
+      phase_filter: "R0"      # Découvre gammas avec PHASE='R0' (atomiques)
+      
+    encoding:
+      phase_filter: "R0"      # Découvre encodings avec PHASE='R0' (atomiques)
+      
+    modifier:
+      phase_filter: "R0"      # Découvre modifiers avec PHASE='R0' (atomiques)
+      
+    test:
+      phase_filter: "R0"      # Découvre tests avec TEST_PHASE='R0' (ou tous)
+  
+  database: "prc_r0_results.db"
+  
+  # Combinaisons attendues (12 gammas × 20 encodings × 3 modifiers)
+  expected_combinations: 720
+
+
+R1:
+  name: "Gamma Compositions"
+  description: "Test gamma compositions (2-element sequences) against all atomic encodings/modifiers"
+  
+  entities:
+    gamma:
+      phase_filter: "R1"      # Découvre gammas PHASE='R1' (compositions)
+                               # → Déclenche _generate_compositions_dynamic()
+                               # → 12 atomiques → 12×11 = 132 compositions
+      
+    encoding:
+      phase_filter: "R0"      # Découvre encodings avec PHASE='R0' (atomiques)
+                               # ⚠️ CRITIQUE: Pas 'R1' sinon liste vide!
+      
+    modifier:
+      phase_filter: "R0"      # Découvre modifiers avec PHASE='R0' (atomiques)
+      
+    test:
+      phase_filter: "R0"      # Découvre tests avec TEST_PHASE='R0'
+  
+  database: "prc_r1_results.db"
+  
+  # Combinaisons attendues (132 compositions × 20 encodings × 3 modifiers)
+  expected_combinations: 7920
+
+
+# =============================================================================
+# FUTURES PHASES (Non implémentées - Documentation uniquement)
+# =============================================================================
+# 
+# R2:
+#   name: "Weighted Gamma Compositions"
+#   description: "Test weighted gamma compositions"
+#   ...
+# =============================================================================

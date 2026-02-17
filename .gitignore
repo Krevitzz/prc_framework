@@ -102,3 +102,7 @@ reports/verdicts/20260128_133529_verdict_r0/marginal_variance_explosif.csv
 reports/verdicts/20260128_133529_verdict_r0/diagnostics.json
 D_encodings/r3_007_block_structure.py
 /reports
+db_samples/db_extraction_summary.json
+assert
+db_samples/observation_data_SUCCESS_example.json
+prc_automation/prc_database/prc_r1_results.db

@@ -51,7 +51,6 @@ SCHEMAS = {
     },
     'R1': {
         'results': DB_DIR / "schema_results_r1.sql",
-        'sequences': DB_DIR / "schema_sequences_r1.sql"
     }
 }
 
@@ -75,8 +74,7 @@ def get_db_paths(phase: str) -> Dict[str, Path]:
         }
     elif phase == 'R1':
         return {
-            'results': DB_DIR / f"prc_{phase_lower}_results.db",
-            'sequences': DB_DIR / f"prc_{phase_lower}_sequences.db"
+            'results': DB_DIR / f"prc_{phase_lower}_results.db"
         }
     else:
         raise ValueError(f"Phase inconnue: {phase} (attendu 'R0' ou 'R1')")

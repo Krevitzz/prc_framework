@@ -39,6 +39,7 @@ import sys
 import sqlite3
 import json
 import uuid  # Déjà importé (pas de changement)
+import yaml
 import numpy as np
 from datetime import datetime
 from pathlib import Path
@@ -70,7 +71,7 @@ SEED_FIXED = 42
 N_DOF_DEFAULT = 50
 
 DB_DIR = Path("./prc_automation/prc_database")
-
+CONFIG_DIR = Path("./tests/config/global") 
 
 def get_db_path(phase: str) -> Path:
     """
@@ -88,6 +89,107 @@ def get_db_path(phase: str) -> Path:
     """
     return DB_DIR / f"prc_{phase.lower()}_results.db"
 
+# =============================================================================
+# YAML PHASE DEFINITIONS
+# =============================================================================
+
+def load_phase_definition(phase: str) -> dict:
+    """
+    Charge définition phase depuis YAML.
+    
+    Args:
+        phase: Phase cible ('R0', 'R1', etc.)
+    
+    Returns:
+        dict: Définition phase
+        {
+            'name': str,
+            'description': str,
+            'entities': {
+                'gamma': {'phase_filter': str},
+                'encoding': {'phase_filter': str},
+                'modifier': {'phase_filter': str},
+                'test': {'phase_filter': str}
+            },
+            'database': str,
+            'expected_combinations': int
+        }
+    
+    Raises:
+        FileNotFoundError: Si phase_definitions.yaml absent
+        ValueError: Si phase non définie dans YAML
+        yaml.YAMLError: Si YAML invalide
+    
+    Examples:
+        >>> load_phase_definition('R1')
+        {'name': 'Gamma Compositions', 'entities': {...}, ...}
+    """
+    config_path = CONFIG_DIR / 'phase_definitions.yaml'
+    
+    if not config_path.exists():
+        raise FileNotFoundError(
+            f"Configuration manquante: {config_path}\n"
+            f"→ Créer phase_definitions.yaml dans {CONFIG_DIR}"
+        )
+    
+    try:
+        with open(config_path, encoding='utf-8') as f:
+            definitions = yaml.safe_load(f)
+    except yaml.YAMLError as e:
+        raise yaml.YAMLError(
+            f"Erreur parsing YAML: {config_path}\n"
+            f"Détails: {e}"
+        )
+    
+    if phase not in definitions:
+        available = list(definitions.keys())
+        raise ValueError(
+            f"Phase '{phase}' non définie dans {config_path}\n"
+            f"Phases disponibles: {available}"
+        )
+    
+    return definitions[phase]
+
+
+def discover_for_phase(entity_type: str, phase_def: dict) -> List[Dict]:
+    """
+    Découvre entités selon définition phase.
+    
+    Args:
+        entity_type: 'gamma', 'encoding', 'modifier', 'test'
+        phase_def: Définition phase chargée depuis YAML
+    
+    Returns:
+        List[Dict]: Entités découvertes
+    
+    Raises:
+        KeyError: Si entity_type absent de phase_def
+        RuntimeError: Si discovery retourne liste vide
+    
+    Examples:
+        >>> phase_def = load_phase_definition('R1')
+        >>> gammas = discover_for_phase('gamma', phase_def)
+        >>> len(gammas)
+        132  # Compositions
+    """
+    if entity_type not in phase_def['entities']:
+        raise KeyError(
+            f"Entity type '{entity_type}' absent de phase_def.\n"
+            f"Disponibles: {list(phase_def['entities'].keys())}"
+        )
+    
+    phase_filter = phase_def['entities'][entity_type]['phase_filter']
+    
+    entities = discover_entities(entity_type, phase=phase_filter)
+    
+    if len(entities) == 0:
+        raise RuntimeError(
+            f"Discovery retourne 0 entités pour {entity_type} "
+            f"avec phase_filter='{phase_filter}'.\n"
+            f"→ Vérifier métadonnées PHASE dans modules."
+        )
+    
+    return entities
 
 # =============================================================================
 # DÉTECTION COMBINAISONS MANQUANTES
@@ -820,26 +922,30 @@ Changements vs V2:
     print(f"{'#'*70}\n")
     
     try:
-        # 1. Discovery
-        print("1. Découverte entités...")
+        # 1. Load phase definition + Discovery
+        print("1. Chargement phase definition...")
+        phase_def = load_phase_definition(args.phase)
+        print(f"   ✓ Phase: {phase_def['name']}")
+        print(f"   ✓ Description: {phase_def['description']}")
+
+        print("\n2. Découverte entités...")
         active_entities = {
-            'tests': discover_entities('test', args.phase),
-            'gammas': discover_entities('gamma', args.phase),
-            'encodings': discover_entities('encoding', args.phase),
-            'modifiers': discover_entities('modifier', args.phase),
+            'tests': discover_for_phase('test', phase_def),
+            'gammas': discover_for_phase('gamma', phase_def),
+            'encodings': discover_for_phase('encoding', phase_def),
+            'modifiers': discover_for_phase('modifier', phase_def),
         }
         print(f"   ✓ Tests:     {len(active_entities['tests'])}")
         print(f"   ✓ Gammas:    {len(active_entities['gammas'])}")
         print(f"   ✓ Encodings: {len(active_entities['encodings'])}")
         print(f"   ✓ Modifiers: {len(active_entities['modifiers'])}")
-        
         # 2. Detect missing
-        print("\n2. Détection combinaisons manquantes...")
+        print("\n3. Détection combinaisons manquantes...")
         missing = detect_missing_combinations_v3(active_entities, args.phase)
         
         # 3. Execute unified
         if len(missing) > 0:
-            print("\n3. Exécution pipeline unifié...")
+            print("\n4. Exécution pipeline unifié...")
             run_batch_unified_v3(
                 missing,
                 active_entities,
@@ -850,10 +956,10 @@ Changements vs V2:
                 verbose=args.verbose
             )
         else:
-            print("\n3. Exécution: SKIP (aucune combinaison manquante)")
+            print("\n4. Exécution: SKIP (aucune combinaison manquante)")
         
         # 4. Generate reports
-        print("\n4. Génération rapports...")
+        print("\n5. Génération rapports...")
         
         # Vérifier observations existent
         db_results_path = get_db_path(args.phase)
