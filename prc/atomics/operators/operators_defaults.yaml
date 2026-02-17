@@ -1,0 +1,51 @@
+# configs/atomics/operators/defaults.yaml
+#
+# Valeurs par défaut des paramètres gammas.
+# Chargé si aucune surcharge dans le YAML de run.
+#
+# Pour surcharger dans un YAML de run :
+#   params:
+#     GAM-001:
+#       beta: 0.5
+#     GAM-009:
+#       beta: 2.0
+#       sigma: 0.05
+
+GAM-001:
+  beta: 2.0
+
+GAM-002:
+  alpha: 0.05
+
+GAM-003:
+  gamma: 0.05
+
+GAM-004:
+  gamma: 0.05
+
+GAM-005:
+  omega: 0.7853981633974483  # π/4
+
+GAM-006:
+  beta: 1.0
+  alpha: 0.3
+
+GAM-007:
+  epsilon: 0.1
+
+GAM-008:
+  gamma: 0.3
+  beta: 1.0
+
+GAM-009:
+  beta: 1.0
+  sigma: 0.01
+
+GAM-010:
+  sigma: 0.05
+
+GAM-012:
+  beta: 2.0
+
+GAM-013:
+  eta: 0.01

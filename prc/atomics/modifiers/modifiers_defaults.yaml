@@ -1,0 +1,17 @@
+# configs/atomics/modifiers/defaults.yaml
+#
+# Valeurs par défaut des paramètres modifiers.
+# Chargé si aucune surcharge dans le YAML de run.
+#
+# Pour surcharger dans un YAML de run :
+#   params:
+#     M1:
+#       sigma: 0.1
+
+M0: {}                  # Baseline identité — aucun paramètre
+
+M1:
+  sigma: 0.05
+
+M2:
+  amplitude: 0.1
