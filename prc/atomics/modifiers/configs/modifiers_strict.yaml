@@ -1,0 +1,8 @@
+# configs/atomics/modifiers/strict.yaml
+# Override default avec paramètres plus restrictifs
+
+M1:
+  sigma: 0.01  # Bruit gaussien très faible
+
+M2:
+  amplitude: 0.02  # Bruit uniforme très faible

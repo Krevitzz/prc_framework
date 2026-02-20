@@ -1,9 +1,9 @@
 """
-prc.utils.data_loading
+prc.utils.data_loading_lite
 
 Responsabilité : Source unique de vérité pour tout chargement de données.
 - Discovery atomics (gammas, encodings, modifiers)
-- Lecture YAML
+- Lecture YAML générique avec modes (default/laxe/strict)
 - I/O Parquet (à peupler)
 
 Divergences actives : D1 (Parquet), D3 (colonnes features)
@@ -161,21 +161,158 @@ def _discover_from_dir(
 
 
 # =============================================================================
-# SECTION 2 — LECTURE YAML
+# SECTION 2 — LECTURE YAML GÉNÉRIQUE
 # =============================================================================
 
-def load_yaml(path: Path) -> Dict[str, Any]:
-    """
-    Charge fichier YAML → dict.
+# Mapping identifier → path pattern
+# NOTE IMPORTANTE : Ajouter une ligne pour chaque nouveau module utilisant YAML
+_YAML_PATHS = {
+    # Atomics
+    'operators'   : 'atomics/operators/configs/operators_{mode}.yaml',
+    'D_encodings' : 'atomics/D_encodings/configs/D_encodings_{mode}.yaml',
+    'modifiers'   : 'atomics/modifiers/configs/modifiers_{mode}.yaml',
+    
+    # Featuring (placeholders — à activer selon besoins)
+    # 'layers'      : 'configs/features/default/layers.yaml',
+    # 'algebra'     : 'configs/features/default/algebra.yaml',
+    # 'statistical' : 'configs/features/default/statistical.yaml',
+    
+    # Thresholds (placeholders)
+    # 'regimes'     : 'configs/thresholds/default/regimes.yaml',
+    # 'aggregation' : 'configs/thresholds/default/aggregation.yaml',
+    
+    # Verdict (placeholders)
+    # 'verdict'     : 'configs/verdict/default/default.yaml',
+}
 
-    Raises : FileNotFoundError si path inexistant
-    """
-    path = Path(path)
-    if not path.exists():
-        raise FileNotFoundError(f"Fichier YAML introuvable : {path}")
 
-    with open(path, 'r', encoding='utf-8') as f:
-        return yaml.safe_load(f)
+def resolve_yaml_path(identifier: str, mode: str = 'default') -> Path:
+    """
+    Résout path YAML depuis identifier et mode.
+    
+    Args:
+        identifier : Clé mapping ('operators', 'D_encodings', etc.)
+        mode       : 'default' | 'laxe' | 'strict'
+    
+    Returns:
+        Path relatif vers le YAML (depuis prc/)
+    
+    Raises:
+        KeyError : Si identifier inconnu dans _YAML_PATHS
+    
+    Examples:
+        >>> resolve_yaml_path('operators', 'default')
+        Path('configs/atomics/operators/default.yaml')
+        >>> resolve_yaml_path('operators', 'laxe')
+        Path('configs/atomics/operators/laxe.yaml')
+    """
+    if identifier not in _YAML_PATHS:
+        raise KeyError(
+            f"Identifier YAML inconnu : '{identifier}'\n"
+            f"Disponibles : {list(_YAML_PATHS.keys())}\n"
+            f"→ Ajouter une ligne dans _YAML_PATHS si nouveau module"
+        )
+    
+    pattern = _YAML_PATHS[identifier]
+    path_str = pattern.format(mode=mode)
+    return Path(path_str)
+
+
+def merge_configs(base: Dict, override: Dict) -> Dict:
+    """
+    Deep merge dicts — override prime sur base.
+    
+    Stratégie :
+    - Dicts imbriqués : merge récursif
+    - Listes/scalaires : override remplace base entièrement
+    
+    Args:
+        base     : Config de base (default)
+        override : Config override (laxe/strict)
+    
+    Returns:
+        Config fusionnée
+    
+    Examples:
+        >>> base = {'a': 1, 'b': {'x': 10, 'y': 20}}
+        >>> override = {'b': {'x': 99}, 'c': 3}
+        >>> merge_configs(base, override)
+        {'a': 1, 'b': {'x': 99, 'y': 20}, 'c': 3}
+    """
+    result = base.copy()
+    
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            # Merge récursif pour dicts
+            result[key] = merge_configs(result[key], value)
+        else:
+            # Remplacement direct pour scalaires/listes
+            result[key] = value
+    
+    return result
+
+
+def load_yaml(identifier: Union[str, Path], mode: str = 'default') -> Dict[str, Any]:
+    """
+    Charge YAML avec support mode override.
+    
+    Deux modes d'utilisation :
+    1. Identifier string → charge depuis _YAML_PATHS avec mode
+    2. Path absolu → charge directement (ex: YAML de run)
+    
+    Args:
+        identifier : Clé mapping ('operators', 'D_encodings', ...)
+                     OU Path absolu (ex: Path('configs/phases/poc/poc.yaml'))
+        mode       : 'default' | 'laxe' | 'strict' (ignoré si identifier est Path)
+    
+    Returns:
+        Dict config (avec merge default + mode si identifier string)
+    
+    Raises:
+        FileNotFoundError : Si fichier YAML introuvable
+        KeyError          : Si identifier inconnu dans _YAML_PATHS
+    
+    Examples:
+        >>> load_yaml('operators')                          # default
+        >>> load_yaml('operators', mode='laxe')             # default + laxe merged
+        >>> load_yaml(Path('configs/phases/poc/poc.yaml'))  # path absolu
+    """
+    # Cas 1 : Path absolu (YAML de run, etc.)
+    if isinstance(identifier, Path):
+        if not identifier.exists():
+            raise FileNotFoundError(f"Fichier YAML introuvable : {identifier}")
+        
+        with open(identifier, 'r', encoding='utf-8') as f:
+            return yaml.safe_load(f)
+    
+    # Cas 2 : Identifier atomics/features/thresholds/etc.
+    # Charger default (obligatoire)
+    base_path = resolve_yaml_path(identifier, 'default')
+    
+    if not base_path.exists():
+        raise FileNotFoundError(
+            f"Config default introuvable : {base_path}\n"
+            f"→ Créer {identifier}/default.yaml en premier"
+        )
+    
+    with open(base_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    
+    # Merge avec mode override si nécessaire
+    if mode != 'default':
+        override_path = resolve_yaml_path(identifier, mode)
+        
+        if override_path.exists():
+            with open(override_path, 'r', encoding='utf-8') as f:
+                override = yaml.safe_load(f)
+            config = merge_configs(config, override)
+        else:
+            warnings.warn(
+                f"Mode '{mode}' demandé mais {override_path} absent — "
+                f"utilise default uniquement"
+            )
+    
+    return config
 
 
 # =============================================================================

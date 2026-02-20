@@ -17,21 +17,13 @@ METADATA = {
 }
 
 
-def create(n_dof: int, seed_CI: int = None,
-           correlation: float = 0.5) -> np.ndarray:
+def create(n_dof: int, correlation: float = 0.5) -> np.ndarray:
     """
-    Crée matrice avec corrélations uniformes.
-
     Args:
         n_dof       : Nombre de degrés de liberté
-        seed_CI     : Ignoré (encoding déterministe)
         correlation : Valeur uniforme dans [-1, 1] (0.5 par défaut)
-
-    Returns:
-        Matrice corrélations uniformes (n_dof, n_dof)
     """
     assert -1.0 <= correlation <= 1.0, "correlation doit être dans [-1, 1]"
-
     C = np.full((n_dof, n_dof), correlation)
     np.fill_diagonal(C, 1.0)
     return C

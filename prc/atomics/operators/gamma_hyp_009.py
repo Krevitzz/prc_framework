@@ -10,7 +10,6 @@ Comportement attendu :
 - Équilibre stochastique possible (β fort, σ faible)
 - Marche aléatoire bornée si σ fort
 - Distribution stationnaire comme attracteur
-- Moyenner sur plusieurs seed_run pour analyses robustes
 """
 
 import numpy as np
@@ -34,16 +33,13 @@ class StochasticSaturationGamma:
             return saturated + self.rng.randn(*state.shape) * self.sigma
         return saturated
 
-    def reset(self):
-        pass
-
     def __repr__(self):
         return f"StochasticSaturationGamma(beta={self.beta}, sigma={self.sigma})"
 
 
 def create(beta: float = 1.0, sigma: float = 0.01,
            seed_run: int = None) -> Callable:
-    """Factory GAM-009."""
+    """Factory GAM-009. seed_run paramètre ordinaire (depuis YAML)."""
     return StochasticSaturationGamma(beta=beta, sigma=sigma, seed_run=seed_run)
 
 

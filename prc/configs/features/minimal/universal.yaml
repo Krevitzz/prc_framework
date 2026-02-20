@@ -1,3 +1,18 @@
-# Params features universelles minimales (3-5 features)
-# À compléter : Étape 2
-# Voir Charter 7.0 Section 4.4 (YAML partout)
+# configs/features/minimal/universal.yaml
+# Configuration features universelles minimales
+
+# Fonctions à extraire (layer universal)
+functions:
+  - name: euclidean_norm
+    projections:
+      - initial
+      - final
+      - mean
+    params: {}
+  
+  - name: entropy
+    projections:
+      - initial
+      - final
+    params:
+      bins: 50

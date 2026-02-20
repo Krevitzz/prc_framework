@@ -20,19 +20,13 @@ METADATA = {
 def create(n_dof: int, seed_CI: int = None,
            gradient: float = 0.1, noise_amplitude: float = 0.2) -> np.ndarray:
     """
-    Crée matrice avec gradient directionnel.
-
     Args:
         n_dof           : Nombre de degrés de liberté
-        seed_CI         : Graine aléatoire (conditions initiales)
+        seed_CI         : Paramètre reproductibilité (depuis YAML defaults)
         gradient        : Pente du gradient (0.1 par défaut)
         noise_amplitude : Amplitude du bruit additif uniforme (0.2 par défaut)
-
-    Returns:
-        Matrice avec gradient directionnel (n_dof, n_dof)
     """
     rng = np.random.RandomState(seed_CI) if seed_CI is not None else np.random
-
     i_idx, j_idx = np.meshgrid(range(n_dof), range(n_dof), indexing='ij')
     A = gradient * (i_idx - j_idx).astype(float)
     A += rng.uniform(-noise_amplitude, noise_amplitude, (n_dof, n_dof))

@@ -18,7 +18,7 @@ from typing import Callable
 
 
 class HebbianReinforcementGamma:
-    """Γ de renforcement hebbien (apprentissage non-supervisé)."""
+    """Γ de renforcement hebbien."""
 
     def __init__(self, eta: float = 0.01):
         assert 0 < eta <= 0.1, "eta doit être dans (0, 0.1] pour stabilité"
@@ -39,8 +39,8 @@ class HebbianReinforcementGamma:
         return f"HebbianReinforcementGamma(eta={self.eta})"
 
 
-def create(eta: float = 0.01, seed_run: int = None) -> Callable:
-    """Factory GAM-013. seed_run ignoré (gamma déterministe)."""
+def create(eta: float = 0.01) -> Callable:
+    """Factory GAM-013."""
     return HebbianReinforcementGamma(eta=eta)
 
 

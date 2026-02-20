@@ -1,14 +1,16 @@
 # configs/atomics/modifiers/defaults.yaml
 #
 # Valeurs par défaut des paramètres modifiers.
-# Chargé si aucune surcharge dans le YAML de run.
+# Aucun seed — perturbation intentionnelle des conditions initiales.
 #
 # Pour surcharger dans un YAML de run :
-#   params:
-#     M1:
-#       sigma: 0.1
+#   axes:
+#     modifier:
+#       - id: M1
+#         params:
+#           sigma: [0.01, 0.05, 0.1]
 
-M0: {}                  # Baseline identité — aucun paramètre
+M0: {}
 
 M1:
   sigma: 0.05

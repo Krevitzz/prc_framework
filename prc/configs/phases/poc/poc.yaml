@@ -1,3 +1,11 @@
-# Config phases POC minimale
-# À compléter : Étape 4
-# Voir Charter 7.0 Section 4.4 (YAML partout)
+# configs/phases/poc/poc.yaml
+# Run POC minimal — teste tous les atomics disponibles avec M2
+phase: poc
+max_iterations: 100
+n_dof: 50
+
+axes:
+  gamma: all
+  encoding: all
+  modifier:
+    - id: M0

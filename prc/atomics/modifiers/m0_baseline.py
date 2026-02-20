@@ -16,15 +16,6 @@ METADATA = {
 }
 
 
-def create(state: np.ndarray, seed_run: int = None) -> np.ndarray:
-    """
-    Transformation identité. seed_run ignoré (déterministe).
-
-    Args:
-        state    : Tenseur d'état
-        seed_run : Ignoré
-
-    Returns:
-        Copie du tenseur inchangé
-    """
+def create(state: np.ndarray) -> np.ndarray:
+    """Transformation identité — retourne copie inchangée."""
     return state.copy()

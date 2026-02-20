@@ -4,13 +4,13 @@
 # Chargé si aucune surcharge dans le YAML de run.
 #
 # Pour surcharger dans un YAML de run :
-#   params:
-#     GAM-001:
-#       beta: 0.5
-#     GAM-009:
-#       beta: 2.0
-#       sigma: 0.05
+#   axes:
+#     gamma:
+#       - id: GAM-001
+#         params:
+#           beta: [0.5, 1.0, 2.0]
 
+# --- Markovians ---
 GAM-001:
   beta: 2.0
 
@@ -23,6 +23,7 @@ GAM-003:
 GAM-004:
   gamma: 0.05
 
+# --- Non-markovians ---
 GAM-005:
   omega: 0.7853981633974483  # π/4
 
@@ -37,13 +38,17 @@ GAM-008:
   gamma: 0.3
   beta: 1.0
 
+# --- Stochastiques (seed_run = paramètre ordinaire) ---
 GAM-009:
   beta: 1.0
   sigma: 0.01
+  seed_run: 42
 
 GAM-010:
   sigma: 0.05
+  seed_run: 42
 
+# --- Structuraux ---
 GAM-012:
   beta: 2.0
 

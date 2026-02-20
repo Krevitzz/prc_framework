@@ -1,0 +1,14 @@
+# configs/atomics/D_encodings/strict.yaml
+# Override default avec paramètres plus restrictifs
+
+SYM-003:
+  sigma: 0.1  # Variance réduite
+
+SYM-008:
+  std: 0.1    # Écart-type réduit
+
+ASY-004:
+  noise_amplitude: 0.05  # Bruit réduit
+
+ASY-006:
+  density: 0.1  # Matrices plus sparse

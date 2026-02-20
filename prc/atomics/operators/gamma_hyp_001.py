@@ -30,8 +30,8 @@ class PureSaturationGamma:
         return f"PureSaturationGamma(beta={self.beta})"
 
 
-def create(beta: float = 2.0, seed_run: int = None) -> Callable:
-    """Factory GAM-001. seed_run ignoré (gamma déterministe)."""
+def create(beta: float = 2.0) -> Callable:
+    """Factory GAM-001."""
     return PureSaturationGamma(beta=beta)
 
 

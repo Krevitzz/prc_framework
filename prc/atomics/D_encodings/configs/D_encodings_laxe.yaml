@@ -1,0 +1,14 @@
+# configs/atomics/D_encodings/laxe.yaml
+# Override default avec paramètres plus permissifs
+
+SYM-003:
+  sigma: 0.5  # Variance plus large
+
+SYM-008:
+  std: 0.5    # Écart-type plus large
+
+ASY-004:
+  noise_amplitude: 0.3  # Bruit plus fort
+
+ASY-006:
+  density: 0.3  # Matrices moins sparse
