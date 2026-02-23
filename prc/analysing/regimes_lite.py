@@ -3,7 +3,7 @@ prc.analysing.regimes_lite
 
 Responsabilité : Classification régimes basée features scalaires
 
-FIX : Format récurrence uniforme (complet, pas simplifié)
+VERSION ENRICHIE : Régimes CROISSANCE_FAIBLE/FORTE ajoutés
 """
 
 import numpy as np
@@ -28,6 +28,8 @@ def load_regime_thresholds(profile: str = 'default') -> Dict:
     if not yaml_path.exists():
         return {
             'CONSERVES_NORM': {'ratio_threshold': 1.3, 'cv_threshold': 0.10},
+            'CROISSANCE_FAIBLE': {'ratio_min': 1.3, 'ratio_max': 3.0, 'cv_threshold': 0.20},
+            'CROISSANCE_FORTE': {'ratio_min': 3.0, 'ratio_max': 10.0, 'cv_threshold': 0.30},
             'NUMERIC_INSTABILITY': {'condition_threshold': 1e6, 'norm_threshold': 1e10},
             'EFFONDREMENT': {'ratio_threshold': 0.1},
             'SATURATION': {'ratio_threshold': 10, 'condition_threshold': 1e3},
@@ -43,7 +45,11 @@ def load_regime_thresholds(profile: str = 'default') -> Dict:
 # =============================================================================
 
 def classify_regime(features: Dict, thresholds: Dict) -> str:
-    """Classifie régime depuis features scalaires."""
+    """
+    Classifie régime depuis features scalaires.
+    
+    VERSION ENRICHIE : Détection CROISSANCE_FAIBLE/FORTE
+    """
     has_nan = features.get('has_nan_inf', False)
     norm_initial = features.get('euclidean_norm_initial', 1.0)
     norm_final = features.get('euclidean_norm_final', 1.0)
@@ -53,8 +59,8 @@ def classify_regime(features: Dict, thresholds: Dict) -> str:
     condition_number = features.get('condition_number_final')
     asymmetry_norm = features.get('asymmetry_norm_final')
     
-    # 1. PATHOLOGIES
-    if has_nan:
+    # 1. PATHOLOGIES (prioritaires)
+    if has_nan :#or np.isinf(norm_final):
         return "NUMERIC_INSTABILITY"
     
     if condition_number is not None:
@@ -66,6 +72,7 @@ def classify_regime(features: Dict, thresholds: Dict) -> str:
     if norm_final > th_norm_instab:
         return "NUMERIC_INSTABILITY"
     
+    # EFFONDREMENT
     th_effondrement = thresholds.get('EFFONDREMENT', {}).get('ratio_threshold', 0.1)
     if norm_ratio < th_effondrement:
         return "EFFONDREMENT"
@@ -75,15 +82,32 @@ def classify_regime(features: Dict, thresholds: Dict) -> str:
     if norm_ratio < th_conserve_ratio:
         return "CONSERVES_NORM"
     
-    # 3. SATURATION
+    # 3. CROISSANCE (NOUVEAU)
+    # CROISSANCE_FAIBLE : 1.3 < ratio < 3.0
+    th_croiss_faible = thresholds.get('CROISSANCE_FAIBLE', {})
+    if th_croiss_faible:
+        ratio_min = th_croiss_faible.get('ratio_min', 1.3)
+        ratio_max = th_croiss_faible.get('ratio_max', 3.0)
+        if ratio_min <= norm_ratio < ratio_max:
+            return "CROISSANCE_FAIBLE"
+    
+    # CROISSANCE_FORTE : 3.0 < ratio < 10
+    th_croiss_forte = thresholds.get('CROISSANCE_FORTE', {})
+    if th_croiss_forte:
+        ratio_min = th_croiss_forte.get('ratio_min', 3.0)
+        ratio_max = th_croiss_forte.get('ratio_max', 10.0)
+        if ratio_min <= norm_ratio < ratio_max:
+            return "CROISSANCE_FORTE"
+    
+    # 4. SATURATION (ratio >= 10)
     th_sat_ratio = thresholds.get('SATURATION', {}).get('ratio_threshold', 10)
     th_sat_cond = thresholds.get('SATURATION', {}).get('condition_threshold', 1e3)
     
-    if norm_ratio > th_sat_ratio:
+    if norm_ratio >= th_sat_ratio:
         if condition_number is None or condition_number < th_sat_cond:
             return "SATURATION"
     
-    # 4. ASYMMETRY_BREAKING
+    # 5. ASYMMETRY_BREAKING
     if asymmetry_norm is not None:
         th_asym = thresholds.get('ASYMMETRY_BREAKING', {}).get('asymmetry_ratio_threshold', 0.5)
         asym_ratio = asymmetry_norm / max(norm_final, 1e-10)
@@ -122,7 +146,6 @@ def classify_regimes_batch(
         count = len(run_indices)
         fraction = count / n_runs if n_runs > 0 else 0.0
         
-        # FIX : Récurrence format COMPLET (cohérent avec outliers_lite)
         gamma_rec = _compute_atomic_recurrence_full(rows, run_indices, 'gamma_id')
         encoding_rec = _compute_atomic_recurrence_full(rows, run_indices, 'encoding_id')
         
@@ -148,23 +171,7 @@ def _compute_atomic_recurrence_full(
     indices: List[int],
     atomic_key: str
 ) -> Dict[str, Dict]:
-    """
-    Calcule récurrence atomics (format COMPLET).
-    
-    Returns:
-        {
-            'GAM-001': {
-                'count': 8,
-                'fraction': 0.80,
-                'total_subset': 10
-            },
-            ...
-        }
-    
-    Notes:
-        - Format cohérent avec outliers_lite.compute_atomic_recurrence()
-        - Top 5 atomics par fraction décroissante
-    """
+    """Calcule récurrence atomics (format COMPLET)."""
     subset_rows = [rows[i] for i in indices]
     n_total = len(subset_rows)
     
@@ -176,7 +183,6 @@ def _compute_atomic_recurrence_full(
         atomic_id = row['composition'][atomic_key]
         counts[atomic_id] = counts.get(atomic_id, 0) + 1
     
-    # Format complet
     recurrence = {}
     for atomic_id, count in counts.items():
         recurrence[atomic_id] = {
@@ -185,14 +191,13 @@ def _compute_atomic_recurrence_full(
             'total_subset': n_total
         }
     
-    # Trier par fraction décroissante, top 5
     recurrence = dict(sorted(recurrence.items(), key=lambda x: x[1]['fraction'], reverse=True)[:5])
     
     return recurrence
 
 
 # =============================================================================
-# VÉRIFICATION CV CROSS-RUNS (CONSERVES_NORM)
+# VÉRIFICATION CV CROSS-RUNS
 # =============================================================================
 
 def refine_conserves_norm_with_cv(
