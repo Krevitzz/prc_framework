@@ -2,7 +2,7 @@
 # Run POC minimal — teste tous les atomics disponibles avec M2
 phase: poc
 max_iterations: 10
-n_dof: 10
+n_dof: 100
 
 axes:
   gamma: all

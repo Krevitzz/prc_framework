@@ -13,7 +13,7 @@ import numpy as np
 # Ajouter prc/ au path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from featuring.hub_lite import extract_features
+from featuring.hub_featuring import extract_features
 from featuring.layers_lite import inspect_history
 from featuring.extractor_lite import extract_universal_features, compute_projection
 from featuring.registries.universal_lite import (
@@ -167,7 +167,7 @@ def test_extract_features_rank2():
     history = np.random.rand(101, 20, 20)
     
     # Load config depuis YAML
-    config_path = Path('configs/features/minimal/universal.yaml')
+    config_path = Path('featuring/configs/minimal/universal.yaml')
     
     print(f"  Loading config from: {config_path}")
     print(f"  Path exists: {config_path.exists()}")
@@ -198,7 +198,7 @@ def test_extract_features_rank3():
     """Test extract_features complet rank 3."""
     history = np.random.rand(51, 5, 5, 5)
     
-    config_path = Path('configs/features/minimal/universal.yaml')
+    config_path = Path('featuring/configs/minimal/universal.yaml')
     universal_config = load_yaml(config_path)
     
     config = {'universal': universal_config}

@@ -1,0 +1,23 @@
+# featuring/configs/minimal/matrix_2d.yaml
+# Params features matrix_2d (rank 2)
+
+functions:
+  - name: trace
+    projections: [initial, final]
+    params: {}
+  
+  - name: eigenvalue_max
+    projections: [initial, final]
+    params: {}
+  
+  - name: asymmetry_norm
+    projections: [final]
+    params: {}
+  
+  - name: condition_number
+    projections: [final]
+    params: {}
+  
+  - name: determinant
+    projections: [final]
+    params: {}

@@ -1,0 +1,33 @@
+=== VERDICT POC ===
+Runs : 216 success, 0 skipped
+Régime profile : default
+
+OUTLIERS (22 runs, 10.2%)
+  Récurrence atomics :
+    GAM-001 : 5/22 (23%)
+    GAM-008 : 5/22 (23%)
+    GAM-003 : 4/22 (18%)
+    GAM-005 : 2/22 (9%)
+    GAM-004 : 1/22 (5%)
+  Encodings récurrents :
+    R3-001 : 36%
+    R3-002 : 14%
+    R3-003 : 14%
+
+STABLES (194 runs, 89.8%)
+  Régimes dominants :
+    UNCATEGORIZED : 144 runs (74%)
+      Atomics : GAM-003 (33%), GAM-012 (27%), GAM-001 (18%)
+
+    NUMERIC_INSTABILITY : 27 runs (14%)
+      Atomics : GAM-001 (22%), GAM-008 (22%), GAM-012 (11%)
+
+    EFFONDREMENT : 16 runs (8%)
+      Atomics : GAM-005 (100%)
+
+    ASYMMETRY_BREAKING : 7 runs (4%)
+      Atomics : GAM-003 (43%), GAM-001 (29%), GAM-008 (29%)
+
+
+INSIGHTS
+  - Régime dominant : UNCATEGORIZED (74% des runs stables)

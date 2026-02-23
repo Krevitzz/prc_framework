@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Union
 
 import yaml
+import pandas as pd
 
 
 # =============================================================================
@@ -320,3 +321,65 @@ def load_yaml(identifier: Union[str, Path], mode: str = 'default') -> Dict[str, 
 # =============================================================================
 
 # À peupler selon besoins pipeline (divergences D1/D3)
+
+
+# =============================================================================
+# WRITE PARQUET
+# =============================================================================
+
+def write_parquet(rows: List[Dict], phase: str, output_dir: Path) -> Path:
+    """
+    Écrit observations en Parquet (traçabilité + inter-phases).
+    
+    Args:
+        rows       : Liste dicts {composition, features}
+        phase      : Nom phase (ex: 'poc', 'r0', 'r1')
+        output_dir : Dossier output (ex: prc/data/results/)
+    
+    Returns:
+        Path du fichier créé
+    
+    Structure Parquet:
+        - Axes → colonnes (gamma_id, encoding_id, modifier_id, n_dof, max_iterations, phase)
+        - Features → colonnes individuelles (euclidean_norm_initial, ...)
+        - 1 ligne = 1 observation
+    
+    Notes:
+        - Features dict unpacked → colonnes plates
+        - Parquet = archive froide (verdict opère RAM ou charge Parquet)
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    records = []
+    
+    for row in rows:
+        comp = row['composition']
+        features = row['features']
+        
+        record = {
+            # Axes
+            'phase': phase,
+            'gamma_id': comp['gamma_id'],
+            'encoding_id': comp['encoding_id'],
+            'modifier_id': comp['modifier_id'],
+            'n_dof': comp['n_dof'],
+            'max_iterations': comp['max_iterations'],
+            
+            # Features (unpack dict → colonnes individuelles)
+            **features
+        }
+        
+        records.append(record)
+    
+    df = pd.DataFrame(records)
+    
+    # Write Parquet
+    filepath = output_dir / f'{phase}.parquet'
+    df.to_parquet(filepath, index=False, engine='pyarrow')
+    
+    print(f"\n✓ Written: {filepath}")
+    print(f"  Observations: {len(df)}")
+    print(f"  Colonnes: {len(df.columns)}")
+    
+    return filepath

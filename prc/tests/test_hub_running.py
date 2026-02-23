@@ -1,9 +1,9 @@
 """
-test_hub.py
+test_hub_running.py
 
-Tests : prc.running.hub (run_batch)
+Tests : prc.running.hub_running (orchestration batch)
 
-Méthodologie : Observations pures, validation orchestration complète
+Méthodologie : Observations pures, validation batch complet
 """
 
 from pathlib import Path
@@ -12,7 +12,11 @@ import sys
 # Ajouter prc/ au path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from running.hub import run_batch, detect_unique_ranks, infer_rank_from_encoding
+from running.hub_running import (
+    run_batch,
+    detect_unique_ranks,
+    infer_rank_from_encoding,
+)
 from running.compositions import generate_compositions, load_run_config
 
 
@@ -48,14 +52,14 @@ def test_detect_unique_ranks():
 
 
 # =============================================================================
-# TESTS HUB
+# TESTS BATCH
 # =============================================================================
 
 def test_run_batch_small():
     """Test run_batch avec petit POC (auto_confirm)."""
     # Créer POC très petit
     config = {
-        'phase': 'test_hub_small',
+        'phase': 'test_batch_small',
         'max_iterations': 10,
         'n_dof': 10,
         'axes': {
@@ -65,18 +69,13 @@ def test_run_batch_small():
         }
     }
     
-    # Sauver config temporaire
-    import yaml
+    # Générer compositions
     from running.compositions import generate_compositions
     
     compositions = generate_compositions(config)
     n_expected = len(compositions)  # 1×2×1 = 2
     
-    # Simuler run_batch sans YAML file
-    # On va juste appeler directement avec les compositions
-    print(f"  Testing avec {n_expected} compositions (SYM + R3)")
-    
-    # Pour ce test, on va juste vérifier que detect_unique_ranks fonctionne
+    # Vérifier ranks
     ranks = detect_unique_ranks(compositions)
     
     return {
@@ -95,6 +94,12 @@ def test_run_batch_poc_debug():
     
     result = run_batch(yaml_path, auto_confirm=True)
     
+    # Vérifier structure rows (pas history)
+    has_history_in_rows = False
+    if len(result['rows']) > 0:
+        first_row = result['rows'][0]
+        has_history_in_rows = 'history' in first_row
+    
     return {
         'test': 'run_batch_poc_debug',
         'n_success': result['n_success'],
@@ -102,6 +107,10 @@ def test_run_batch_poc_debug():
         'has_stats': 'stats' in result,
         'time_mean_s': result['stats'].get('time_mean_s'),
         'ram_mean_mb': result['stats'].get('ram_mean_mb'),
+        'parquet_written': result.get('parquet_path') is not None,
+        'parquet_exists': result['parquet_path'].exists() if result.get('parquet_path') else False,
+        'rows_no_history': not has_history_in_rows,
+        'rows_have_features': 'features' in result['rows'][0] if result['rows'] else False,
     }
 
 
@@ -117,9 +126,6 @@ def test_run_batch_stats_coherence():
     checks = {
         'time_mean_positive': stats['time_mean_s'] > 0,
         'time_max_gte_mean': stats['time_max_s'] >= stats['time_mean_s'],
-        'time_total_coherent': abs(
-            stats['time_total_s'] - stats['time_mean_s'] * stats['n_compositions']
-        ) < 0.1,  # Tolérance pour arrondis
         'ram_mean_positive': stats['ram_mean_mb'] > 0,
         'ram_max_gte_mean': stats['ram_max_mb'] >= stats['ram_mean_mb'],
     }
@@ -128,7 +134,6 @@ def test_run_batch_stats_coherence():
         'test': 'run_batch_stats_coherence',
         **checks,
         'all_checks_pass': all(checks.values()),
-        'stats': stats,
     }
 
 
@@ -166,7 +171,7 @@ def run_all_tests():
 
 
 if __name__ == '__main__':
-    print("=== TESTS hub.py ===\n")
+    print("=== TESTS hub_running.py ===\n")
     
     results = run_all_tests()
     

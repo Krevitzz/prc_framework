@@ -1,0 +1,23 @@
+# configs/thresholds/default/regimes.yaml
+# Seuils régimes — profil DEFAULT (équilibré)
+
+CONSERVES_NORM:
+  ratio_threshold: 1.3      # norm_final / norm_initial < 1.3
+  cv_threshold: 0.10        # CV cross-runs < 10%
+
+NUMERIC_INSTABILITY:
+  condition_threshold: 1.0e6    # condition_number > 1e6
+  norm_threshold: 1.0e10        # norm_final > 1e10
+
+EFFONDREMENT:
+  ratio_threshold: 0.1      # norm_final / norm_initial < 0.1
+
+SATURATION:
+  ratio_threshold: 10       # norm_final / norm_initial > 10
+  condition_threshold: 1.0e3    # condition_number < 1e3 (pas singulier)
+
+ASYMMETRY_BREAKING:
+  asymmetry_ratio_threshold: 0.5    # asymmetry_norm / norm > 0.5
+
+TRIVIAL:
+  cv_threshold: 0.01        # CV cross-runs < 1%

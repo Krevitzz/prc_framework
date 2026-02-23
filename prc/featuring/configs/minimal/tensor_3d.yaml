@@ -1,0 +1,15 @@
+# featuring/configs/minimal/tensor_3d.yaml
+# Params features tensor_3d (rank 3)
+
+functions:
+  - name: mode_variance_0
+    projections: [final]
+    params: {}
+  
+  - name: mode_variance_1
+    projections: [final]
+    params: {}
+  
+  - name: mode_variance_2
+    projections: [final]
+    params: {}

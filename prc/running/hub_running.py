@@ -1,5 +1,5 @@
 """
-prc.running.hub
+prc.running.hub_running
 
 Responsabilité : Orchestration batch : compositions → benchmark → dry-run → runs → Parquet
 
@@ -7,14 +7,16 @@ Usage : Toujours lancer depuis prc/ (python -m ...)
 """
 
 import time
+import gc
 import numpy as np
+
 from pathlib import Path
 from typing import Dict, List, Set
 
-from utils.data_loading_lite import load_yaml
+from utils.data_loading_lite import load_yaml, write_parquet
 from running.compositions import generate_compositions
 from running.runner import run_single, RunnerError
-from featuring.hub_lite import extract_features
+from featuring.hub_featuring import extract_features, load_all_configs
 
 
 # =============================================================================
@@ -71,7 +73,11 @@ def find_first_composition_with_rank(compositions: List[Dict], rank: int) -> Dic
 # BATCH RUNNER
 # =============================================================================
 
-def run_batch(yaml_path: Path, auto_confirm: bool = False) -> Dict:
+def run_batch(
+    yaml_path: Path,
+    auto_confirm: bool = False,
+    output_dir: Path = None
+) -> Dict:
     """
     Orchestre batch : compositions → benchmark → confirm → runs → Parquet.
     
@@ -80,27 +86,27 @@ def run_batch(yaml_path: Path, auto_confirm: bool = False) -> Dict:
         2. Benchmark samples (1 par rank)
         3. Dry-run stats (temps moyen/max/total, RAM moyen/max)
         4. Confirmation utilisateur (sauf si auto_confirm=True)
-        5. Execute avec progress
-        6. Write Parquet (stub)
+        5. Execute avec progress (accumule features, libère history)
+        6. Write Parquet (traçabilité)
     
     Args:
         yaml_path    : Path vers YAML de run
         auto_confirm : Si True, skip confirmation (pour tests)
+        output_dir   : Dossier Parquet (défaut: prc/data/results/)
     
     Returns:
         {
             'n_success': int,
             'n_skipped': int,
-            'results': List[Dict],
+            'rows': List[Dict],  # features only
             'skipped': List[Dict],
-            'stats': Dict (estimations),
+            'stats': Dict,
+            'parquet_path': Path,
         }
-    
-    Examples:
-        >>> result = run_batch(Path('configs/phases/poc/poc.yaml'))
-        >>> result['n_success']
-        252
     """
+    if output_dir is None:
+        output_dir = Path('data/results')
+    
     print(f"=== PRC Batch Runner ===")
     print(f"Config: {yaml_path}\n")
     
@@ -114,17 +120,21 @@ def run_batch(yaml_path: Path, auto_confirm: bool = False) -> Dict:
         return {
             'n_success': 0,
             'n_skipped': 0,
-            'results': [],
+            'rows': [],
             'skipped': [],
             'stats': {},
+            'parquet_path': None,
         }
     
-    # 1b. Load features config
-    features_config_path = Path('configs/features/minimal/universal.yaml')
-    print(f"Loading features config: {features_config_path}")
-    universal_config = load_yaml(features_config_path)
-    features_config = {'universal': universal_config}
-    print(f"Features config loaded: {len(universal_config.get('functions', []))} functions\n")
+    # 1b. Load features config (découverte automatique)
+    print(f"Loading features config...")
+    features_config = load_all_configs()
+    
+    print(f"  Layers découverts: {list(features_config.keys())}")
+    for layer_name, layer_config in features_config.items():
+        n_functions = len(layer_config.get('functions', []))
+        print(f"    {layer_name}: {n_functions} functions")
+    print()
     
     # 2. Benchmark samples
     print("=== Benchmark samples ===")
@@ -197,34 +207,42 @@ def run_batch(yaml_path: Path, auto_confirm: bool = False) -> Dict:
             return {
                 'n_success': 0,
                 'n_skipped': 0,
-                'results': [],
+                'rows': [],
                 'skipped': [],
                 'stats': stats,
+                'parquet_path': None,
             }
     else:
         print("\n[auto_confirm=True] Skip confirmation\n")
     
     # 5. Execute batch
     print(f"=== Exécution batch ===")
-    results = []
+    rows = []  # Features only (pas history)
     skipped = []
     
     t_batch_start = time.time()
     
     for i, comp in enumerate(compositions):
         try:
-            # Run kernel
+            # Run kernel → history
             history = run_single(comp)
             
             # Extract features
             features = extract_features(history, features_config)
             
-            # Store result
-            results.append({
+            # Store features only (libération history immédiate)
+            rows.append({
                 'composition': comp,
-                'history': history,
                 'features': features,
             })
+            
+            # Libérer history immédiatement (RAM critique)
+            del history
+            
+            # GC périodique (tous les 10 runs)
+            if (i+1) % 10 == 0:
+                gc.collect()
+            
         except RunnerError as e:
             skipped.append({
                 'composition': comp,
@@ -235,9 +253,8 @@ def run_batch(yaml_path: Path, auto_confirm: bool = False) -> Dict:
         except Exception as e:
             # Featuring errors shouldn't crash batch
             print(f"[WARNING] Featuring failed for {comp['gamma_id']} × {comp['encoding_id']}: {e}")
-            results.append({
+            rows.append({
                 'composition': comp,
-                'history': history,
                 'features': {},  # Empty features but keep run
             })
         
@@ -246,27 +263,33 @@ def run_batch(yaml_path: Path, auto_confirm: bool = False) -> Dict:
             progress_pct = 100 * (i+1) / len(compositions)
             print(f"Progress: {i+1}/{len(compositions)} ({progress_pct:.1f}%) — {elapsed:.1f}s")
     
+    # GC final
+    gc.collect()
+    
     t_batch_total = time.time() - t_batch_start
     
-    # 6. Write Parquet (stub)
+    # 6. Write Parquet (traçabilité)
+    phase = config.get('phase', 'unknown')
+    parquet_path = None
+    
+    if len(rows) > 0:
+        parquet_path = write_parquet(rows, phase, output_dir)
+    
+    # 7. Résultats
     print(f"\n=== Résultats ===")
-    print(f"Success: {len(results)}")
+    print(f"Success: {len(rows)}")
     print(f"Skipped: {len(skipped)}")
     print(f"Temps total: {t_batch_total/60:.1f}min")
     
     # Afficher sample features
-    if len(results) > 0:
-        sample_features = results[0]['features']
-        print(f"\nFeatures extraites (sample): {len(sample_features)}")
-        for key, value in list(sample_features.items())[:3]:
-            print(f"  {key}: {value:.3f}" if isinstance(value, float) else f"  {key}: {value}")
-    
-    print(f"\n⚠️  TODO: Write Parquet")
+    n_features_extracted = len(rows[0]['features']) if len(rows) > 0 else 0
+    print(f"\nFeatures extraites: {n_features_extracted} scalaires par run")
     
     return {
-        'n_success': len(results),
+        'n_success': len(rows),
         'n_skipped': len(skipped),
-        'results': results,
+        'rows': rows,
         'skipped': skipped,
         'stats': stats,
+        'parquet_path': parquet_path,
     }
