@@ -8,35 +8,36 @@ Minimal : clustering uniquement
 
 from typing import Dict, List
 
-from analysing.clustering_lite import run_clustering
+from analysing.clustering_lite import run_clustering, run_clustering_stratified
 
 
-def run_analysing(rows: List[Dict], n_clusters: int = 3) -> Dict:
+def run_analysing(rows, n_clusters=3, stratified=True):
     """
-    Orchestration analysing patterns ML.
+    Analyse patterns ML.
     
     Args:
-        rows       : Liste {composition, features}
-        n_clusters : Nombre clusters KMeans (défaut 3)
-    
-    Returns:
-        {
-            'n_observations': int,
-            'clustering': Dict ou None
-        }
-    
-    Workflow:
-        1. Clustering similarity grouping (features communes)
-        2. (Futur : variance analysis, interactions)
+        rows : Liste {composition, features, layers}
+        n_clusters : Nombre clusters (défaut 3)
+        stratified : Si True, analyses par layers (recommandé)
     """
     print(f"\n=== Analysing patterns ML ===")
     print(f"Observations: {len(rows)}")
     
-    # Clustering
-    print(f"\nRunning KMeans clustering (n_clusters={n_clusters})...")
-    clustering_results = run_clustering(rows, n_clusters)
-    
-    return {
-        'n_observations': len(rows),
-        'clustering': clustering_results
-    }
+    if stratified:
+        print("Mode: Stratified by layers")
+        clustering_results = run_clustering_stratified(rows, n_clusters)
+        
+        return {
+            'n_observations': len(rows),
+            'clustering_stratified': clustering_results,
+            'strategy': 'stratified'
+        }
+    else:
+        print("Mode: Unified (features communes)")
+        clustering_results = run_clustering(rows, n_clusters)
+        
+        return {
+            'n_observations': len(rows),
+            'clustering': clustering_results,
+            'strategy': 'unified'
+        }

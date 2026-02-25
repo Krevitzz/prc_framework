@@ -9,6 +9,7 @@ Minimal : KMeans sklearn
 import numpy as np
 from typing import Dict, List, Set
 from sklearn.cluster import KMeans
+from featuring.layers_lite import group_rows_by_layers
 
 
 def _extract_common_features(rows: List[Dict]) -> Set[str]:
@@ -122,3 +123,47 @@ def run_clustering(rows: List[Dict], n_clusters: int = 3) -> Dict:
     except Exception as e:
         print(f"  WARNING: Clustering failed - {str(e)}")
         return None
+
+
+def run_clustering_stratified(rows: List[Dict], n_clusters: int = 3) -> Dict:
+    """
+    Clustering par layers (générique, extensible automatiquement).
+    
+    Args:
+        rows : Liste {composition, features, layers}
+        n_clusters : Nombre clusters (défaut 3)
+    
+    Returns:
+        {
+            'universal': {...},
+            'matrix_2d': {...},
+            'tensor_3d': {...},
+            # Nouveaux layers auto-ajoutés
+        }
+    
+    Notes:
+        - Extensible : Nouveau layer = 0 ligne code
+        - Skip layers avec <n_clusters samples
+    """
+
+    
+    # Grouper rows par layer
+    layers_groups = group_rows_by_layers(rows)
+    
+    # Clustering par layer (boucle générique)
+    results = {}
+    
+    for layer_name, layer_rows in layers_groups.items():
+        # Skip si pas assez samples
+        if len(layer_rows) < n_clusters:
+            print(f"  [SKIP] {layer_name}: {len(layer_rows)} samples < {n_clusters}")
+            continue
+        
+        # Clustering
+        result = run_clustering(layer_rows, n_clusters)
+        
+        if result is not None:
+            results[layer_name] = result
+            print(f"  ✓ {layer_name}: {len(layer_rows)} samples, {result['n_features']} features")
+    
+    return results

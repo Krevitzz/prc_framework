@@ -228,12 +228,13 @@ def run_batch(
             history = run_single(comp)
             
             # Extract features
-            features = extract_features(history, features_config)
+            result = extract_features(history, features_config)
             
             # Store features only (libération history immédiate)
             rows.append({
                 'composition': comp,
-                'features': features,
+                'features': result['features'],
+                'layers': result['layers']  # ← Ajouter tag layers
             })
             
             # Libérer history immédiatement (RAM critique)
@@ -269,7 +270,7 @@ def run_batch(
     t_batch_total = time.time() - t_batch_start
     
     # 6. Write Parquet (traçabilité)
-    phase = config.get('phase', 'unknown')
+    phase = yaml_path.stem  # poc.yaml → 'poc', poc2.yaml → 'poc2'
     parquet_path = None
     
     if len(rows) > 0:

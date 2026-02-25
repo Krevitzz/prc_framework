@@ -60,7 +60,7 @@ def classify_regime(features: Dict, thresholds: Dict) -> str:
     asymmetry_norm = features.get('asymmetry_norm_final')
     
     # 1. PATHOLOGIES (prioritaires)
-    if has_nan :#or np.isinf(norm_final):
+    if has_nan or np.isinf(norm_final):
         return "NUMERIC_INSTABILITY"
     
     if condition_number is not None:

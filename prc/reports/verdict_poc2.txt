@@ -1,0 +1,19 @@
+=== VERDICT POC2 ===
+Runs : 224 success, 0 skipped
+Régime profile : default
+
+OUTLIERS (0 runs, 0.0%)
+  (aucun outlier détecté)
+
+STABLES (224 runs, 100.0%)
+  Régimes dominants :
+    CONSERVES_NORM : 202 runs (90%)
+      Atomics : GAM-009 (10%), GAM-003 (10%), GAM-004 (10%)
+
+    NUMERIC_INSTABILITY : 22 runs (10%)
+      Atomics : GAM-001 (18%), GAM-008 (18%), GAM-013 (18%)
+
+
+INSIGHTS
+  - GAM-009 + ASY-001 → combinaison stable (90% CONSERVES_NORM)
+  - Régime dominant : CONSERVES_NORM (90% des runs stables)

@@ -11,12 +11,9 @@ from pathlib import Path
 from typing import Dict
 
 from utils.data_loading_lite import load_yaml
-from featuring.layers_lite import inspect_history
-from featuring.extractor_lite import (
-    extract_universal_features,
-    extract_matrix_2d_features,
-    extract_tensor_3d_features,
-)
+from featuring.extractor_lite import extract_for_layer
+from featuring.layers_lite import check_applicability, inspect_history
+
 
 
 def load_all_configs() -> Dict:
@@ -54,62 +51,42 @@ def load_all_configs() -> Dict:
     return configs
 
 
-def extract_features(history: np.ndarray, config: Dict) -> Dict[str, float]:
+def extract_features(history: np.ndarray, config: Dict) -> Dict:
     """
-    Extrait features depuis history (routing layers automatique).
-    
-    Args:
-        history : Séquence états (T, *dims)
-        config  : Dict {
-                    'universal': {...},
-                    'matrix_2d': {...},
-                    'tensor_3d': {...},
-                  }
+    Extrait features + détecte layers applicables.
     
     Returns:
-        {'feature_name': value, ...}
-    
-    Workflow:
-        1. Inspect history → rank, shape
-        2. Validation NaN/Inf → flag has_nan_inf
-        3. Extract universal (tout rank)
-        4. Extract matrix_2d si rank=2
-        5. Extract tensor_3d si rank=3
-    
-    Notes:
-        - Layers appelés selon rank détecté
-        - Features agrégées dans dict unique
-        - Erreurs extraction → skip silencieux
-    
-    Examples:
-        >>> features = extract_features(history, config)
-        >>> features.keys()
-        dict_keys(['has_nan_inf', 'euclidean_norm_initial', 'trace_final', ...])
+        {
+            'features': {...},
+            'layers': ['universal', 'matrix_2d']
+        }
     """
+    
     # 1. Inspect history
     info = inspect_history(history)
-    rank = info['rank']
     
-    # 2. Validation NaN/Inf
+    # 2. Boucle layers : vérifier applicabilité + extraire
+    applicable_layers = []
+    features = {}
+    
+    for layer_name, layer_config in config.items():
+        # Vérifier applicabilité (logique dans extractor_lite)
+        if check_applicability(info, layer_config):
+            applicable_layers.append(layer_name)
+            
+            # Extraire features (dispatch dans extractor_lite)
+            try:
+                layer_features = extract_for_layer(history, layer_name, layer_config)
+                features.update(layer_features)
+            except Exception as e:
+                print(f"[WARNING] Extraction {layer_name} échouée: {e}")
+    
+    # 3. Validation NaN/Inf
     has_nan_inf = not np.all(np.isfinite(history))
+    features['has_nan_inf'] = has_nan_inf
     
-    features = {
-        'has_nan_inf': has_nan_inf,
+    # Return features + layers
+    return {
+        'features': features,
+        'layers': applicable_layers
     }
-    
-    # 3. Universal features (tout rank)
-    if 'universal' in config:
-        universal_features = extract_universal_features(history, config['universal'])
-        features.update(universal_features)
-    
-    # 4. Matrix 2D features (rank 2)
-    if rank == 2 and 'matrix_2d' in config:
-        matrix_features = extract_matrix_2d_features(history, config['matrix_2d'])
-        features.update(matrix_features)
-    
-    # 5. Tensor 3D features (rank 3)
-    if rank == 3 and 'tensor_3d' in config:
-        tensor_features = extract_tensor_3d_features(history, config['tensor_3d'])
-        features.update(tensor_features)
-    
-    return features

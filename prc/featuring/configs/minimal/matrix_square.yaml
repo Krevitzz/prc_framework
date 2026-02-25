@@ -1,0 +1,9 @@
+# featuring/configs/minimal/matrix_square.yaml
+
+applicability:
+  rank: 2
+  square: true  # Requiert matrice carrée
+
+functions:
+  - eigenvalue_max
+  - eigenvalue_min

@@ -9,7 +9,35 @@ Minimal : 3 stats uniquement
 import numpy as np
 from typing import Dict, List
 
-
+def find_feature_variants(features: Dict, base_name: str) -> List[str]:
+    """
+    Trouve variantes feature avec projections (_initial, _final, _mean).
+    
+    Args:
+        features : Dict features d'un run
+        base_name : Nom base (ex: 'euclidean_norm', 'trace')
+    
+    Returns:
+        Liste variantes trouvées (ex: ['euclidean_norm_final', 'euclidean_norm_initial'])
+    
+    Examples:
+        >>> find_feature_variants({'euclidean_norm_final': 12.3}, 'euclidean_norm')
+        ['euclidean_norm_final']
+    """
+    variants = []
+    
+    # Chercher variantes avec suffixes
+    for suffix in ['_initial', '_final', '_mean', '_max', '_min']:
+        variant = base_name + suffix
+        if variant in features:
+            variants.append(variant)
+    
+    # Chercher aussi base sans suffixe
+    if base_name in features:
+        variants.append(base_name)
+    
+    return variants
+    
 def aggregate_feature_by_entity(
     rows: List[Dict],
     entity_key: str,
@@ -48,19 +76,21 @@ def aggregate_feature_by_entity(
         entity_id = row['composition'][entity_key]
         features = row['features']
         
-        if feature_name not in features:
-            continue
+        # Chercher variantes projections
+        variants = find_feature_variants(features, feature_name)
         
-        value = features[feature_name]
-        
-        # Skip NaN/Inf
-        if not np.isfinite(value):
-            continue
-        
-        if entity_id not in grouped:
-            grouped[entity_id] = []
-        
-        grouped[entity_id].append(value)
+        for variant in variants:
+            value = features[variant]
+            
+            # Skip NaN/Inf
+            if not np.isfinite(value):
+                continue
+            
+            if entity_id not in grouped:
+                grouped[entity_id] = []
+            
+            grouped[entity_id].append(value)
+
     
     # Aggregate
     aggregated = {}

@@ -1,0 +1,7 @@
+applicability:
+  rank: 2
+  is_symmetric: true
+
+functions:
+  - symmetry_deviation
+  - eigenvalue_spread

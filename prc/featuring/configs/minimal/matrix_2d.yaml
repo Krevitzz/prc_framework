@@ -1,5 +1,8 @@
 # featuring/configs/minimal/matrix_2d.yaml
 # Params features matrix_2d (rank 2)
+applicability:
+  rank: 2
+  is_square: true
 
 functions:
   - name: trace

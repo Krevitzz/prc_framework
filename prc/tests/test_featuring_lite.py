@@ -25,7 +25,72 @@ from utils.data_loading_lite import load_yaml
 # =============================================================================
 # TESTS REGISTRES
 # =============================================================================
+def test_all_features_have_projections():
+    """Vérifie que toutes features ont projection explicite."""
+    from featuring.hub_featuring import extract_features
+    import numpy as np
+    
+    # Mock history
+    history = np.random.randn(201, 10, 10)
+    config = load_all_configs()
+    
+    result = extract_features(history, config)
+    features = result['features']
+    
+    # Vérifier projections
+    suffixes = ['_initial', '_final', '_mean', '_max', '_min']
+    features_no_suffix = [
+        f for f in features.keys()
+        if not any(f.endswith(s) for s in suffixes)
+        and not f.startswith('has_')
+    ]
+    
+    assert len(features_no_suffix) == 0, \
+        f"Features sans projection: {features_no_suffix}"
+def test_extract_for_layer():
+    """Vérifie dispatch extraction."""
+    from featuring.extractor_lite import extract_for_layer
+    import numpy as np
+    
+    history = np.random.randn(201, 10, 10)
+    config = {'functions': ['euclidean_norm']}
+    
+    # Extraction universal
+    features = extract_for_layer(history, 'universal', config)
+    assert 'euclidean_norm_initial' in features
+    
+    # Extraction matrix_2d
+    features = extract_for_layer(history, 'matrix_2d', config)
+    assert 'trace_final' in features
+    
+def test_check_applicability():
+    """Vérifie logique applicabilité générique."""
+    from featuring.extractor_lite import check_applicability
+    
+    info = {'rank': 2, 'is_square': True, 'n_dof': 10}
+    
+    # Rank seul
+    assert check_applicability(info, {'applicability': {'rank': 2}})
+    assert not check_applicability(info, {'applicability': {'rank': 3}})
+    
+    # Multiple conditions (AND)
+    assert check_applicability(
+        info, 
+        {'applicability': {'rank': 2, 'is_square': True}}
+    )
+    
+    assert not check_applicability(
+        info,
+        {'applicability': {'rank': 2, 'is_square': False}}
+    )
+    
+    # Condition absente dans info
+    assert not check_applicability(
+        info,
+        {'applicability': {'is_symmetric': True}}  # Pas dans info
+    )    
 
+        
 def test_universal_functions():
     """Test fonctions registre universal."""
     # Matrice 10×10

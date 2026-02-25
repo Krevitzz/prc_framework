@@ -3,13 +3,12 @@ prc.featuring.extractor_lite
 
 Responsabilité : Extraction features scalaires depuis history np.ndarray
 
-Minimal : projections temporelles + appel registres
+Architecture simplifiée : Pas de fonctions intermédiaires par layer
 """
 
 import numpy as np
-from typing import Dict, List
-
-from featuring.registries import universal_lite, matrix_2d_lite, tensor_3d_lite
+from typing import Dict
+from featuring.layers_lite import inspect_history, check_applicability
 
 
 # =============================================================================
@@ -26,11 +25,6 @@ def compute_projection(history: np.ndarray, projection: str) -> np.ndarray:
     
     Returns:
         État projeté (*dims)
-    
-    Examples:
-        >>> compute_projection(history, 'initial')  # history[0]
-        >>> compute_projection(history, 'final')    # history[-1]
-        >>> compute_projection(history, 'mean')     # np.mean(history, axis=0)
     """
     if projection == 'initial':
         return history[0]
@@ -47,121 +41,79 @@ def compute_projection(history: np.ndarray, projection: str) -> np.ndarray:
 
 
 # =============================================================================
-# EXTRACTION FEATURES PAR LAYER
+# EXTRACTION FEATURES (GÉNÉRIQUE)
 # =============================================================================
 
-def extract_universal_features(history: np.ndarray, config: Dict) -> Dict[str, float]:
+def extract_for_layer(
+    history: np.ndarray,
+    layer_name: str,
+    layer_config: Dict
+) -> Dict[str, float]:
     """
-    Extrait features universelles (tout rank).
+    Extraction features vraiment générique (appelle directement registres).
+    
+    Workflow:
+        1. Lit layer_config['functions']
+        2. Pour chaque fonction:
+           - Import registre dynamique
+           - Appelle fonction
+           - Applique projections
     
     Args:
         history : Séquence états (T, *dims)
-        config  : Dict {'functions': [{name, projections, params}, ...]}
+        layer_name : 'universal', 'matrix_2d', 'tensor_3d'
+        layer_config : Config YAML layer
     
     Returns:
-        {'euclidean_norm_initial': 5.0, 'entropy_final': 2.5, ...}
+        Dict features extraites
     
     Notes:
-        - Applicable tout rank
-        - Projections configurables via YAML
+        - Pas de fonction intermédiaire extract_{layer}_features()
+        - Appelle directement registres
+        - Extensible : Nouveau layer = YAML + registre
     """
     features = {}
+    functions_config = layer_config.get('functions', [])
     
-    for func_config in config['functions']:
-        func_name = func_config['name']
-        projections = func_config.get('projections', ['final'])
-        params = func_config.get('params', {})
+    # Import registre dynamique
+    try:
+        registre_module = __import__(
+            f'featuring.registries.{layer_name}_lite',
+            fromlist=['']
+        )
+    except ImportError:
+        print(f"[WARNING] Registre {layer_name}_lite introuvable")
+        return features
+    
+    # Pour chaque fonction du YAML
+    for func_config in functions_config:
+        # Extraire config fonction
+        if isinstance(func_config, dict):
+            func_name = func_config['name']
+            projections = func_config.get('projections', ['final'])
+            params = func_config.get('params', {})
+        else:
+            # Format simple (str)
+            func_name = func_config
+            projections = ['final']
+            params = {}
         
-        # Résoudre fonction depuis registre
-        func = getattr(universal_lite, func_name)
+        # Récupérer fonction depuis registre
+        try:
+            func = getattr(registre_module, func_name)
+        except AttributeError:
+            print(f"[WARNING] Fonction {func_name} absente dans {layer_name}_lite")
+            continue
         
-        # Appliquer sur chaque projection
-        for proj in projections:
-            state_proj = compute_projection(history, proj)
+        # Appliquer projections
+        for projection in projections:
+            state = compute_projection(history, projection)
             
             try:
-                value = func(state_proj, **params)
-                features[f'{func_name}_{proj}'] = value
+                value = func(state, **params)
+                feature_name = f'{func_name}_{projection}'
+                features[feature_name] = float(value)
             except Exception as e:
-                # Skip si erreur (ex: entropy sur valeurs constantes)
-                pass
-    
-    return features
-
-
-def extract_matrix_2d_features(history: np.ndarray, config: Dict) -> Dict[str, float]:
-    """
-    Extrait features matrix_2d (rank 2).
-    
-    Args:
-        history : Séquence états (T, n, m)
-        config  : Dict {'functions': [{name, projections, params}, ...]}
-    
-    Returns:
-        {'trace_final': 12.3, 'eigenvalue_max_initial': 5.0, ...}
-    
-    Notes:
-        - Applicable rank 2 uniquement
-        - ValueError si rank ≠ 2
-    """
-    features = {}
-    
-    for func_config in config['functions']:
-        func_name = func_config['name']
-        projections = func_config.get('projections', ['final'])
-        params = func_config.get('params', {})
-        
-        # Résoudre fonction depuis registre
-        func = getattr(matrix_2d_lite, func_name)
-        
-        # Appliquer sur chaque projection
-        for proj in projections:
-            state_proj = compute_projection(history, proj)
-            
-            try:
-                value = func(state_proj, **params)
-                features[f'{func_name}_{proj}'] = value
-            except Exception as e:
-                # Skip si erreur (ex: matrice singulière)
-                pass
-    
-    return features
-
-
-def extract_tensor_3d_features(history: np.ndarray, config: Dict) -> Dict[str, float]:
-    """
-    Extrait features tensor_3d (rank 3).
-    
-    Args:
-        history : Séquence états (T, n, m, p)
-        config  : Dict {'functions': [{name, projections, params}, ...]}
-    
-    Returns:
-        {'mode_variance_0_final': 0.5, 'mode_variance_1_final': 0.3, ...}
-    
-    Notes:
-        - Applicable rank 3 uniquement
-        - ValueError si rank ≠ 3
-    """
-    features = {}
-    
-    for func_config in config['functions']:
-        func_name = func_config['name']
-        projections = func_config.get('projections', ['final'])
-        params = func_config.get('params', {})
-        
-        # Résoudre fonction depuis registre
-        func = getattr(tensor_3d_lite, func_name)
-        
-        # Appliquer sur chaque projection
-        for proj in projections:
-            state_proj = compute_projection(history, proj)
-            
-            try:
-                value = func(state_proj, **params)
-                features[f'{func_name}_{proj}'] = value
-            except Exception as e:
-                # Skip si erreur
-                pass
+                print(f"[WARNING] Erreur {func_name}_{projection}: {e}")
     
     return features
