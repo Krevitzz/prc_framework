@@ -13,6 +13,7 @@ from typing import Dict
 from utils.data_loading_lite import load_yaml
 from featuring.extractor_lite import extract_for_layer
 from featuring.layers_lite import check_applicability, inspect_history
+from featuring.registries.universal_lite import compute_delta_features
 
 
 
@@ -81,9 +82,16 @@ def extract_features(history: np.ndarray, config: Dict) -> Dict:
             except Exception as e:
                 print(f"[WARNING] Extraction {layer_name} échouée: {e}")
     
-    # 3. Validation NaN/Inf
+    # 3. Features delta (variation initial → final) — encoding-invariantes
+    features.update(compute_delta_features(features))
+
+    # 4. Validation NaN/Inf
     has_nan_inf = not np.all(np.isfinite(history))
     features['has_nan_inf'] = has_nan_inf
+    # Détecter collapse sur état final
+    final_state = history[-1]
+    is_collapsed = bool(np.std(final_state) < 1e-10)
+    features['is_collapsed'] = is_collapsed
     
     # Return features + layers
     return {

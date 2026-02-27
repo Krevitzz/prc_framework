@@ -1,21 +1,84 @@
-# configs/features/minimal/universal.yaml
-# Configuration features universelles minimales
+# featuring/configs/minimal/universal.yaml
+# Layer universel — applicable à tout tenseur, tout rank
+# applicability: [] → toujours applicable
 
-# Fonctions à extraire (layer universal)
-applicability:
-  rank: any  # Applicable à tous ranks
+applicability: []
+
+# Paramètre SVD global (surchargeable par fonction)
+# n_components: null → tous les σ | int k → top-k valeurs singulières
+# Modifier ici pour tuner le rapport précision/performance sur tout le layer
 
 functions:
+
+  # ── EXISTANTES ──────────────────────────────────────────────────────────────
+
   - name: euclidean_norm
-    projections:
-      - initial
-      - final
-      - mean
+    projections: [initial, final, mean]
     params: {}
-  
+
   - name: entropy
-    projections:
-      - initial
-      - final
+    projections: [initial, final]
     params:
       bins: 50
+
+  - name: mean_value
+    projections: [initial, final]
+    params: {}
+
+  - name: std_value
+    projections: [initial, final, mean]
+    params: {}
+
+  # ── GÉNÉRIQUES NOUVELLES ────────────────────────────────────────────────────
+
+  - name: range_value
+    projections: [initial, final, mean]
+    params: {}
+
+  - name: cv
+    projections: [initial, final]
+    params: {}
+
+  # ── SVD-BASED ───────────────────────────────────────────────────────────────
+
+  - name: singular_value_max
+    projections: [initial, final, mean]
+    params:
+      n_components: null
+
+  - name: singular_value_min
+    projections: [initial, final, mean]
+    params:
+      n_components: null
+
+  - name: singular_value_spread
+    projections: [initial, final, mean]
+    params:
+      n_components: null
+
+  - name: condition_number_svd
+    projections: [initial, final]
+    params:
+      n_components: null
+
+  - name: nuclear_norm
+    projections: [initial, final, mean]
+    params:
+      n_components: null
+
+  - name: effective_rank
+    projections: [initial, final]
+    params:
+      n_components: null
+
+  # ── DELTA (variation initial → final) ──────────────────────────────────────
+  # Ces features sont calculées par compute_delta_features() dans hub_featuring,
+  # PAS via le mécanisme projection/extractor_lite.
+  # Elles opèrent sur les scalaires déjà en RAM → encoding-invariantes.
+  # Listées ici pour documentation uniquement.
+  #
+  # norm_ratio           : euclidean_norm_final / norm_initial
+  # entropy_delta        : entropy_final - entropy_initial
+  # effective_rank_delta : effective_rank_final - effective_rank_initial
+  # log_condition_delta  : log(cond_final) - log(cond_initial)
+  # spread_ratio         : singular_value_spread_final / spread_initial

@@ -1,0 +1,22 @@
+# featuring/configs/minimal/universal.yaml
+# Layer universel — applicable à tout tenseur, tout rank
+
+applicability: []  # Liste vide = toujours applicable
+
+functions:
+  - name: euclidean_norm
+    projections: [initial, final, mean]
+    params: {}
+
+  - name: entropy
+    projections: [initial, final]
+    params:
+      bins: 50
+
+  - name: mean_value
+    projections: [initial, final]
+    params: {}
+
+  - name: std_value
+    projections: [initial, final]
+    params: {}

@@ -1,0 +1,15 @@
+# featuring/configs/minimal/symmetric_2d.yaml
+# Layer matrice symétrique — rank 2, is_square ET is_symmetric
+# is_symmetric calculé sur état final (tolérance numérique)
+
+applicability:
+  - {field: rank,         op: "=", value: 2}
+  - {field: is_square,    op: "=", value: true}
+  - {field: is_symmetric, op: "=", value: true}
+
+functions:
+
+
+  - name: eigenvalue_spread
+    projections: [final]
+    params: {}

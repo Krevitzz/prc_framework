@@ -2,46 +2,46 @@
 Runs : 224 success, 0 skipped
 Régime profile : default
 
-OUTLIERS (23 runs, 10.3%)
+OUTLIERS (20 runs, 10.0%)
   Récurrence atomics :
-    GAM-001 : 4/23 (17%)
-    GAM-008 : 4/23 (17%)
-    GAM-013 : 4/23 (17%)
-    GAM-005 : 3/23 (13%)
-    GAM-003 : 2/23 (9%)
+    GAM-001 : 5/20 (25%)
+    GAM-008 : 5/20 (25%)
+    GAM-003 : 4/20 (20%)
+    GAM-013 : 2/20 (10%)
+    GAM-002 : 1/20 (5%)
   Encodings récurrents :
-    ASY-004 : 43%
-    R3-001 : 13%
-    R3-002 : 9%
+    ASY-004 : 35%
+    R3-001 : 15%
+    R3-002 : 15%
 
-STABLES (201 runs, 89.7%)
+STABLES (181 runs, 90.0%)
   Régimes dominants :
-    CONSERVES_NORM : 113 runs (56%)
-      Atomics : GAM-004 (18%), GAM-006 (18%), GAM-010 (18%)
+    CONSERVES_NORM : 103 runs (57%)
+      Atomics : GAM-004 (17%), GAM-006 (17%), GAM-010 (17%)
 
-    CROISSANCE_FAIBLE : 47 runs (23%)
-      Atomics : GAM-003 (40%), GAM-001 (19%), GAM-008 (19%)
+    CROISSANCE_FAIBLE : 40 runs (22%)
+      Atomics : GAM-003 (38%), GAM-001 (20%), GAM-008 (20%)
 
-    EFFONDREMENT : 20 runs (10%)
-      Atomics : GAM-005 (90%), GAM-009 (5%), GAM-010 (5%)
+    EFFONDREMENT : 22 runs (12%)
+      Atomics : GAM-005 (86%), GAM-006 (5%), GAM-009 (5%)
 
-    CROISSANCE_FORTE : 14 runs (7%)
-      Atomics : GAM-001 (36%), GAM-008 (36%), GAM-012 (21%)
+    CROISSANCE_FORTE : 10 runs (6%)
+      Atomics : GAM-001 (30%), GAM-008 (30%), GAM-012 (30%)
 
-    NUMERIC_INSTABILITY : 7 runs (3%)
-      Atomics : GAM-001 (29%), GAM-008 (29%), GAM-012 (29%)
+    NUMERIC_INSTABILITY : 6 runs (3%)
+      Atomics : GAM-001 (33%), GAM-008 (33%), GAM-012 (33%)
 
 
 INSIGHTS
-  - GAM-004 + SYM-001 → combinaison stable (56% CONSERVES_NORM)
+  - GAM-004 + SYM-001 → combinaison stable (57% CONSERVES_NORM)
 CLUSTERING (11 clusters, 40 bruit)
   Features orthogonales utilisées : 21/36
 
   Cluster 0 (12 runs) → CONSERVES_NORM 50% / CROISSANCE_FORTE 25%  ⚠ divergence
-  Cluster 1 (11 runs) → OUTLIER 82%  ✓ concordant régimes
+  Cluster 1 (11 runs) → UNKNOWN 64% / EFFONDREMENT 36%  ⚠ divergence
   Cluster 2 (10 runs) → CONSERVES_NORM 60% / NUMERIC_INSTABILITY 30%  ⚠ divergence
   Cluster 3 (8 runs) → CONSERVES_NORM 75%  ✓ concordant régimes
-  Cluster 4 (7 runs) → OUTLIER 71%  ✓ concordant régimes
+  Cluster 4 (7 runs) → UNKNOWN 100%  ✓ concordant régimes
   Cluster 5 (9 runs) → CONSERVES_NORM 78%  ✓ concordant régimes
   Cluster 6 (7 runs) → CONSERVES_NORM 100%  ✓ concordant régimes
   Cluster 7 (8 runs) → CONSERVES_NORM 75%  ✓ concordant régimes
@@ -51,6 +51,8 @@ CLUSTERING (11 clusters, 40 bruit)
 
   Divergences :
     - Cluster 0 (12 runs) : CONSERVES_NORM 50% / CROISSANCE_FORTE 25% → sous-structure non capturée par régimes
+    - Cluster 1 (11 runs) : UNKNOWN 64% / EFFONDREMENT 36% → sous-structure non capturée par régimes
     - Cluster 2 (10 runs) : CONSERVES_NORM 60% / NUMERIC_INSTABILITY 30% → sous-structure non capturée par régimes
     - Cluster 8 (12 runs) : CONSERVES_NORM 67% / CROISSANCE_FAIBLE 17% → sous-structure non capturée par régimes
     - Cluster 10 (71 runs) : CONSERVES_NORM 61% / CROISSANCE_FAIBLE 28% → sous-structure non capturée par régimes
+    - Régime EFFONDREMENT fragmenté sur 8 clusters → hétérogénéité interne

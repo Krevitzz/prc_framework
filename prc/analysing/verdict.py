@@ -150,14 +150,22 @@ def run_verdict_intra(
     print(f"\n✓ Verdict complete")
     print(f"  Profiling: {metadata['n_gammas']} gammas, {metadata['n_encodings']} encodings")
     
-    clustering = analysing_results.get('clustering') or {}
+    # Clustering stratified (mode défaut) ou unified
+    clustering = (
+        analysing_results.get('clustering_stratified', {}).get('universal')
+        or analysing_results.get('clustering')
+        or {}
+    )
     print(f"  Analysing: {clustering.get('n_clusters', 'N/A')} clusters")
     
+    cross_results = _cross_cluster_regimes(analysing_results, regimes_results, rows, outliers_results)
+
     return {
         'profiling': profiling_results,
         'analysing': analysing_results,
         'outliers': outliers_results,
         'regimes': regimes_results,
+        'cross': cross_results,
         'metadata': metadata,
     }
 
@@ -182,7 +190,7 @@ def run_verdict_from_parquet(parquet_path: Path, regime_profile: str = 'default'
     for _, row_df in df.iterrows():
         comp = {col: row_df[col] for col in axes_cols}
         features = {col: row_df[col] for col in features_cols}
-        rows.append({'composition': comp, 'features': features})
+        rows.append({'composition': comp, 'features': features, 'layers': ['universal']})
     
     return run_verdict_intra(rows, regime_profile=regime_profile)
 
@@ -247,7 +255,7 @@ def run_verdict_cross_phases(results_dir: Path = None, regime_profile: str = 'de
         for _, row_df in df.iterrows():
             comp = {col: row_df[col] for col in axes_cols}
             features = {col: row_df[col] for col in features_cols}
-            rows.append({'composition': comp, 'features': features})
+            rows.append({'composition': comp, 'features': features, 'layers': ['universal']})
         
         phases_data[phase_name] = rows
     
@@ -267,6 +275,174 @@ def run_verdict_cross_phases(results_dir: Path = None, regime_profile: str = 'de
         'phases': phases_results,
         'concordance': concordance_results,
         'metadata': metadata,
+    }
+
+
+
+# =============================================================================
+# CROISEMENT CLUSTERS × RÉGIMES
+# =============================================================================
+
+def _cross_cluster_regimes(
+    analysing_results: Dict,
+    regimes_results: Dict,
+    rows: List[Dict],
+    outliers_results: Dict = None
+) -> Dict:
+    """
+    Croise clusters HDBSCAN × régimes handcoded.
+
+    Pour chaque cluster :
+        - Distribution des régimes → régime dominant + pureté
+        - Pureté < PURITY_THRESHOLD → divergence flagguée ⚠
+
+    Pour chaque régime :
+        - Distribution sur les clusters → concentré ou fragmenté
+
+    Args:
+        analysing_results : Retour de run_analysing()
+        regimes_results   : Retour de classify_regimes_batch()
+        rows              : Liste complète rows (pour mapping index → régime)
+        outliers_results  : Retour de analyze_outliers() — outliers non assignés → 'OUTLIER'
+
+    Returns:
+        {
+            'clusters': {
+                cluster_id: {
+                    'n_runs'          : int,
+                    'dominant_regime' : str,
+                    'purity'          : float,
+                    'regime_dist'     : {regime: fraction},
+                    'divergence'      : bool
+                }
+            },
+            'regimes': {
+                regime_name: {
+                    'cluster_dist'    : {cluster_id: fraction},
+                    'fragmented'      : bool   # True si > 2 clusters significatifs
+                }
+            },
+            'divergences': List[str],   # messages lisibles
+            'n_clusters'  : int,
+            'n_noise'     : int,
+        }
+        {} si clustering indisponible
+    """
+    PURITY_THRESHOLD = 0.70
+
+    # Récupérer résultat clustering universal
+    clustering = (
+        analysing_results.get('clustering_stratified', {}).get('universal')
+        or analysing_results.get('clustering')
+        or None
+    )
+
+    if clustering is None or not clustering.get('labels'):
+        return {}
+
+    labels       = clustering['labels']       # List[int], -1 = bruit
+    valid_indices = clustering['valid_indices'] # indices dans rows
+
+    # Construire mapping index_row → régime
+    # Les runs outliers (non classifiés par classify_regimes_batch) → 'OUTLIER'
+    outlier_indices = set(
+        outliers_results.get('outlier_indices', [])
+        if outliers_results else []
+    )
+    row_to_regime = {}
+    for regime, data in regimes_results.get('regimes', {}).items():
+        for idx in data.get('run_indices', []):
+            row_to_regime[idx] = regime
+    # Marquer les outliers non assignés à un régime
+    for idx in outlier_indices:
+        if idx not in row_to_regime:
+            row_to_regime[idx] = 'OUTLIER'
+
+    # Construire mapping index_row → cluster_label
+    row_to_cluster = {}
+    for label, row_idx in zip(labels, valid_indices):
+        row_to_cluster[row_idx] = label
+
+    # ── Par cluster ──────────────────────────────────────────────────────────
+    cluster_ids = sorted(set(labels) - {-1})
+    clusters_out = {}
+
+    for cid in cluster_ids:
+        cluster_rows = [
+            row_idx for row_idx, lbl in row_to_cluster.items() if lbl == cid
+        ]
+
+        regime_counts = {}
+        for row_idx in cluster_rows:
+            regime = row_to_regime.get(row_idx, 'UNKNOWN')
+            regime_counts[regime] = regime_counts.get(regime, 0) + 1
+
+        n = len(cluster_rows)
+        regime_dist = {r: c / n for r, c in sorted(
+            regime_counts.items(), key=lambda x: x[1], reverse=True
+        )}
+
+        dominant = max(regime_counts, key=regime_counts.get) if regime_counts else 'UNKNOWN'
+        purity   = regime_dist.get(dominant, 0.0)
+
+        clusters_out[cid] = {
+            'n_runs'          : n,
+            'dominant_regime' : dominant,
+            'purity'          : round(purity, 3),
+            'regime_dist'     : {r: round(v, 3) for r, v in regime_dist.items()},
+            'divergence'      : purity < PURITY_THRESHOLD,
+        }
+
+    # ── Par régime ───────────────────────────────────────────────────────────
+    all_regimes = set(regimes_results.get('regimes', {}).keys())
+    regimes_out = {}
+
+    for regime in all_regimes:
+        regime_rows = regimes_results['regimes'][regime].get('run_indices', [])
+        cluster_counts = {}
+
+        for row_idx in regime_rows:
+            lbl = row_to_cluster.get(row_idx, -1)
+            cluster_counts[lbl] = cluster_counts.get(lbl, 0) + 1
+
+        n = len(regime_rows)
+        cluster_dist = {c: round(cnt / n, 3) for c, cnt in sorted(
+            cluster_counts.items(), key=lambda x: x[1], reverse=True
+        )}
+
+        # Fragmenté si > 2 clusters captent chacun > 15%
+        significant = sum(1 for f in cluster_dist.values() if f > 0.15)
+        regimes_out[regime] = {
+            'cluster_dist': cluster_dist,
+            'fragmented'  : significant > 2,
+        }
+
+    # ── Divergences lisibles ─────────────────────────────────────────────────
+    divergences = []
+    for cid, data in clusters_out.items():
+        if data['divergence']:
+            top2 = list(data['regime_dist'].items())[:2]
+            parts = " / ".join(f"{r} {v*100:.0f}%" for r, v in top2)
+            divergences.append(
+                f"Cluster {cid} ({data['n_runs']} runs) : {parts} "
+                f"→ sous-structure non capturée par régimes"
+            )
+
+    for regime, data in regimes_out.items():
+        if data['fragmented']:
+            divergences.append(
+                f"Régime {regime} fragmenté sur {len(data['cluster_dist'])} clusters "
+                f"→ hétérogénéité interne"
+            )
+
+    return {
+        'clusters'    : clusters_out,
+        'regimes'     : regimes_out,
+        'divergences' : divergences,
+        'n_clusters'  : clustering.get('n_clusters', 0),
+        'n_noise'     : clustering.get('n_noise', 0),
+        'n_features'  : clustering.get('n_features', 0),
+        'n_features_total': clustering.get('n_features_total', 0),
     }
 
 
@@ -414,6 +590,45 @@ def write_verdict_report_txt(verdict_results: Dict, output_path: Path):
     if len([l for l in lines if l.startswith('  -')]) == 0:
         lines.append("  (analyse POC — dataset trop petit pour insights robustes)")
     
+    # Clustering × Régimes
+    cross = verdict_results.get('cross', {})
+    if cross and cross.get('n_clusters', 0) > 0:
+        n_cl  = cross['n_clusters']
+        n_noise_cl = cross.get('n_noise', 0)
+        n_feat = cross.get('n_features', 0)
+        n_feat_total = cross.get('n_features_total', 0)
+
+        lines.append(f"CLUSTERING ({n_cl} clusters, {n_noise_cl} bruit)")
+        lines.append(f"  Features orthogonales utilisées : {n_feat}/{n_feat_total}")
+        lines.append("")
+
+        for cid, cdata in sorted(cross.get('clusters', {}).items()):
+            dom   = cdata['dominant_regime']
+            pur   = cdata['purity']
+            n_r   = cdata['n_runs']
+            flag  = "⚠ divergence" if cdata['divergence'] else "✓ concordant régimes"
+
+            # Top 2 régimes si divergence
+            top2 = list(cdata['regime_dist'].items())[:2]
+            if cdata['divergence']:
+                dist_str = " / ".join(f"{r} {v*100:.0f}%" for r, v in top2)
+                lines.append(f"  Cluster {cid} ({n_r} runs) → {dist_str}  {flag}")
+            else:
+                lines.append(f"  Cluster {cid} ({n_r} runs) → {dom} {pur*100:.0f}%  {flag}")
+
+        lines.append("")
+
+        divergences = cross.get('divergences', [])
+        if divergences:
+            lines.append("  Divergences :")
+            for d in divergences:
+                lines.append(f"    - {d}")
+            lines.append("")
+    elif cross is not None:
+        lines.append("CLUSTERING")
+        lines.append("  (aucun cluster dense trouvé — dataset trop petit ou trop hétérogène)")
+        lines.append("")
+
     # Write
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write('\n'.join(lines))
