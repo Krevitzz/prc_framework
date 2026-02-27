@@ -1,13 +1,14 @@
-# configs/phases/poc/poc2b.yaml
-# Run POC2b — poc2 + seed axis pour validation cohérence et calibration thresholds
-# 224 compositions × 15 seeds = ~3360 runs
+# configs/phases/poc/poc3.yaml
+# Run POC3 — poc2 + axis optionnels pour validation cohérence et calibration thresholds
+# ~9 gammas sans seeds_run x ~19 encdodings sans seed_CI x 3 modifier × 6 max_it x 5 n_dof x (17x~2 encdodings acceptant CI) x (17x~2 gammas stochatisques)= ~bcp de runs
 # Objectif : base statistiquement robuste pour calibration YAML + clustering gamma-driven
 
 phase: poc3
 max_iterations: 1,5,10,15,20,25,50
-n_dof: 100
-seed_CI: 0,1,2,3,15,26,42,92,101,201,304,458,561,672,791,837
-seed_run: 0,1,2,3,15,26,42,92,101,201,304,458,561,672,791,837
+n_dof: 10, 20, 30 ,40, 50
+seed_CI: 0,1,2,3,15,26,42,95,101,213,304,458,561,672,791,837,1001
+seed_run: 0,1,2,3,15,26,42,95,101,213,304,458,561,672,791,837,1001
+
 axes:
   gamma: all
   encoding: all
