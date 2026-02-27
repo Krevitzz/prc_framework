@@ -40,9 +40,12 @@ DYNAMIC_THRESHOLD = 1e6
 CORRELATION_THRESHOLD = 0.85
 
 # Ratio pour min_cluster_size adaptatif :
-# min_cluster_size = max(5, n_valid // (n_features_ortho * MIN_CLUSTER_RATIO))
+# min_cluster_size = max(5, n_features_ortho * MIN_CLUSTER_RATIO)
+# Piloté par la dimensionnalité uniquement — indépendant du nombre de samples.
+# n_valid n'intervient pas : on ajoute des runs pour densifier les clusters,
+# pas pour rendre le seuil plus strict.
 # Valeur basse → plus permissif | Valeur haute → plus strict
-MIN_CLUSTER_RATIO = 2
+MIN_CLUSTER_RATIO = 1
 
 
 # =============================================================================
@@ -307,7 +310,7 @@ def run_clustering(rows: List[Dict], **kwargs) -> Dict:
     n_ortho = len(kept_names)
     min_cluster_size = kwargs.get(
         'min_cluster_size',
-        max(5, n_valid // (n_ortho * MIN_CLUSTER_RATIO))
+        max(5, n_ortho * MIN_CLUSTER_RATIO)
     )
 
     try:

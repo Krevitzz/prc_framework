@@ -4,7 +4,7 @@
 # Objectif : base statistiquement robuste pour calibration YAML + clustering gamma-driven
 
 phase: poc3
-max_iterations: 100
+max_iterations: 10
 n_dof: 100
 axes:
   gamma: all

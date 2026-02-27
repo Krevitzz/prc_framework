@@ -1,0 +1,54 @@
+=== VERDICT POC3.2 ===
+Runs : 672 success, 0 skipped
+Régime profile : default
+
+OUTLIERS (68 runs, 10.1%)
+  Récurrence atomics :
+    GAM-001 : 13/68 (19%)
+    GAM-008 : 13/68 (19%)
+    GAM-013 : 8/68 (12%)
+    GAM-003 : 6/68 (9%)
+    GAM-005 : 6/68 (9%)
+  Encodings récurrents :
+    ASY-004 : 49%
+    R3-001 : 13%
+    R3-006 : 12%
+
+STABLES (604 runs, 89.9%)
+  Régimes dominants :
+    CONSERVES_NORM : 337 runs (56%)
+      Atomics : GAM-006 (18%), GAM-010 (18%), GAM-004 (18%)
+
+    CROISSANCE_FAIBLE : 121 runs (20%)
+      Atomics : GAM-003 (47%), GAM-001 (16%), GAM-008 (16%)
+
+    CROISSANCE_FORTE : 64 runs (11%)
+      Atomics : GAM-001 (36%), GAM-008 (34%), GAM-012 (23%)
+
+    EFFONDREMENT : 59 runs (10%)
+      Atomics : GAM-005 (97%), GAM-010 (3%)
+
+    NUMERIC_INSTABILITY : 15 runs (2%)
+      Atomics : GAM-012 (33%), GAM-008 (27%), GAM-001 (20%)
+
+
+INSIGHTS
+  - GAM-006 + SYM-001 → combinaison stable (56% CONSERVES_NORM)
+CLUSTERING (8 clusters, 52 bruit)
+  Features orthogonales utilisées : 14/36
+
+  Cluster 0 (21 runs) → NUMERIC_INSTABILITY 52% / CROISSANCE_FORTE 19%  ⚠ divergence
+  Cluster 1 (16 runs) → CONSERVES_NORM 50% / OUTLIER 25%  ⚠ divergence
+  Cluster 2 (33 runs) → OUTLIER 91%  ✓ concordant régimes
+  Cluster 3 (16 runs) → CONSERVES_NORM 94%  ✓ concordant régimes
+  Cluster 4 (18 runs) → CONSERVES_NORM 100%  ✓ concordant régimes
+  Cluster 5 (443 runs) → CONSERVES_NORM 54% / CROISSANCE_FAIBLE 21%  ⚠ divergence
+  Cluster 6 (24 runs) → CONSERVES_NORM 50% / OUTLIER 25%  ⚠ divergence
+  Cluster 7 (24 runs) → CONSERVES_NORM 50% / OUTLIER 38%  ⚠ divergence
+
+  Divergences :
+    - Cluster 0 (21 runs) : NUMERIC_INSTABILITY 52% / CROISSANCE_FORTE 19% → sous-structure non capturée par régimes
+    - Cluster 1 (16 runs) : CONSERVES_NORM 50% / OUTLIER 25% → sous-structure non capturée par régimes
+    - Cluster 5 (443 runs) : CONSERVES_NORM 54% / CROISSANCE_FAIBLE 21% → sous-structure non capturée par régimes
+    - Cluster 6 (24 runs) : CONSERVES_NORM 50% / OUTLIER 25% → sous-structure non capturée par régimes
+    - Cluster 7 (24 runs) : CONSERVES_NORM 50% / OUTLIER 38% → sous-structure non capturée par régimes

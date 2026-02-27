@@ -1,0 +1,39 @@
+=== VERDICT POC3 ===
+Runs : 672 success, 0 skipped
+Régime profile : default
+
+OUTLIERS (68 runs, 10.1%)
+  Récurrence atomics :
+    GAM-013 : 37/68 (54%)
+    GAM-003 : 14/68 (21%)
+    GAM-001 : 4/68 (6%)
+    GAM-012 : 4/68 (6%)
+    GAM-005 : 3/68 (4%)
+  Encodings récurrents :
+    ASY-004 : 26%
+    R3-006 : 7%
+    SYM-007 : 7%
+
+STABLES (604 runs, 89.9%)
+  Régimes dominants :
+    CONSERVES_NORM : 213 runs (35%)
+      Atomics : GAM-006 (28%), GAM-010 (28%), GAM-009 (25%)
+
+    EFFONDREMENT : 150 runs (25%)
+      Atomics : GAM-004 (42%), GAM-005 (40%), GAM-002 (12%)
+
+    CROISSANCE_FAIBLE : 79 runs (13%)
+      Atomics : GAM-001 (35%), GAM-008 (35%), GAM-012 (24%)
+
+    CROISSANCE_FORTE : 71 runs (12%)
+      Atomics : GAM-001 (37%), GAM-008 (37%), GAM-012 (25%)
+
+    SATURATION : 47 runs (8%)
+      Atomics : GAM-003 (79%), GAM-001 (9%), GAM-008 (9%)
+
+
+INSIGHTS
+  - GAM-013 fortement corrélé outliers (54%) → calibration nécessaire
+  - GAM-006 + SYM-001 → combinaison stable (35% CONSERVES_NORM)
+CLUSTERING
+  (aucun cluster dense trouvé — dataset trop petit ou trop hétérogène)
