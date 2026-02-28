@@ -226,10 +226,11 @@ def run_clustering(rows: List[Dict], **kwargs) -> Dict:
 
     Pipeline :
         1. Extraction features communes (sans has_* / is_*)
-        2. Sanitize : inf → sentinelle, nan → exclu
-        3. _log_transform : compression features à grande dynamique
-        4. RobustScaler (median/IQR) sur espace log
-        5. HDBSCAN : découverte automatique clusters
+        2. Sanitize : inf → sentinelle, nan → conservé pour imputation
+        3. Imputation médiane colonne : NaN catch22 → médiane colonne (run conservé)
+        4. _log_transform : compression features à grande dynamique
+        5. RobustScaler (median/IQR) sur espace log
+        6. HDBSCAN : découverte automatique clusters
 
     Args:
         rows   : Liste {composition, features}
@@ -265,12 +266,31 @@ def run_clustering(rows: List[Dict], **kwargs) -> Dict:
 
     for i, row in enumerate(rows):
         vector = [_sanitize_value(row['features'][k]) for k in feature_names]
-
-        if any(np.isnan(v) for v in vector):
-            continue
-
         features_matrix.append(vector)
         valid_indices.append(i)
+
+    # Imputation médiane colonne pour NaN résiduels (ex: features catch22
+    # non calculables sur certains signaux — limitation algorithmique,
+    # pas une donnée manquante physique). Le run est conservé.
+    n_cols = len(feature_names)
+    n_nan_imputed = 0
+    for col in range(n_cols):
+        col_vals = [
+            features_matrix[row][col]
+            for row in range(len(features_matrix))
+            if not np.isnan(features_matrix[row][col])
+        ]
+        if not col_vals:
+            median_val = 0.0
+        else:
+            median_val = float(np.median(col_vals))
+        for row in range(len(features_matrix)):
+            if np.isnan(features_matrix[row][col]):
+                features_matrix[row][col] = median_val
+                n_nan_imputed += 1
+
+    if n_nan_imputed > 0:
+        print(f"  NaN imputés (médiane colonne) : {n_nan_imputed}")
 
     n_valid = len(features_matrix)
 
@@ -310,7 +330,7 @@ def run_clustering(rows: List[Dict], **kwargs) -> Dict:
     n_ortho = len(kept_names)
     min_cluster_size = kwargs.get(
         'min_cluster_size',
-        max(5, n_ortho * MIN_CLUSTER_RATIO)
+        max(5, n_valid // 20)
     )
 
     try:

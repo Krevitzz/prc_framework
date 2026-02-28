@@ -1,0 +1,20 @@
+# featuring/configs/minimal/timeline.yaml
+# Layer timeline — applicable à tout tenseur, tout rank
+# Remplace universal.yaml (projections 3 points → signaux T points)
+#
+# applicability: [] → toujours applicable (universel)
+#
+# Chaque entrée dans 'functions' est un signal calculé sur T itérations.
+# catch22+24 est appliqué à chaque signal → features {fn_name}__{catch22_name}
+# Ajouter un signal : enregistrer la fonction dans _MEASURE_FNS de timeline_lite.py
+# puis l'ajouter ici.
+
+applicability: []
+
+catch24: true
+
+functions:
+  - euclidean_norm
+  - entropy
+  - effective_rank
+  - singular_value_spread

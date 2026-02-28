@@ -1,9 +1,16 @@
 """
 prc.featuring.hub_featuring
 
-Responsabilité : Orchestration extraction features (router layers selon rank)
+Responsabilité : Routage extraction features (router layers selon applicabilité)
 
-Minimal : découverte automatique layers depuis configs/
+Architecture :
+    load_all_configs() : découverte automatique YAML depuis configs/minimal/
+    extract_features() : boucle layers → check applicabilité → extract_for_layer
+
+Notes :
+    Routage pur — aucun calcul ici.
+    Toute logique d'extraction est dans les registres ({layer}_lite.py).
+    Ajout layer = créer YAML + registre, zéro touche ici.
 """
 
 import numpy as np
@@ -13,88 +20,64 @@ from typing import Dict
 from utils.data_loading_lite import load_yaml
 from featuring.extractor_lite import extract_for_layer
 from featuring.layers_lite import check_applicability, inspect_history
-from featuring.registries.universal_lite import compute_delta_features
-
 
 
 def load_all_configs() -> Dict:
     """
-    Découvre et charge automatiquement tous configs layers.
-    
+    Découvre et charge automatiquement tous les configs layers.
+
     Returns:
         {
-            'universal': {...},
+            'timeline': {...},
             'matrix_2d': {...},
-            'tensor_3d': {...},
             ...
         }
-    
+
     Notes:
         - Scan featuring/configs/minimal/*.yaml
         - Layer name = nom fichier sans extension
         - Ajout layer = créer YAML, pas toucher code
-    
-    Examples:
-        >>> configs = load_all_configs()
-        >>> configs.keys()
-        dict_keys(['universal', 'matrix_2d', 'tensor_3d'])
     """
     configs = {}
     config_dir = Path('featuring/configs/minimal')
-    
+
     if not config_dir.exists():
         return configs
-    
+
     for yaml_file in sorted(config_dir.glob('*.yaml')):
         layer_name = yaml_file.stem
         configs[layer_name] = load_yaml(yaml_file)
-    
+
     return configs
 
 
 def extract_features(history: np.ndarray, config: Dict) -> Dict:
     """
     Extrait features + détecte layers applicables.
-    
+
+    Args:
+        history : np.ndarray (T, *dims)
+        config  : Dict depuis load_all_configs()
+
     Returns:
         {
-            'features': {...},
-            'layers': ['universal', 'matrix_2d']
+            'features': {feature_name: float, ...},
+            'layers'  : ['timeline', ...]
         }
     """
-    
-    # 1. Inspect history
     info = inspect_history(history)
-    
-    # 2. Boucle layers : vérifier applicabilité + extraire
+
     applicable_layers = []
     features = {}
-    
+
     for layer_name, layer_config in config.items():
-        # Vérifier applicabilité (logique dans extractor_lite)
         if check_applicability(info, layer_config):
             applicable_layers.append(layer_name)
-            
-            # Extraire features (dispatch dans extractor_lite)
-            try:
-                layer_features = extract_for_layer(history, layer_name, layer_config)
-                features.update(layer_features)
-            except Exception as e:
-                print(f"[WARNING] Extraction {layer_name} échouée: {e}")
-    
-    # 3. Features delta (variation initial → final) — encoding-invariantes
-    features.update(compute_delta_features(features))
 
-    # 4. Validation NaN/Inf
-    has_nan_inf = not np.all(np.isfinite(history))
-    features['has_nan_inf'] = has_nan_inf
-    # Détecter collapse sur état final
-    final_state = history[-1]
-    is_collapsed = bool(np.std(final_state) < 1e-10)
-    features['is_collapsed'] = is_collapsed
-    
-    # Return features + layers
+            layer_features = extract_for_layer(history, layer_name, layer_config)
+            features.update(layer_features)
+
     return {
         'features': features,
-        'layers': applicable_layers
+        'layers'  : applicable_layers
     }
