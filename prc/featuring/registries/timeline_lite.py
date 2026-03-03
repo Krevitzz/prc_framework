@@ -202,24 +202,53 @@ def extract(history: np.ndarray, config: Dict) -> Dict[str, float]:
 
         signals[fn_name] = signal
 
-    # ─── 2. Normalisation signaux pour catch22 ────────────────────────────────
-    # sign(r) * log1p(|r|) où r = signal / ref (première valeur finie)
-    # Compresse explosions (10^70 → ~161), préserve ordre et signe.
-    # Signaux bruts conservés dans signals{} pour dérivées et valeurs absolues.
+    # ─── 2. Normalisation signaux pour catch22 + tagging qualité ─────────────
+    #
+    # Deux modes de normalisation :
+    #   Relatif  (standard) : sign(r) * log1p(|r|)  où r = signal / ref[0]
+    #                         Compresse explosions, centre sur évolution depuis t=0
+    #   Absolu   (fallback) : sign(x) * log1p(|x|)  sur signal brut
+    #                         Utilisé si ref[0] ≈ 0 (ex: entropie d'un état uniforme)
+    #
+    # Tags toujours finis, toujours présents dans le parquet :
+    #   {fn}__signal_finite_ratio  : fraction valeurs finies dans signal brut [0.0, 1.0]
+    #                                0.0 = signal entièrement inf/nan (ex: matrices singulières)
+    #   {fn}__signal_norm_absolute : 0.0 = normalisation relative standard
+    #                                1.0 = fallback absolu (ref ≈ 0)
+    #                                Interprétation : les features catch22 de ce signal
+    #                                mesurent le comportement absolu, pas l'évolution relative
+    #
+    # Les features catch22 restent np.nan si signal entièrement inf/nan.
+    # Le placeholder 0.0 est appliqué en aval dans clustering_lite.
+    # Les tags permettent à HDBSCAN de discriminer les causes sans exclure de runs.
 
     signals_norm: Dict[str, np.ndarray] = {}
 
     for fn_name, signal in signals.items():
         finite_mask = np.isfinite(signal)
+        finite_ratio = float(np.mean(finite_mask))
+
+        # Tag 1 — qualité signal brut, toujours fini
+        features[f'{fn_name}__signal_finite_ratio'] = finite_ratio
+
         if not finite_mask.any():
-            signals_norm[fn_name] = None  # Signal entièrement NaN — skip catch22
+            # Signal entièrement inf/nan — catch22 impossible
+            signals_norm[fn_name] = None
+            features[f'{fn_name}__signal_norm_absolute'] = 0.0
             continue
+
         ref = signal[finite_mask][0]
+
         if abs(ref) < _EPSILON:
-            signals_norm[fn_name] = None  # Ref ≈ 0 — normalisation impossible
-            continue
-        ratio = signal / ref  # NaN propagés naturellement
-        signals_norm[fn_name] = np.sign(ratio) * np.log1p(np.abs(ratio))
+            # ref ≈ 0 — fallback normalisation absolue
+            # catch22 mesure le comportement absolu du signal, pas son évolution relative
+            signals_norm[fn_name] = np.sign(signal) * np.log1p(np.abs(signal))
+            features[f'{fn_name}__signal_norm_absolute'] = 1.0
+        else:
+            # Chemin standard — normalisation relative
+            ratio = signal / ref  # NaN propagés naturellement
+            signals_norm[fn_name] = np.sign(ratio) * np.log1p(np.abs(ratio))
+            features[f'{fn_name}__signal_norm_absolute'] = 0.0
 
     # ─── 3. catch22+24 sur signaux normalisés ─────────────────────────────────
 

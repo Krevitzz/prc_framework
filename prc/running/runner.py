@@ -20,7 +20,7 @@ class RunnerError(Exception):
     pass
 
 
-def run_single(composition: Dict) -> np.ndarray:
+def run_single(composition: Dict, verbose: bool = False) -> np.ndarray:
     """
     Exécute un run unique.
     
@@ -105,12 +105,13 @@ def run_single(composition: Dict) -> np.ndarray:
             
             # Détection explosion (NaN/Inf) — legacy batch_runner.py:477-479
             if np.any(np.isnan(state)) or np.any(np.isinf(state)):
-                warnings.warn(
-                    f"Explosion détectée iteration {iteration} : {combo_str}\n"
-                    f"  NaN présents : {np.any(np.isnan(state))}\n"
-                    f"  Inf présents : {np.any(np.isinf(state))}\n"
-                    f"  Arrêt anticipé — {len(history)} états capturés"
-                )
+                if verbose:
+                    warnings.warn(
+                        f"Explosion détectée iteration {iteration} : {combo_str}\n"
+                        f"  NaN présents : {np.any(np.isnan(state))}\n"
+                        f"  Inf présents : {np.any(np.isinf(state))}\n"
+                        f"  Arrêt anticipé — {len(history)} états capturés"
+                    )
                 break  # Arrêt propre
             
             # Capture état (snapshot legacy batch_runner.py:474)

@@ -76,7 +76,8 @@ def find_first_composition_with_rank(compositions: List[Dict], rank: int) -> Dic
 def run_batch(
     yaml_path: Path,
     auto_confirm: bool = False,
-    output_dir: Path = None
+    output_dir: Path = None,
+    verbose: bool = False,
 ) -> Dict:
     """
     Orchestre batch : compositions → benchmark → confirm → runs → Parquet.
@@ -147,7 +148,7 @@ def run_batch(
         print(f"Rank {rank} sample: {sample['gamma_id']} × {sample['encoding_id']}")
         
         t_start = time.time()
-        history = run_single(sample)
+        history = run_single(sample, verbose=verbose)
         t_elapsed = time.time() - t_start
         
         ram_mb = history.nbytes / 1e6
@@ -225,7 +226,7 @@ def run_batch(
     for i, comp in enumerate(compositions):
         try:
             # Run kernel → history
-            history = run_single(comp)
+            history = run_single(comp, verbose=verbose)
             
             # Extract features
             result = extract_features(history, features_config)
@@ -249,20 +250,25 @@ def run_batch(
                 'composition': comp,
                 'error': str(e),
             })
-            print(f"[SKIP] {comp['gamma_id']} × {comp['encoding_id']}: {e}")
-            continue
+            if verbose:
+                print(f"[SKIP] {comp['gamma_id']} × {comp['encoding_id']}: {e}")
         except Exception as e:
-            # Featuring errors shouldn't crash batch
-            print(f"[WARNING] Featuring failed for {comp['gamma_id']} × {comp['encoding_id']}: {e}")
-            rows.append({
+            # Featuring errors → skip propre (features:{} casserait l'intersection)
+            skipped.append({
                 'composition': comp,
-                'features': {},  # Empty features but keep run
+                'error': f"Featuring failed: {e}",
             })
+            if verbose:
+                print(f"[SKIP] Featuring {comp['gamma_id']} × {comp['encoding_id']}: {e}")
         
+        # Progress toujours affiché (hors try/except — runs skippés inclus)
         if (i+1) % 10 == 0 or (i+1) == len(compositions):
             elapsed = time.time() - t_batch_start
             progress_pct = 100 * (i+1) / len(compositions)
-            print(f"Progress: {i+1}/{len(compositions)} ({progress_pct:.1f}%) — {elapsed:.1f}s")
+            n_skip_so_far = len(skipped)
+            skip_str = f" | skip={n_skip_so_far}" if n_skip_so_far > 0 else ""
+            print(f"Progress: {i+1}/{len(compositions)} ({progress_pct:.1f}%) "
+                  f"— {elapsed:.1f}s{skip_str}")
     
     # GC final
     gc.collect()

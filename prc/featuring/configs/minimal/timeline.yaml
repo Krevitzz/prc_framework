@@ -17,4 +17,5 @@ functions:
   - euclidean_norm
   - entropy
   - effective_rank
+  - condition_number_svd
   - singular_value_spread

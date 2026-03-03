@@ -10,7 +10,7 @@ FIX : inf remplacé par valeur sentinelle finie avant IsolationForest
 """
 
 import numpy as np
-from typing import Dict, List, Tuple, Set
+from typing import Dict, List, Set, Tuple
 from sklearn.ensemble import IsolationForest
 
 # Valeur sentinelle pour inf — suffisamment grande pour discriminer
@@ -49,43 +49,34 @@ def _extract_common_features(rows: List[Dict]) -> Set[str]:
     return common
 
 
-# Marqueur interne pour NaN avant imputation médiane
-_NAN_MARKER = float('nan')
-
-
-def _sanitize_vector(vector: List[float]) -> Tuple[List[float], bool]:
+def _sanitize_vector(vector: List[float]) -> List[float]:
     """
-    Remplace inf par sentinelle finie. NaN conservé pour imputation ultérieure.
+    Remplace inf par sentinelle finie, NaN par 0.0 placeholder.
 
     Args:
         vector : Valeurs features d'un run
 
     Returns:
-        (vector_sanitized, has_nan)
-        has_nan=True → run contient des NaN (sera imputé par médiane colonne)
-        inf → remplacé par ±_INF_SENTINEL (signal préservé)
+        vector_sanitized — aucun run exclu
 
     Notes:
-        - NaN = feature non calculable (ex: log_condition_delta si source inf)
-          → imputation médiane colonne dans detect_outliers (run conservé)
-        - inf = signal physique (ex: condition_number singulier) → sentinelle
-        - -inf → -_INF_SENTINEL
-        - Seul cas d'exclusion réelle : run entier vide (géré dans detect_outliers)
+        - NaN  → 0.0 placeholder neutre, documenté par {fn}__signal_finite_ratio
+                 et {fn}__signal_norm_absolute présents dans la même matrice
+        - inf  → ±_INF_SENTINEL (signal physique préservé)
+        - Cohérent avec clustering_lite : même traitement, même documentation
     """
     sanitized = []
-    has_nan = False
     for v in vector:
-        if np.isnan(v):
-            sanitized.append(_NAN_MARKER)
-            has_nan = True
-        elif np.isposinf(v):
+        if v is None or (isinstance(v, float) and np.isnan(v)):
+            sanitized.append(0.0)
+        elif isinstance(v, float) and np.isposinf(v):
             sanitized.append(_INF_SENTINEL)
-        elif np.isneginf(v):
+        elif isinstance(v, float) and np.isneginf(v):
             sanitized.append(-_INF_SENTINEL)
         else:
             sanitized.append(float(v))
 
-    return sanitized, has_nan
+    return sanitized
 
 
 def detect_outliers(
@@ -103,8 +94,9 @@ def detect_outliers(
         (outlier_indices, stable_indices)
 
     Notes:
-        - inf remplacé par sentinelle ±1e15 (signal préservé, run inclus)
-        - NaN → run exclu (donnée manquante)
+        - inf  → sentinelle ±1e15 (signal préservé)
+        - NaN  → 0.0 placeholder, documenté par {fn}__signal_finite_ratio
+        - 216/216 runs analysés — aucune exclusion silencieuse
         - Features communes : intersection stricte, sans has_* et is_*
     """
     common_features = _extract_common_features(rows)
@@ -118,43 +110,31 @@ def detect_outliers(
     features_matrix = []
     valid_indices = []
     n_inf_replaced = 0
-    n_nan_imputed = 0
+    n_nan_placeholder = 0
 
     for i, row in enumerate(rows):
         features = row['features']
-        vector = [features[k] for k in feature_names]
+        vector = [features.get(k) for k in feature_names]
 
-        sanitized, has_nan = _sanitize_vector(vector)
+        sanitized = _sanitize_vector(vector)
 
-        # Compter les inf remplacés (pour info)
         n_inf_replaced += sum(
             1 for v, s in zip(vector, sanitized)
-            if not np.isnan(s) and not np.isnan(v) and v != s
+            if v is not None and isinstance(v, float) 
+            and not np.isnan(v) and abs(v) > _INF_SENTINEL / 2
+        )
+        n_nan_placeholder += sum(
+            1 for v in vector
+            if v is None or (isinstance(v, float) and np.isnan(v))
         )
 
         features_matrix.append(sanitized)
         valid_indices.append(i)
 
-    # Imputation médiane colonne pour NaN résiduels
-    # NaN = feature non calculable (ex: log_condition_delta si source inf)
-    # → médiane colonne = valeur neutre pour IsolationForest
-    if features_matrix:
-        n_cols = len(features_matrix[0])
-        for col in range(n_cols):
-            col_vals = [
-                row[col] for row in features_matrix
-                if not np.isnan(row[col])
-            ]
-            median_val = float(np.median(col_vals)) if col_vals else 0.0
-            for row in features_matrix:
-                if np.isnan(row[col]):
-                    row[col] = median_val
-                    n_nan_imputed += 1
-
     if n_inf_replaced > 0:
         print(f"  Inf remplacés par sentinelle (±{_INF_SENTINEL:.0e}) : {n_inf_replaced}")
-    if n_nan_imputed > 0:
-        print(f"  NaN imputés (médiane colonne) : {n_nan_imputed}")
+    if n_nan_placeholder > 0:
+        print(f"  NaN → 0.0 placeholder (documentés par signal_finite_ratio) : {n_nan_placeholder}")
 
     if len(features_matrix) < 2:
         print(f"  WARNING: Moins de 2 samples valides — outliers skipped")

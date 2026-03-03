@@ -1,6 +1,17 @@
 """
 prc.analysing.regimes_lite
 
+⚠️  DEPRECATED — En transition vers cluster_namer.py
+
+    classify_regime() (run individuel → seuils scalaires) est remplacé par
+    ClusterNamer (profil cluster → slots compositionnels + confiance percentile).
+
+    Ce module reste importé par verdict.py pendant la transition pour comparaison
+    des résultats poc/poc2/poc3. Il sera retiré quand poc3+ confirme que
+    cluster_namer couvre tous les régimes.
+
+    NE PAS AJOUTER de nouveaux régimes ici — les étendre dans cluster_namer.yaml.
+
 Responsabilité : Classification régimes basée features scalaires
 
 RECÂBLAGE timeline : Les features norm_ratio, entropy_delta, effective_rank_delta,
@@ -69,6 +80,7 @@ def classify_regime(features: Dict, thresholds: Dict) -> str:
     norm_final    = features.get('norm_final', 1.0)
     condition_num = features.get('condition_number_svd_final')
     is_collapsed  = features.get('is_collapsed', False)
+    eu_finite     = features.get('euclidean_norm__signal_finite_ratio', 1.0)
 
     # Guard norm_final None / NaN
     if norm_final is None or not np.isfinite(norm_final):
@@ -89,34 +101,50 @@ def classify_regime(features: Dict, thresholds: Dict) -> str:
     if not np.isnan(norm_final) and norm_final > th_norm_instab:
         return "NUMERIC_INSTABILITY"
 
+    # 2. EXPLOSION_PROGRESSIVE
+    # Run tronqué : signal incomplet (euclidean_norm_finite_ratio < 1.0 = au moins
+    # un point inf dans la trajectoire) ET pas de valeur finale calculable.
+    # Distinct de NUMERIC_INSTABILITY (has_nan_inf=True) : ici le runner a capturé
+    # T' < T snapshots, les features finales sont None, la dynamique est incomplète.
+    if eu_finite < 1.0 and np.isnan(norm_ratio):
+        return "EXPLOSION_PROGRESSIVE"
+
     if np.isnan(norm_ratio):
         return "UNCATEGORIZED"
 
-    # EFFONDREMENT
+    # 3. EFFONDREMENT
     th_effondrement = thresholds.get('EFFONDREMENT', {}).get('ratio_threshold', 0.1)
     if norm_ratio < th_effondrement:
         return "EFFONDREMENT"
 
-    # 2. CONSERVATION
+    # 4. CONSERVATION
     th_conserve = thresholds.get('CONSERVES_NORM', {}).get('ratio_threshold', 1.3)
     if norm_ratio < th_conserve:
         return "CONSERVES_NORM"
 
-    # 3. CROISSANCE FAIBLE
+    # 5. CROISSANCE FAIBLE
     th_cf = thresholds.get('CROISSANCE_FAIBLE', {})
     if th_cf:
         if th_cf.get('ratio_min', 1.3) <= norm_ratio < th_cf.get('ratio_max', 3.0):
             return "CROISSANCE_FAIBLE"
 
-    # 4. CROISSANCE FORTE
+    # 6. CROISSANCE FORTE
     th_cfo = thresholds.get('CROISSANCE_FORTE', {})
     if th_cfo:
         if th_cfo.get('ratio_min', 3.0) <= norm_ratio < th_cfo.get('ratio_max', 10.0):
             return "CROISSANCE_FORTE"
 
-    # 5. SATURATION (norm_ratio >= 10)
+    # 7. SATURATION (norm_ratio >= 10)
     th_sat_ratio = thresholds.get('SATURATION', {}).get('ratio_threshold', 10)
     th_sat_cond  = thresholds.get('SATURATION', {}).get('condition_threshold', 1e3)
+
+    # Sentinelle log1p : norm_ratio = log1p(e^5) ≈ 148.413 = plafond normalisation.
+    # Ces runs ont atteint la saturation maximale mesurable — classés SATURATION
+    # directement sans vérification condition_num (limite technique pipeline, pas
+    # signal physique distinct).
+    _LOG1P_SENTINEL = np.log1p(np.e ** 5)  # ≈ 148.413
+    if abs(norm_ratio - _LOG1P_SENTINEL) < 0.01:
+        return "SATURATION"
 
     if norm_ratio >= th_sat_ratio:
         if condition_num is None or not np.isfinite(condition_num) or condition_num < th_sat_cond:

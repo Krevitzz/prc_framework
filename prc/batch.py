@@ -58,6 +58,12 @@ Exemples :
     )
     
     parser.add_argument(
+        '--verbose',
+        action='store_true',
+        help='Afficher détails explosions et compositions skippées'
+    )
+    
+    parser.add_argument(
         '--auto-confirm',
         action='store_true',
         help='Skip confirmation dry-run (pour tests)'
@@ -135,6 +141,7 @@ Exemples :
     results = run_batch(
         yaml_path=yaml_path,
         auto_confirm=args.auto_confirm,
+        verbose=args.verbose,
     )
     
     # Verdict auto si success
@@ -143,7 +150,11 @@ Exemples :
         print("VERDICT AUTO (RAM)")
         print("="*60)
         
-        verdict = run_verdict_intra(results['rows'], regime_profile=args.regime_profile)
+        verdict = run_verdict_intra(
+            results['rows'],
+            regime_profile=args.regime_profile,
+            n_skipped_batch=results['n_skipped'],
+        )
         
         # Write rapports JSON + TXT
         output_json = Path(f'reports/verdict_{phase}.json')
