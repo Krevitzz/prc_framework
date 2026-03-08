@@ -1,0 +1,94 @@
+=== VERDICT POC3 ===
+Runs : 672 success, 0 skipped
+
+OUTLIERS (68 runs, 10.1%)
+  Récurrence atomics :
+    GAM-013 : 30/68 (44%)
+    GAM-012 : 8/68 (12%)
+    GAM-001 : 7/68 (10%)
+    GAM-009 : 7/68 (10%)
+    GAM-007 : 4/68 (6%)
+
+CLUSTERS (12 extraits, 9 résidu)
+  Features orthogonales : 109/137
+
+  RÉSIDU (9 runs — non résolu)
+
+  Cluster 0 (38 runs, niveau 0) homo=0.90
+    Nom : LAG·0~TEXTURE·0.74~RANG_EFFONDRÃ‰
+    Complet : LAG·0~TEXTURE·0.74~RANG_EFFONDRÃ‰~(ENTROPIE_DÃ‰CROISSANTE)
+    [VITESSE        ] LAG·0                     conf=1.00
+    [TEXTURE        ] TEXTURE·0.74              conf=0.67
+    [RANG           ] RANG_EFFONDRÉ             conf=0.97
+    Secondaires : (ENTROPIE_DÉCROISSANTE)
+
+  Cluster 1 (30 runs, niveau 0) homo=0.68 ⚠ hétérogène
+    Nom : COLLAPSE~LAG·79~ENTROPIE_CROISSANTE~RANG_EFFONDRÃ‰
+    Complet : COLLAPSE~LAG·79~ENTROPIE_CROISSANTE~RANG_EFFONDRÃ‰~(TEXTURE·0.37)
+    [AMPLITUDE      ] COLLAPSE                  conf=0.76
+    [VITESSE        ] LAG·79                    conf=0.99
+    [ENTROPIE       ] ENTROPIE_CROISSANTE       conf=0.76
+    [RANG           ] RANG_EFFONDRÉ             conf=0.92
+    Secondaires : (TEXTURE·0.37)
+
+  Cluster 2 (57 runs, niveau 0) homo=0.68 ⚠ hétérogène
+    Nom : COLLAPSE~LAG·71~TEXTURE·0.00
+    [AMPLITUDE      ] COLLAPSE                  conf=0.85
+    [VITESSE        ] LAG·71                    conf=1.00
+    [TEXTURE        ] TEXTURE·0.00              conf=1.00
+
+  Cluster 3 (56 runs, niveau 0) homo=0.66 ⚠ hétérogène
+    Nom : SATURATION~LAG·70~TEXTURE·0.00
+    [AMPLITUDE      ] SATURATION                conf=1.00
+    [VITESSE        ] LAG·70                    conf=1.00
+    [TEXTURE        ] TEXTURE·0.00              conf=1.00
+
+  Cluster 4 (32 runs, niveau 0) homo=0.77
+    Nom : COLLAPSE~LAG·2~TEXTURE·0.02
+    [AMPLITUDE      ] COLLAPSE                  conf=0.95
+    [VITESSE        ] LAG·2                     conf=1.00
+    [TEXTURE        ] TEXTURE·0.02              conf=1.00
+
+  Cluster 5 (30 runs, niveau 0) homo=0.73
+    Nom : COLLAPSE~LAG·2~TEXTURE·0.02
+    [AMPLITUDE      ] COLLAPSE                  conf=0.94
+    [VITESSE        ] LAG·2                     conf=1.00
+    [TEXTURE        ] TEXTURE·0.02              conf=1.00
+
+  Cluster 6 (36 runs, niveau 0) homo=0.74
+    Nom : LAG·76~ENTROPIE_CROISSANTE
+    Complet : LAG·76~ENTROPIE_CROISSANTE~(TEXTURE·0.27)
+    [VITESSE        ] LAG·76                    conf=0.97
+    [ENTROPIE       ] ENTROPIE_CROISSANTE       conf=0.83
+    Secondaires : (TEXTURE·0.27)
+
+  Cluster 7 (151 runs, niveau 0) homo=0.72
+    Nom : CROISSANCE_FAIBLE~LAG·94~TEXTURE·0.11~ENTROPIE_DÃ‰CROISSANTE
+    [AMPLITUDE      ] CROISSANCE_FAIBLE         conf=0.77
+    [VITESSE        ] LAG·94                    conf=0.99
+    [TEXTURE        ] TEXTURE·0.11              conf=0.82
+    [ENTROPIE       ] ENTROPIE_DÉCROISSANTE     conf=0.87
+
+  Cluster 8 (120 runs, niveau 1) homo=0.72
+    Nom : LAG·77~ENTROPIE_CROISSANTE
+    [VITESSE        ] LAG·77                    conf=0.95
+    [ENTROPIE       ] ENTROPIE_CROISSANTE       conf=0.75
+
+  Cluster 9 (56 runs, niveau 1) homo=0.88
+    Nom : LAG·76~TEXTURE·0.87
+    [VITESSE        ] LAG·76                    conf=0.97
+    [TEXTURE        ] TEXTURE·0.87              conf=0.94
+
+  Cluster 10 (26 runs, niveau 2) homo=0.85
+    Nom : ENTROPIE_DÉCROISSANTE~RANG_CROISSANT
+    [ENTROPIE       ] ENTROPIE_DÉCROISSANTE     conf=0.78
+    [RANG           ] RANG_CROISSANT            conf=0.96
+
+  Cluster 11 (31 runs, niveau 2) homo=0.90
+    Nom : LAG·76~ENTROPIE_CROISSANTE
+    [VITESSE        ] LAG·76                    conf=0.96
+    [ENTROPIE       ] ENTROPIE_CROISSANTE       conf=0.82
+
+INSIGHTS
+  - Cluster le plus homogène : C0 'LAG·0~TEXTURE·0.74~RANG_EFFONDRÃ‰' (homo=0.90, n=38)
+  - Résidu : 9 runs (1%) → cible phases suivantes

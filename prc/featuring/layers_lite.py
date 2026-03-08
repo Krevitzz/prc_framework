@@ -12,7 +12,7 @@ Extensibilité :
     Nouveau layer      → créer YAML + registre, zéro touche ici
 """
 
-from typing import Dict, List
+from typing import Dict, List, Set
 import numpy as np
 
 
@@ -186,3 +186,14 @@ def check_applicability(history_info: Dict, layer_config: Dict) -> bool:
             return False
 
     return True
+
+
+def extract_common_features(rows: List[Dict]) -> Set[str]:
+    """Features présentes dans TOUS les runs, flags booléens exclus."""
+    if not rows:
+        return set()
+    common = set(rows[0]['features'].keys())
+    for row in rows[1:]:
+        common &= set(row['features'].keys())
+    return {k for k in common
+            if not k.startswith('has_') and not k.startswith('is_')}

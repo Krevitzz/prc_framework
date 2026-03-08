@@ -10,7 +10,7 @@ Usage : Toujours lancer depuis prc/ (python -m ...)
 import random as _random
 from itertools import product
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, Generator, List, Optional, Union
 
 import numpy as np
 
@@ -210,11 +210,26 @@ def resolve_axis_atomic(
         inline_params = inline_params_map.get(entity_id, {})
         merged_params = {**default_params, **inline_params}
         
-        resolved.append({
-            'id'      : entity_id,
-            'params'  : merged_params,
-            'callable': entity['callable'],
-        })
+        list_params  = {k: v for k, v in merged_params.items() if isinstance(v, list)}
+        scalar_params = {k: v for k, v in merged_params.items() if not isinstance(v, list)}
+
+        if not list_params:
+            # Comportement identique à avant
+            resolved.append({
+                'id'      : entity_id,
+                'params'  : merged_params,
+                'callable': entity['callable'],
+            })
+        else:
+            # Produit cartésien sur les params-listes
+            for combo in product(*[[(k, v) for v in vals]
+                                    for k, vals in list_params.items()]):
+                params = {**scalar_params, **dict(combo)}
+                resolved.append({
+                    'id'      : entity_id,
+                    'params'  : params,
+                    'callable': entity['callable'],
+                })
     
     return resolved
 
@@ -338,9 +353,10 @@ def resolve_axis_sequence(
 # GÉNÉRATION COMPOSITIONS
 # =============================================================================
 
-def generate_compositions(run_config: Dict[str, Any]) -> List[Dict[str, Any]]:
+def generate_compositions(run_config: Dict[str, Any]) -> Generator[Dict[str, Any], None, None]:
     """
-    Produit cartésien de tous les axes résolus.
+    Générateur de compositions — produit cartésien de tous les axes résolus.
+    Instanciation gamma à la volée — zéro objet gamma en RAM avant le premier run.
     
     Gère :
     - Multi-lignes gamma → séquences composées (avec weights optionnel)
@@ -365,7 +381,7 @@ def generate_compositions(run_config: Dict[str, Any]) -> List[Dict[str, Any]]:
     """
     axes   = run_config.get('axes', {})
     phase  = run_config.get('phase', 'unknown')
-    max_it = run_config.get('max_iterations', 200)
+    max_its = _normalize_to_list(run_config.get('max_iterations', 200))
     config_mode = run_config.get('config_mode', 'default')
     
     # Charger defaults YAML avec mode
@@ -384,45 +400,34 @@ def generate_compositions(run_config: Dict[str, Any]) -> List[Dict[str, Any]]:
     # Multi-lignes = liste de listes/configs
     # Single = 'all' | dict | liste simple
     
-    # Gamma : support multi-lignes + weights
+    # Gamma : résoudre sans instancier (factory uniquement)
     if isinstance(gamma_config, dict) and 'sequence' in gamma_config:
-        # Format explicite multi-lignes avec weights
         lines = gamma_config['sequence']
         weights_cfg = gamma_config.get('weights')
-        gammas = resolve_axis_sequence(lines, 'gamma', defaults['gamma'], weights_cfg)
+        gammas_raw = resolve_axis_sequence(lines, 'gamma', defaults['gamma'], weights_cfg)
     elif isinstance(gamma_config, list) and any(isinstance(x, list) for x in gamma_config):
-        # Multi-lignes détecté (liste de listes)
-        gammas = resolve_axis_sequence(gamma_config, 'gamma', defaults['gamma'])
+        gammas_raw = resolve_axis_sequence(gamma_config, 'gamma', defaults['gamma'])
     else:
-        # Single ligne → resolve_axis_atomic retourne fonctions create()
-        # Il faut les instancier ici
         gammas_raw = resolve_axis_atomic(gamma_config, 'gamma', defaults['gamma'])
-        gammas = []
-        for gamma_dict in gammas_raw:
-            gamma_instance = gamma_dict['callable'](**gamma_dict['params'])
-            gammas.append({
-                'id': gamma_dict['id'],
-                'params': gamma_dict['params'],
-                'callable': gamma_instance,
-            })
-    
-    # Encoding : alternatives seulement (pas de composition pour l'instant)
+
+    # Encoding + modifier : factories uniquement
     encodings = resolve_axis_atomic(encoding_config, 'encoding', defaults['encoding'])
-    
-    # Modifier : alternatives seulement
     modifiers = resolve_axis_atomic(modifier_config, 'modifier', defaults['modifier'])
-    
+
     # n_dof : scalaire ou liste → toujours liste
-    n_dofs_raw = run_config.get('n_dof', 10)
-    n_dofs = _normalize_to_list(n_dofs_raw)
-    
-    # Produit cartésien final
-    compositions = []
-    for gamma, encoding, modifier, n_dof in product(gammas, encodings, modifiers, n_dofs):
-        compositions.append({
-            'gamma_id'         : gamma['id'],
-            'gamma_params'     : gamma['params'],
-            'gamma_callable'   : gamma['callable'],
+    n_dofs = _normalize_to_list(run_config.get('n_dof', 10))
+
+    # Produit cartésien — générateur, instanciation gamma à la volée
+    for gamma_raw, encoding, modifier, n_dof, max_it in product(
+        gammas_raw, encodings, modifiers, n_dofs, max_its
+    ):
+        # Instanciation gamma uniquement au moment du run — pas en avance
+        gamma_instance = gamma_raw['callable'](**gamma_raw['params'])
+
+        yield {
+            'gamma_id'         : gamma_raw['id'],
+            'gamma_params'     : gamma_raw['params'],
+            'gamma_callable'   : gamma_instance,
             'encoding_id'      : encoding['id'],
             'encoding_params'  : {**encoding['params'], 'n_dof': n_dof},
             'encoding_callable': encoding['callable'],
@@ -432,6 +437,43 @@ def generate_compositions(run_config: Dict[str, Any]) -> List[Dict[str, Any]]:
             'n_dof'            : n_dof,
             'max_iterations'   : max_it,
             'phase'            : phase,
-        })
-    
-    return compositions
+        }
+
+
+def count_compositions(run_config: Dict[str, Any]) -> int:
+    """
+    Compte le nombre total de compositions sans instancier les gammas.
+    Utilisé pour la barre de progression dans hub_running.
+
+    Returns:
+        int — nombre total de compositions
+    """
+    axes        = run_config.get('axes', {})
+    max_its     = _normalize_to_list(run_config.get('max_iterations', 200))
+    config_mode = run_config.get('config_mode', 'default')
+    n_dofs      = _normalize_to_list(run_config.get('n_dof', 10))
+
+    defaults = {
+        'gamma'   : load_yaml('operators',   mode=config_mode),
+        'encoding': load_yaml('D_encodings', mode=config_mode),
+        'modifier': load_yaml('modifiers',   mode=config_mode),
+    }
+
+    gamma_config    = axes.get('gamma',    'all')
+    encoding_config = axes.get('encoding', 'all')
+    modifier_config = axes.get('modifier', [{'id': 'M0'}])
+
+    if isinstance(gamma_config, dict) and 'sequence' in gamma_config:
+        gammas_raw = resolve_axis_sequence(
+            gamma_config['sequence'], 'gamma', defaults['gamma'],
+            gamma_config.get('weights')
+        )
+    elif isinstance(gamma_config, list) and any(isinstance(x, list) for x in gamma_config):
+        gammas_raw = resolve_axis_sequence(gamma_config, 'gamma', defaults['gamma'])
+    else:
+        gammas_raw = resolve_axis_atomic(gamma_config, 'gamma', defaults['gamma'])
+
+    encodings = resolve_axis_atomic(encoding_config, 'encoding', defaults['encoding'])
+    modifiers = resolve_axis_atomic(modifier_config, 'modifier', defaults['modifier'])
+
+    return len(gammas_raw) * len(encodings) * len(modifiers) * len(n_dofs) * len(max_its)

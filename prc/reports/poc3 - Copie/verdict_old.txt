@@ -1,0 +1,83 @@
+=== VERDICT POC3 ===
+Runs : 672 success, 0 skipped
+
+OUTLIERS (68 runs, 10.1%)
+  Récurrence atomics :
+    GAM-013 : 30/68 (44%)
+    GAM-012 : 8/68 (12%)
+    GAM-001 : 7/68 (10%)
+    GAM-009 : 7/68 (10%)
+    GAM-007 : 4/68 (6%)
+
+CLUSTERS (12 extraits, 9 résidu)
+  Features orthogonales : 109/137
+
+  RÉSIDU (9 runs — non résolu)
+
+  Cluster 0 (38 runs, niveau 0) homo=0.90
+    Nom : RAPIDE·CHAOTIQUE·RANG_EFFONDRÉ
+    Complet : RAPIDE·CHAOTIQUE·RANG_EFFONDRÉ·(ENTROPIE_DÉCROISSANTE)
+    [VITESSE        ] RAPIDE                    conf=0.94
+    [TEXTURE        ] CHAOTIQUE                 conf=0.82
+    [RANG           ] RANG_EFFONDRÉ             conf=0.97
+    Secondaires : (ENTROPIE_DÉCROISSANTE)
+
+  Cluster 1 (30 runs, niveau 0) homo=0.68 ⚠ hétérogène
+    Nom : COLLAPSE·ENTROPIE_CROISSANTE·RANG_EFFONDRÉ
+    [AMPLITUDE      ] COLLAPSE                  conf=0.76
+    [ENTROPIE       ] ENTROPIE_CROISSANTE       conf=0.76
+    [RANG           ] RANG_EFFONDRÉ             conf=0.92
+
+  Cluster 2 (57 runs, niveau 0) homo=0.68 ⚠ hétérogène
+    Nom : COLLAPSE·LISSE
+    [AMPLITUDE      ] COLLAPSE                  conf=0.85
+    [TEXTURE        ] LISSE                     conf=0.80
+
+  Cluster 3 (56 runs, niveau 0) homo=0.66 ⚠ hétérogène
+    Nom : SATURATION·LISSE
+    [AMPLITUDE      ] SATURATION                conf=1.00
+    [TEXTURE        ] LISSE                     conf=0.80
+
+  Cluster 4 (32 runs, niveau 0) homo=0.77
+    Nom : COLLAPSE·RAPIDE·LISSE
+    [AMPLITUDE      ] COLLAPSE                  conf=0.95
+    [VITESSE        ] RAPIDE                    conf=0.84
+    [TEXTURE        ] LISSE                     conf=0.72
+
+  Cluster 5 (30 runs, niveau 0) homo=0.73
+    Nom : COLLAPSE·RAPIDE·LISSE
+    [AMPLITUDE      ] COLLAPSE                  conf=0.94
+    [VITESSE        ] RAPIDE                    conf=0.84
+    [TEXTURE        ] LISSE                     conf=0.72
+
+  Cluster 6 (36 runs, niveau 0) homo=0.74
+    Nom : ENTROPIE_CROISSANTE
+    [ENTROPIE       ] ENTROPIE_CROISSANTE       conf=0.83
+
+  Cluster 7 (151 runs, niveau 0) homo=0.72
+    Nom : CROISSANCE_FAIBLE·LENT·ENTROPIE_DÉCROISSANTE
+    [AMPLITUDE      ] CROISSANCE_FAIBLE         conf=0.77
+    [VITESSE        ] LENT                      conf=0.92
+    [ENTROPIE       ] ENTROPIE_DÉCROISSANTE     conf=0.87
+
+  Cluster 8 (120 runs, niveau 1) homo=0.72
+    Nom : ENTROPIE_CROISSANTE
+    [ENTROPIE       ] ENTROPIE_CROISSANTE       conf=0.75
+
+  Cluster 9 (56 runs, niveau 1) homo=0.88
+    Nom : CHAOTIQUE
+    [TEXTURE        ] CHAOTIQUE                 conf=0.92
+
+  Cluster 10 (26 runs, niveau 2) homo=0.85
+    Nom : ENTROPIE_DÉCROISSANTE·RANG_CROISSANT
+    [ENTROPIE       ] ENTROPIE_DÉCROISSANTE     conf=0.78
+    [RANG           ] RANG_CROISSANT            conf=0.96
+
+  Cluster 11 (31 runs, niveau 2) homo=0.90
+    Nom : CHAOTIQUE·ENTROPIE_CROISSANTE
+    [TEXTURE        ] CHAOTIQUE                 conf=0.84
+    [ENTROPIE       ] ENTROPIE_CROISSANTE       conf=0.82
+
+INSIGHTS
+  - Cluster le plus homogène : C0 'RAPIDE·CHAOTIQUE·RANG_EFFONDRÉ' (homo=0.90, n=38)
+  - Résidu : 9 runs (1%) → cible phases suivantes

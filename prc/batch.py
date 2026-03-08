@@ -70,6 +70,12 @@ Exemples :
     )
     
     parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Sauvegarder fichiers intermédiaires debug (JSON, labels, trace). Implique --verdict.'
+    )
+
+    parser.add_argument(
         '--regime-profile',
         choices=['default', 'laxe', 'strict'],
         default='default',
@@ -86,18 +92,21 @@ Exemples :
         
         verdict = run_verdict_cross_phases(regime_profile=args.regime_profile)
         
-        # Write rapports JSON + TXT
-        output_json = Path('reports/verdict_cross_phases.json')
-        output_txt = Path('reports/verdict_cross_phases.txt')
-        
-        write_verdict_report(verdict, output_json)
-        write_verdict_report_txt(verdict, output_txt)
+        out_dir = Path('reports') / 'cross'
+        out_dir.mkdir(parents=True, exist_ok=True)
+        write_verdict_report_txt(verdict, out_dir / 'verdict.txt')
+        if args.debug:
+            write_verdict_report(verdict, out_dir / 'verdict.json')
         
         return
     
     # ==========================================================================
     # Validation phase
     # ==========================================================================
+    # --debug implique --verdict (relance verdict uniquement, pas le run)
+    if args.debug and not args.verdict:
+        args.verdict = True
+
     if args.phase is None:
         parser.error("Phase obligatoire (sauf --verdict sans phase)")
     
@@ -121,14 +130,18 @@ Exemples :
             print(f"   Lancer d'abord: python -m batch {phase}")
             return
         
-        verdict = run_verdict_from_parquet(parquet_path, regime_profile=args.regime_profile)
-        
-        # Write rapports JSON + TXT
-        output_json = Path(f'reports/verdict_{phase}.json')
-        output_txt = Path(f'reports/verdict_{phase}.txt')
-        
-        write_verdict_report(verdict, output_json)
-        write_verdict_report_txt(verdict, output_txt)
+        out_dir = Path('reports') / phase
+        out_dir.mkdir(parents=True, exist_ok=True)
+        verdict = run_verdict_from_parquet(
+            parquet_path,
+            regime_profile=args.regime_profile,
+            output_dir=str(out_dir),
+            label=phase,
+            debug=args.debug,
+        )
+        write_verdict_report_txt(verdict, out_dir / 'verdict.txt')
+        if args.debug:
+            write_verdict_report(verdict, out_dir / 'verdict.json')
         
         return
     
@@ -150,18 +163,19 @@ Exemples :
         print("VERDICT AUTO (RAM)")
         print("="*60)
         
+        out_dir = Path('reports') / phase
+        out_dir.mkdir(parents=True, exist_ok=True)
         verdict = run_verdict_intra(
             results['rows'],
             regime_profile=args.regime_profile,
             n_skipped_batch=results['n_skipped'],
+            output_dir=str(out_dir),
+            label=phase,
+            debug=args.debug,
         )
-        
-        # Write rapports JSON + TXT
-        output_json = Path(f'reports/verdict_{phase}.json')
-        output_txt = Path(f'reports/verdict_{phase}.txt')
-        
-        write_verdict_report(verdict, output_json)
-        write_verdict_report_txt(verdict, output_txt)
+        write_verdict_report_txt(verdict, out_dir / 'verdict.txt')
+        if args.debug:
+            write_verdict_report(verdict, out_dir / 'verdict.json')
     else:
         print("\n⚠️  Aucune observation valide — verdict skipped")
 

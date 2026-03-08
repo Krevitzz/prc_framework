@@ -26,11 +26,6 @@ from pathlib import Path
 from collections import Counter
 from typing import Dict, List, Optional, Tuple
 
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-
 from sklearn.preprocessing import RobustScaler
 from sklearn.cluster import HDBSCAN
 from sklearn.decomposition import PCA
@@ -174,7 +169,7 @@ def _bootstrap_ari(M: np.ndarray, hdb_kwargs: Dict, cfg: Dict) -> float:
         return float('nan')
     aris = []
     for _ in range(n_iter):
-        idx = rng.choice(n, max(10, int(n * frac)), replace=False)
+        idx = rng.choice(n, min(n, max(10, int(n * frac))), replace=False)
         try:
             sub = HDBSCAN(**hdb_kwargs).fit_predict(M[idx])
             rv  = ref[idx]
@@ -219,6 +214,7 @@ def _run_level(
     configs         : List[Dict],
     run_regimes_all : Optional[List[str]],
     selection_mode  : str,
+    verbose         : bool = False,
 ) -> Tuple[Dict, np.ndarray]:
     """
     Applique la batterie de configs sur M_level.
@@ -242,8 +238,12 @@ def _run_level(
 
         # Réduction optionnelle
         if pca_dims and pca_dims < M_level.shape[1]:
-            M_use = PCA(n_components=min(pca_dims, M_level.shape[1]-1),
-                        random_state=42).fit_transform(M_level)
+            safe_dims = min(pca_dims, M_level.shape[1] - 1, M_level.shape[0] - 1)
+            if safe_dims < 2:
+                M_use = M_level
+            else:
+                M_use = PCA(n_components=safe_dims,
+                            random_state=42).fit_transform(M_level)
         else:
             M_use = M_level
 
@@ -269,10 +269,11 @@ def _run_level(
         return {'extracted': [], 'level': level}, global_idx
 
     lbs, proba, M_use, metric, selection, pca_dims, ari = best_config_result
-    print(f'  Niveau {level} — config retenue : {metric}/{selection}'
-          f'{"PCA"+str(pca_dims) if pca_dims else ""}'
-          f'  n_cl={len(set(lbs)-{-1})}  bruit={100*(lbs==-1).sum()/n_level:.0f}%'
-          f'  ARI={ari:.2f}')
+    if verbose:
+        print(f'  Niveau {level} — config retenue : {metric}/{selection}'
+              f'{"PCA"+str(pca_dims) if pca_dims else ""}'
+              f'  n_cl={len(set(lbs)-{-1})}  bruit={100*(lbs==-1).sum()/n_level:.0f}%'
+              f'  ARI={ari:.2f}')
 
     # Évaluation homogénéité par cluster
     extracted        = []
@@ -301,10 +302,11 @@ def _run_level(
         if regimes_c:
             regime_dist = dict(Counter(regimes_c).most_common())
 
-        print(f'    C{cid} n={local_mask.sum():3d}  '
-              f'homogénéité={h_score:.2f}  '
-              f'(seuil={threshold:.2f})  '
-              f'→ {"EXTRAIT" if h_score >= threshold else "résidu"}')
+        if verbose:
+            print(f'    C{cid} n={local_mask.sum():3d}  '
+                  f'homogénéité={h_score:.2f}  '
+                  f'(seuil={threshold:.2f})  '
+                  f'→ {"EXTRAIT" if h_score >= threshold else "résidu"}')
 
         if h_score >= threshold:
             extracted.append({
@@ -352,6 +354,8 @@ def run_peeling(
     run_regimes     : Optional[List[str]]  = None,
     output_dir      : Optional[str]        = None,
     label           : str = 'peeling',
+    save_debug      : bool = False,
+    verbose         : bool = False,
 ) -> Dict:
     """
     Residual peeling complet.
@@ -381,11 +385,12 @@ def run_peeling(
     max_levels = cfg['max_levels']
     floor      = cfg['mcs_floor']
 
-    print(f'\nResidual Peeling — {n} runs × {M_ortho.shape[1]} features')
-    print(f'mcs_global={mcs_global}, ms={ms_global}, max_levels={max_levels}')
-    print(f'Seuil homogénéité : base={cfg["homogeneity"]["threshold_base"]}'
-          f'  step={cfg["homogeneity"]["threshold_step"]}'
-          f'  max={cfg["homogeneity"]["threshold_max"]}')
+    print(f'Peeling — {n} runs × {M_ortho.shape[1]} features', flush=True)
+    if verbose:
+        print(f'  mcs_global={mcs_global}, ms={ms_global}, max_levels={max_levels}')
+        print(f'  Seuil homogénéité : base={cfg["homogeneity"]["threshold_base"]}'
+              f'  step={cfg["homogeneity"]["threshold_step"]}'
+              f'  max={cfg["homogeneity"]["threshold_max"]}')
 
     # État global
     labels          = np.full(n, -1, dtype=int)
@@ -404,12 +409,10 @@ def run_peeling(
 
     for level in range(max_levels):
         n_res = len(residual_idx)
-        print(f'\n{"="*55}')
-        print(f'Niveau {level} — {n_res} points dans le résidu')
-        print(f'{"="*55}')
+        print(f'  [Peeling] Niveau {level} — {n_res} pts dans le résidu...', flush=True)
 
         if n_res < floor:
-            print(f'  Résidu trop petit ({n_res} < floor={floor}) — arrêt')
+            print(f'  [Peeling] Arrêt : résidu trop petit ({n_res} < {floor})')
             break
 
         # Sélection configs et mcs pour ce niveau
@@ -422,7 +425,8 @@ def run_peeling(
             M_res   = M_ortho[residual_idx]
             mcs     = _mcs_residual(cfg, mcs_global, n, n_res, M_res, M_ortho)
             ms      = max(cfg['ms_floor'], mcs // 4)
-            print(f'  mcs adaptatif={mcs}, ms={ms}')
+            if verbose:
+                print(f'  mcs adaptatif={mcs}, ms={ms}')
 
         # Appliquer le niveau
         M_level = M_ortho[residual_idx]
@@ -437,6 +441,7 @@ def run_peeling(
             configs        = configs,
             run_regimes_all= run_regimes,
             selection_mode = cfg['residual_selection'],
+            verbose        = verbose,
         )
 
         # Assigner labels permanents aux clusters extraits
@@ -458,38 +463,37 @@ def run_peeling(
             'threshold'   : level_result.get('threshold'),
         })
 
-        print(f'  → Extraits ce niveau : {n_extracted_this_level}  '
-              f'Résidu restant : {len(new_residual_idx)}')
+        print(f'  [Peeling] Niveau {level} → {n_extracted_this_level} extraits, {len(new_residual_idx)} résidu', flush=True)
 
         # Critère d'arrêt : rien extrait depuis 2 niveaux
         if (level >= 1 and
             trace[-1]['n_extracted'] == 0 and
             trace[-2]['n_extracted'] == 0):
-            print('  Rien extrait depuis 2 niveaux — arrêt')
+            if verbose:
+                print('  Rien extrait depuis 2 niveaux — arrêt')
             break
 
         if n_extracted_this_level < cfg['min_delta_extracted'] and level > 0:
-            print(f'  Delta extrait ({n_extracted_this_level}) < '
-                  f'min_delta ({cfg["min_delta_extracted"]}) — arrêt')
+            if verbose:
+                print(f'  Delta extrait ({n_extracted_this_level}) < '
+                      f'min_delta ({cfg["min_delta_extracted"]}) — arrêt')
             break
 
         residual_idx = new_residual_idx
 
     # Résidu final
     n_unresolved = int((labels == -1).sum())
-    print(f'\n{"="*55}')
-    print(f'Peeling terminé — {next_label} clusters extraits')
-    print(f'Résidu non résolu : {n_unresolved} runs ({100*n_unresolved/n:.1f}%)')
-
-    for ce in all_extracted:
-        rd = ce.get('regime_dist', {})
-        top = list(rd.items())[:2] if rd else []
-        print(f'  Cluster {ce["final_label"]:2d} '
-              f'(niveau {ce["level"]}) '
-              f'n={ce["n"]:3d}  '
-              f'homo={ce["homogeneity"]:.2f}  '
-              f'{ce["metric"]}/{ce["selection"]}  '
-              f'régimes={top}')
+    print(f'Peeling terminé — {next_label} clusters | résidu {n_unresolved} ({100*n_unresolved/n:.0f}%)')
+    if verbose:
+        for ce in all_extracted:
+            rd = ce.get('regime_dist', {})
+            top = list(rd.items())[:2] if rd else []
+            print(f'  Cluster {ce["final_label"]:2d} '
+                  f'(niveau {ce["level"]}) '
+                  f'n={ce["n"]:3d}  '
+                  f'homo={ce["homogeneity"]:.2f}  '
+                  f'{ce["metric"]}/{ce["selection"]}  '
+                  f'régimes={top}')
 
     result = {
         'labels'       : labels,
@@ -502,146 +506,28 @@ def run_peeling(
     }
 
     # Sorties optionnelles
-    if output_dir:
+    # Sorties debug uniquement si save_debug=True
+    if output_dir and save_debug:
+        import json
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
 
-        if cfg['output']['save_labels']:
-            np.save(str(out / f'{label}_labels.npy'), labels)
+        np.save(str(out / f'{label}_labels.npy'), labels)
 
-        if cfg['output']['save_trace']:
-            import json
-            with open(str(out / f'{label}_trace.json'), 'w') as f:
-                # Rendre sérialisable
-                trace_serial = []
-                for ce in all_extracted:
-                    c = {k: v for k, v in ce.items() if k != 'global_indices'}
-                    c['global_indices_count'] = ce['n']
-                    trace_serial.append(c)
-                json.dump({'trace': trace, 'extracted': trace_serial,
-                           'n_clusters': next_label,
-                           'n_unresolved': n_unresolved}, f, indent=2)
-            print(f'Trace → {out / f"{label}_trace.json"}')
-
-        if cfg['output']['plot_summary'] and M_2d is not None:
-            _plot_summary(result, M_2d, run_regimes, out, label)
+        trace_serial = []
+        for ce in all_extracted:
+            c = {k: v for k, v in ce.items() if k != 'global_indices'}
+            c['global_indices_count'] = ce['n']
+            trace_serial.append(c)
+        with open(str(out / f'{label}_peeling_trace.json'), 'w',
+                  encoding='utf-8') as f:
+            json.dump({'trace': trace, 'extracted': trace_serial,
+                       'n_clusters': next_label,
+                       'n_unresolved': n_unresolved}, f, indent=2)
+        print(f'  [debug] labels → {out / f"{label}_labels.npy"}')
+        print(f'  [debug] trace  → {out / f"{label}_peeling_trace.json"}')
 
     return result
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# VISUALISATIONS
-# ─────────────────────────────────────────────────────────────────────────────
-
-DARK_BG    = '#0d1117'
-PANEL_BG   = '#161b22'
-GRID_COLOR = '#21262d'
-TEXT_COLOR = '#c9d1d9'
-DIM_COLOR  = '#444455'
-
-REGIME_COLORS = {
-    'CONSERVES_NORM':    '#3498db', 'EFFONDREMENT':       '#9b59b6',
-    'CROISSANCE_FAIBLE': '#2ecc71', 'CROISSANCE_FORTE':   '#f39c12',
-    'SATURATION':        '#e67e22', 'NUMERIC_INSTABILITY':'#e74c3c',
-    'UNCATEGORIZED':     '#95a5a6', 'UNKNOWN':            '#2d3142',
-}
-
-
-def _plot_summary(result: Dict, M_2d: np.ndarray,
-                  run_regimes: Optional[List[str]],
-                  out: Path, label: str):
-    """t-SNE final coloré par cluster peeling + niveaux d'extraction."""
-    labels      = result['labels']
-    n_clusters  = result['n_clusters']
-    extracted   = result['extracted']
-
-    # Grouper extraits par niveau pour les annotations
-    by_level = {}
-    for ce in extracted:
-        by_level.setdefault(ce['level'], []).append(ce)
-
-    n_levels = len(by_level)
-    fig, axes = plt.subplots(1, min(n_levels + 1, 3), figsize=(7 * min(n_levels+1, 3), 7))
-    if not hasattr(axes, '__len__'):
-        axes = [axes]
-    fig.patch.set_facecolor(DARK_BG)
-
-    cmap = plt.cm.get_cmap('tab20', max(n_clusters, 1))
-
-    def _style(ax, title):
-        ax.set_facecolor(PANEL_BG)
-        ax.set_title(title, color=TEXT_COLOR, fontsize=10, fontweight='bold', pad=7)
-        ax.tick_params(colors=DIM_COLOR, labelsize=7)
-        for sp in ax.spines.values():
-            sp.set_edgecolor(GRID_COLOR)
-
-    # Panel 1 — clusters finaux
-    ax = axes[0]
-    _style(ax, f'Peeling final — {n_clusters} clusters')
-    noise_mask = labels == -1
-    ax.scatter(M_2d[noise_mask, 0], M_2d[noise_mask, 1],
-               c='#2d3142', s=5, alpha=0.4, edgecolors='none',
-               label=f'Résidu ({noise_mask.sum()})', zorder=1)
-    for cid in range(n_clusters):
-        mask = labels == cid
-        if not mask.any():
-            continue
-        lv = next((ce['level'] for ce in extracted if ce['final_label'] == cid), 0)
-        ax.scatter(M_2d[mask, 0], M_2d[mask, 1], c=[cmap(cid)],
-                   s=15, alpha=0.85, edgecolors='none', zorder=3,
-                   label=f'C{cid} n={mask.sum()} L{lv}')
-    ax.legend(framealpha=0.4, facecolor=DARK_BG, edgecolor=GRID_COLOR,
-              labelcolor=TEXT_COLOR, fontsize=6.5, markerscale=1.3,
-              ncol=2, loc='best')
-
-    # Panel 2 — niveau d'extraction
-    if len(axes) > 1:
-        ax2 = axes[1]
-        _style(ax2, 'Niveau d\'extraction')
-        level_colors = ['#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6']
-        ax2.scatter(M_2d[noise_mask, 0], M_2d[noise_mask, 1],
-                    c='#2d3142', s=5, alpha=0.4, edgecolors='none', zorder=1)
-        for lv, ces in by_level.items():
-            col  = level_colors[lv % len(level_colors)]
-            gidx = []
-            for ce in ces:
-                gidx.extend(ce['global_indices'])
-            gidx = np.array(gidx)
-            ax2.scatter(M_2d[gidx, 0], M_2d[gidx, 1],
-                        c=col, s=14, alpha=0.8, edgecolors='none', zorder=3,
-                        label=f'Niveau {lv} ({len(gidx)} pts)')
-        ax2.legend(framealpha=0.4, facecolor=DARK_BG, edgecolor=GRID_COLOR,
-                   labelcolor=TEXT_COLOR, fontsize=8)
-
-    # Panel 3 — régimes si disponibles
-    if len(axes) > 2 and run_regimes:
-        ax3 = axes[2]
-        _style(ax3, 'Régimes')
-        for rname in ['UNKNOWN', 'UNCATEGORIZED', 'NUMERIC_INSTABILITY', 'SATURATION',
-                       'CROISSANCE_FORTE', 'CROISSANCE_FAIBLE', 'EFFONDREMENT', 'CONSERVES_NORM']:
-            mask = np.array([r == rname for r in run_regimes])
-            if not mask.any():
-                continue
-            c = REGIME_COLORS.get(rname, '#999')
-            ax3.scatter(M_2d[mask, 0], M_2d[mask, 1], c=c,
-                        s=6 if rname in ('UNKNOWN', 'UNCATEGORIZED') else 14,
-                        alpha=0.25 if rname in ('UNKNOWN', 'UNCATEGORIZED') else 0.8,
-                        edgecolors='none', zorder=3, label=f'{rname} ({mask.sum()})')
-        ax3.legend(framealpha=0.4, facecolor=DARK_BG, edgecolor=GRID_COLOR,
-                   labelcolor=TEXT_COLOR, fontsize=7)
-
-    n_unresolved = result['n_unresolved']
-    n_total      = len(labels)
-    plt.suptitle(
-        f'Residual Peeling — {n_clusters} clusters extraits '
-        f'| résidu {n_unresolved} ({100*n_unresolved/n_total:.0f}%)',
-        color=TEXT_COLOR, fontsize=11, fontweight='bold'
-    )
-    plt.tight_layout()
-    p = str(out / f'{label}_peeling_summary.png')
-    plt.savefig(p, dpi=140, bbox_inches='tight', facecolor=DARK_BG)
-    plt.close()
-    print(f'Plot → {p}')
 
 
 # ─────────────────────────────────────────────────────────────────────────────

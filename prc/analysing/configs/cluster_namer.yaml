@@ -10,15 +10,15 @@ namer:
     method: percentile        # percentile | zscore
     reference: layer_local    # layer_local | global (anticipation multi-layer)
 
-  conf_min_name:     0.65     # En dessous → slot va dans slots_secondary
+  conf_min_name:     0.60     # En dessous → slot va dans slots_secondary
   conf_min_display:  0.50     # En dessous → slot affiché entre parenthèses dans rapport
-  name_separator:    "·"      # Séparateur entre termes dans le nom composé
+  name_separator:    "~"      # Séparateur entre termes dans le nom composé
 
   # ── Ordre des slots dans le nom composé ─────────────────────────────────────
   # Slots absents ou non calibrés → points de suspension dans le nom
   slot_order:
     - AMPLITUDE       # norm_ratio — axe principal, toujours en premier
-    - SANTÉ_NUM       # pathologies — avant tout le reste si présentes
+    - SANTE_NUM       # pathologies — avant tout le reste si présentes
     - VITESSE         # temporalité début (catch22) — calibration poc4
     - TEXTURE         # texture résiduelle (catch22) — calibration poc4
     - ENTROPIE        # entropy_delta — disponible maintenant
@@ -59,7 +59,7 @@ namer:
           sentinel: 148.413                 # log1p(e^5) — plafond pipeline
           percentile_direction: upper
 
-    SANTÉ_NUM:
+    SANTE_NUM:
       calibrated: true
       feature_primary: has_nan_frac
       feature_secondary: condition_num_median
@@ -69,7 +69,7 @@ namer:
           condition: "has_nan_frac > threshold"
           threshold: 0.30                   # >30% des runs avec NaN
           percentile_direction: upper
-        CONDITIONNÉ:
+        CONDITIONNE:
           condition: "condition_num_median > threshold"
           threshold: 1.0e6
           percentile_direction: upper
@@ -77,43 +77,24 @@ namer:
       omit_if_clean: true
 
     VITESSE:
-      calibrated: false                     # Seuils à calibrer sur poc3/poc4
-      feature_primary: CO_FirstMin_ac_median
-      feature_secondary: IN_AutoMutualInfoStats_40_gaussian_fmmi_median
-      direction: lower                      # lag court = signal vite décorrélé = dynamique rapide
-      terms:
-        ABRUPT:
-          condition: "CO_FirstMin_ac_median < threshold"
-          threshold: null                   # À calibrer
-          percentile_direction: lower
-        PROGRESSIF:
-          condition: "threshold_low <= CO_FirstMin_ac_median < threshold_high"
-          threshold_low: null
-          threshold_high: null
-          percentile_direction: null
-        LENT:
-          condition: "CO_FirstMin_ac_median >= threshold"
-          threshold: null
-          percentile_direction: upper
+      calibrated: true
+      mode: continuous
+      feature_primary: euclidean_norm__CO_FirstMin_ac
+      prefix: LAG
+      round: 0          # entier — LAG·8, LAG·293, LAG·642
+      conf_floor: 0.30  # cluster trop dispersé en lag → slot omis
+      # Calibré poc2 : C0=8, C1=642, C7=293, C8=492, C9=392
+      # Valeur brute plus informative que catégories LENT/RAPIDE
 
     TEXTURE:
-      calibrated: false                     # Seuils à calibrer sur poc3/poc4
-      feature_primary: SB_MotifThree_quantile_hh_median
-      feature_secondary: SB_TransitionMatrix_3ac_sumdiagcov_median
-      direction: upper                      # plus haut = plus de motifs = plus de texture
-      terms:
-        OSCILLANT:
-          condition: "SB_MotifThree_quantile_hh_median > threshold"
-          threshold: null
-          percentile_direction: upper
-        CONSTANT:
-          condition: "SB_MotifThree_quantile_hh_median < threshold"
-          threshold: null
-          percentile_direction: lower
-        BRUITÉ:
-          condition: "SB_TransitionMatrix_3ac_sumdiagcov_median > threshold"
-          threshold: null
-          percentile_direction: upper
+      calibrated: true
+      mode: continuous
+      feature_primary: entropy__MD_hrv_classic_pnn40
+      prefix: TEXTURE
+      round: 2          # TEXTURE·0.00, TEXTURE·0.85
+      conf_floor: 0.30  # cluster dispersé en texture → slot omis
+      # Calibré poc2 : C1/C7/C8/C9=0.00-0.01 (lisse), C0=variable
+      # Valeur [0,1] directement lisible
 
     ENTROPIE:
       calibrated: true
@@ -123,15 +104,16 @@ namer:
       terms:
         ENTROPIE_CROISSANTE:
           condition: "entropy_delta_median > threshold"
-          threshold: 0.05
+          threshold: 0.03
           percentile_direction: upper
-        ENTROPIE_DÉCROISSANTE:
+        ENTROPIE_DECROISSANTE:
           condition: "entropy_delta_median < threshold"
-          threshold: -0.05
+          threshold: -0.03
           percentile_direction: lower
-      # Si entropy_delta proche de 0 → slot omis (stable, non discriminant)
+      # poc2 : C2=-2.854, C4=-2.844, C5=-2.990 → clairement négatifs
+      # neutral_threshold réduit pour capturer les déltas proches de 0
       omit_if_neutral: true
-      neutral_threshold: 0.05
+      neutral_threshold: 0.03
 
     RANG:
       calibrated: true
@@ -139,13 +121,13 @@ namer:
       feature_secondary: effective_rank_delta_iqr
       direction: bidirectional
       terms:
-        RANG_EFFONDRÉ:
+        RANG_EFFONDRE:
           condition: "effective_rank_delta_median < threshold"
-          threshold: -5.0
+          threshold: -2.0
           percentile_direction: lower
         RANG_CROISSANT:
           condition: "effective_rank_delta_median > threshold"
-          threshold: 5.0
+          threshold: 2.0
           percentile_direction: upper
       omit_if_neutral: true
-      neutral_threshold: 5.0
+      neutral_threshold: 2.0

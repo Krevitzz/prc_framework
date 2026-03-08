@@ -31,7 +31,7 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
-from featuring.layers_lite import group_rows_by_layers
+from featuring.layers_lite import group_rows_by_layers, extract_common_features
 
 
 # Seuil dynamique log-transform
@@ -52,15 +52,6 @@ PROTECTED_SUFFIXES = ('signal_finite_ratio', 'signal_norm_absolute')
 # HELPERS PRÉPARATION MATRICE
 # =============================================================================
 
-def _extract_common_features(rows: List[Dict]) -> Set[str]:
-    """Features présentes dans TOUS les runs, flags booléens exclus."""
-    if not rows:
-        return set()
-    common = set(rows[0]['features'].keys())
-    for row in rows[1:]:
-        common &= set(row['features'].keys())
-    return {k for k in common
-            if not k.startswith('has_') and not k.startswith('is_')}
 
 
 def _sanitize_value(v) -> float:
@@ -169,7 +160,7 @@ def prepare_matrix(
         (M_ortho, kept_names, meta)
     """
     if feature_names is None:
-        common = _extract_common_features(rows)
+        common = extract_common_features(rows)
         if not common:
             return np.empty((0, 0)), [], {}
         feature_names = sorted(common)
@@ -262,6 +253,7 @@ def run_clustering(
     M_2d             : Optional[np.ndarray] = None,
     output_dir       : Optional[str] = None,
     label            : str = 'clustering',
+    save_debug       : bool = False,
     **kwargs,
 ) -> Optional[Dict]:
     """
@@ -320,6 +312,7 @@ def run_clustering(
         run_regimes = run_regimes,
         output_dir  = output_dir,
         label       = label,
+        save_debug  = save_debug,
     )
 
     labels     = peeling_result['labels'].tolist()
@@ -351,6 +344,7 @@ def run_clustering_stratified(
     M_2d             : Optional[np.ndarray] = None,
     output_dir       : Optional[str] = None,
     label            : str = 'clustering',
+    save_debug       : bool = False,
     **kwargs,
 ) -> Dict:
     """
@@ -381,6 +375,7 @@ def run_clustering_stratified(
             M_2d             = M_2d,
             output_dir       = output_dir,
             label            = layer_label,
+            save_debug       = save_debug,
         )
 
         if result is not None:

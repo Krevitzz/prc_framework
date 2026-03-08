@@ -46,6 +46,7 @@ def run_analysing(
     output_dir        : Optional[str] = None,
     label             : str = 'analysing',
     plot              : bool = True,
+    save_debug        : bool = False,
 ) -> Dict:
     """
     Analyse patterns ML complète.
@@ -111,6 +112,7 @@ def run_analysing(
             M_2d             = M_2d,
             output_dir       = output_dir,
             label            = label,
+            save_debug       = save_debug,
         )
         # Résultat principal = premier layer (rétrocompat verdict)
         clustering_unified = next(iter(clustering_stratified.values()), None)

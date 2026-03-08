@@ -16,7 +16,7 @@ import importlib
 import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Union
-
+import json
 import yaml
 import pandas as pd
 
@@ -323,6 +323,15 @@ def load_yaml(identifier: Union[str, Path], mode: str = 'default') -> Dict[str, 
 # À peupler selon besoins pipeline (divergences D1/D3)
 
 
+def fix_str(s: str) -> str:
+    """Corrige double-encodage cp1252/utf-8 (SANTÉ_NUM, COLLAPSE·...)."""
+    if not isinstance(s, str):
+        return str(s)
+    try:
+        return s.encode("cp1252").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return s
+        
 # =============================================================================
 # WRITE PARQUET
 # =============================================================================
@@ -358,15 +367,14 @@ def write_parquet(rows: List[Dict], phase: str, output_dir: Path) -> Path:
         features = row['features']
         
         record = {
-            # Axes
-            'phase': phase,
-            'gamma_id': comp['gamma_id'],
-            'encoding_id': comp['encoding_id'],
-            'modifier_id': comp['modifier_id'],
-            'n_dof': comp['n_dof'],
-            'max_iterations': comp['max_iterations'],
-            
-            # Features (unpack dict → colonnes individuelles)
+            'phase'          : phase,
+            'gamma_id'       : comp['gamma_id'],
+            'encoding_id'    : comp['encoding_id'],
+            'modifier_id'    : comp['modifier_id'],
+            'n_dof'          : comp['n_dof'],
+            'max_iterations' : comp['max_iterations'],
+            'gamma_params'   : json.dumps(comp.get('gamma_params', {})),
+            'encoding_params': json.dumps(comp.get('encoding_params', {})),
             **features
         }
         

@@ -33,16 +33,15 @@ import yaml
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from collections import Counter
-# Début du __main__
-import sys, io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CHARGEMENT CONFIG
 # ─────────────────────────────────────────────────────────────────────────────
 
 def load_namer_config(path: str) -> Dict:
-    with open(path) as f:
+    with open(path, encoding='utf-8') as f:
         cfg = yaml.safe_load(f)
     return cfg['namer']
 
@@ -191,7 +190,75 @@ def _conf_from_percentile(
 # ─────────────────────────────────────────────────────────────────────────────
 # ÉVALUATION D'UN SLOT
 # ─────────────────────────────────────────────────────────────────────────────
+def _eval_slot_continuous(
+    slot_name  : str,
+    feature_key: str,
+    profil     : Dict,
+    slot_cfg   : Dict,
+) -> Optional[Dict]:
+    """
+    Slot continu — term = "{prefix}·{valeur_arrondie}"
 
+    Confiance = cohésion intra-cluster sur la feature :
+        conf = clip(1 - IQR / (|median| + ε), 0, 1)
+
+    Cas particulier median ≈ 0 :
+        - median < ε ET iqr < ε → conf = 1.0 (cluster constant autour de 0)
+        - median < ε ET iqr > abs_iqr_floor → conf faible (dispersé autour de 0)
+
+    Args:
+        slot_name   : nom du slot (pour traçabilité)
+        feature_key : clé feature primaire (ex: euclidean_norm__CO_FirstMin_ac)
+        profil      : sortie build_cluster_profile()
+        slot_cfg    : config du slot depuis YAML
+
+    Returns:
+        Dict avec term, conf, feature, value, rule
+        None si median indisponible ou conf < conf_floor
+    """
+    _EPS          = 1e-10
+    _ABS_IQR_FLOOR = 1e-6  # seuil IQR "nul" quand median ≈ 0
+
+    prefix       = slot_cfg.get('prefix', slot_name)
+    round_digits = slot_cfg.get('round', 2)
+    conf_floor   = slot_cfg.get('conf_floor', 0.3)
+
+    median_val = profil.get(f'{feature_key}__median')
+    iqr_val    = profil.get(f'{feature_key}__iqr', 0.0) or 0.0
+
+    if median_val is None:
+        return None
+
+    # Calcul confiance cohésion
+    abs_median = abs(median_val)
+    if abs_median < _EPS:
+        # median ≈ 0 — conf basée sur IQR absolu
+        conf = 1.0 if iqr_val < _ABS_IQR_FLOOR else float(
+            np.clip(1.0 - iqr_val / (iqr_val + _ABS_IQR_FLOOR + _EPS), 0.0, 1.0)
+        )
+    else:
+        conf = float(np.clip(1.0 - iqr_val / (abs_median + _EPS), 0.0, 1.0))
+
+    if conf < conf_floor:
+        return None
+
+    # Formatage valeur
+    if round_digits == 0:
+        value_str = str(int(round(median_val, 0)))
+    else:
+        value_str = f'{median_val:.{round_digits}f}'
+
+    term = f'{prefix}·{value_str}'
+
+    return {
+        'term'     : term,
+        'conf'     : conf,
+        'feature'  : f'{feature_key}_median',
+        'value'    : median_val,
+        'rule'     : 'continuous',
+        'iqr'      : iqr_val,
+    }
+    
 def _eval_slot_amplitude(profil: Dict, layer_dist: Dict, slot_cfg: Dict) -> Dict:
     """
     Slot AMPLITUDE — logique spéciale car bidirectionnel avec zones disjointes.
@@ -431,9 +498,12 @@ class ClusterNamer:
                 signature[slot_name] = None
                 continue
 
-            # Dispatch par slot
+            # Dispatch par slot — mode continuous prioritaire
             result = None
-            if slot_name == 'AMPLITUDE':
+            if slot_cfg.get('mode') == 'continuous':
+                feature_key = slot_cfg.get('feature_primary', '')
+                result = _eval_slot_continuous(slot_name, feature_key, profil, slot_cfg)
+            elif slot_name == 'AMPLITUDE':
                 result = _eval_slot_amplitude(profil, layer_dist, slot_cfg)
             elif slot_name == 'SANTÉ_NUM':
                 result = _eval_slot_sante_num(profil, layer_dist, slot_cfg)
@@ -442,6 +512,12 @@ class ClusterNamer:
                                           profil, layer_dist, slot_cfg)
             elif slot_name == 'RANG':
                 result = _eval_slot_delta('RANG', 'effective_rank_delta',
+                                          profil, layer_dist, slot_cfg)
+            elif slot_name == 'VITESSE':
+                result = _eval_slot_delta('VITESSE', 'euclidean_norm__CO_FirstMin_ac',
+                                          profil, layer_dist, slot_cfg)
+            elif slot_name == 'TEXTURE':
+                result = _eval_slot_delta('TEXTURE', 'entropy__MD_hrv_classic_pnn40',
                                           profil, layer_dist, slot_cfg)
 
             # Slot omis (None = slot neutre ou sain)
@@ -589,76 +665,3 @@ def print_naming_report(named_clusters: List[Dict]):
             for o, v in zip(nc['slot_order'], sig)
         )
         print(f'  Signature : {sig_str}')
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# CLI
-# ─────────────────────────────────────────────────────────────────────────────
-
-if __name__ == '__main__':
-    import argparse, json, pandas as pd
-    from sklearn.preprocessing import RobustScaler
-
-    parser = argparse.ArgumentParser(description='Nommage clusters peeling')
-    parser.add_argument('--parquet',      required=True)
-    parser.add_argument('--peeling-trace',required=True, help='peeling_trace.json')
-    parser.add_argument('--peeling-labels',required=True, help='peeling_labels.npy')
-    parser.add_argument('--config',       required=True, help='cluster_namer.yaml')
-    parser.add_argument('--out',          default=None,  help='Sortie JSON optionnelle')
-    parser.add_argument('--phase',        default=None)
-    args = parser.parse_args()
-
-    # Chargement
-    df = pd.read_parquet(args.parquet)
-    if args.phase and 'phase' in df.columns:
-        df = df[df['phase'] == args.phase].reset_index(drop=True)
-
-    with open(args.peeling_trace) as f:
-        trace = json.load(f)
-
-    labels = np.load(args.peeling_labels)
-
-    # Reconstruire global_indices depuis labels
-    for ce in trace['extracted']:
-        cid = ce['final_label']
-        ce['global_indices'] = np.where(labels == cid)[0].tolist()
-
-    trace['labels']       = labels
-    trace['residual_idx'] = np.where(labels == -1)[0]
-
-    # Features depuis parquet
-    COMPOSITION_COLS = {'phase','gamma_id','encoding_id','modifier_id',
-                        'n_dof','max_iterations','regime'}
-    FLAG_PREFIXES    = ('has_', 'is_')
-    feat_cols = [c for c in df.columns
-                 if c not in COMPOSITION_COLS
-                 and not any(c.startswith(p) for p in FLAG_PREFIXES)]
-
-    all_features = []
-    for _, row in df.iterrows():
-        feats = {c: row[c] for c in feat_cols}
-        feats['has_nan_inf']   = bool(row.get('has_nan_inf', False))
-        feats['is_collapsed']  = bool(row.get('is_collapsed', False))
-        all_features.append(feats)
-
-    # Nommage
-    namer   = ClusterNamer.from_yaml(args.config)
-    results = namer.name_all(trace, all_features)
-    print_naming_report(results)
-
-    # Sortie JSON
-    if args.out:
-        def _serial(obj):
-            if isinstance(obj, np.ndarray): return obj.tolist()
-            if isinstance(obj, (np.integer,)): return int(obj)
-            if isinstance(obj, (np.floating,)): return float(obj)
-            return obj
-
-        out_data = []
-        for r in results:
-            out_data.append({k: _serial(v) for k, v in r.items()
-                             if k not in ('slots', 'slots_secondary',
-                                         'slots_uncalibrated')})
-        with open(args.out, 'w') as f:
-            json.dump(out_data, f, indent=2, default=_serial)
-        print(f'\nSortie → {args.out}')

@@ -33,6 +33,7 @@ import matplotlib.patches as patches
 from matplotlib.colors import to_rgba
 from pathlib import Path
 from typing import Dict, List, Optional
+from utils.data_loading_lite import fix_str
 
 warnings.filterwarnings('ignore')
 
@@ -58,6 +59,10 @@ REGIME_COLORS = {
 }
 
 LEVEL_COLORS = ['#e74c3c', '#f39c12', '#2ecc71', '#3498db', '#9b59b6']
+
+
+
+
 
 
 # =============================================================================
@@ -164,6 +169,7 @@ class ClusterVisualizer:
             # Annotation nom au centroïde
             cx = float(np.median(self.M_2d[mask, 0]))
             cy = float(np.median(self.M_2d[mask, 1]))
+            name  = fix_str(name)
             short = name[:22] + '…' if len(name) > 22 else name
             ax.annotate(short, (cx, cy), fontsize=5.5, color=TEXT_COLOR,
                         ha='center', va='center', alpha=0.85,
@@ -247,7 +253,7 @@ class ClusterVisualizer:
 
             cx = float(np.median(self.M_2d[mask, 0]))
             cy = float(np.median(self.M_2d[mask, 1]))
-            ax.annotate(f'{name}\n(n={mask.sum()}, h={homo:.2f})',
+            ax.annotate(f'{fix_str(name)}\n(n={mask.sum()}, h={homo:.2f})',
                         (cx, cy), fontsize=6, color=TEXT_COLOR,
                         ha='center', va='center', alpha=0.9,
                         bbox=dict(boxstyle='round,pad=0.3',
@@ -321,10 +327,10 @@ class ClusterVisualizer:
             cid  = nc.get('cluster_id', '?')
             name = nc.get('name', '?')
             n    = nc.get('n', 0)
-            cluster_labels.append(f'C{cid} ({n}) {name[:18]}')
+            cluster_labels.append(f'C{cid} ({n}) {fix_str(name)[:18]}')
 
         ax.set_xticks(range(n_slots))
-        ax.set_xticklabels(slot_order, color=TEXT_COLOR, fontsize=9, rotation=20)
+        ax.set_xticklabels([fix_str(s) for s in slot_order], color=TEXT_COLOR, fontsize=9, rotation=20)
         ax.set_yticks(range(n_clusters))
         ax.set_yticklabels(cluster_labels, color=TEXT_COLOR, fontsize=7.5)
 
@@ -332,6 +338,41 @@ class ClusterVisualizer:
                      fraction=0.04, pad=0.02)
         ax.set_title(f'Signature heatmap — {label}',
                      color=TEXT_COLOR, fontsize=11, fontweight='bold', pad=10)
+
+        # ── Légende sémantique slots continuous ──────────────────────────────
+        # Définitions fixes — à mettre à jour si nouveaux slots continuous
+        SLOT_LEGENDS = {
+            'VITESSE' : (
+                'LAG = 1er min autocorrélation sur norme euclidienne\n'
+                '  valeur faible (ex: LAG·2)  → dynamique rapide, décorrélation immédiate\n'
+                '  valeur élevée (ex: LAG·642) → persistance longue, évolution lente'
+            ),
+            'TEXTURE' : (
+                'TEXTURE = proportion grandes variations dans signal entropie  [0 – 1]\n'
+                '  TEXTURE·0.00 → signal entropie parfaitement régulier (lisse)\n'
+                '  TEXTURE·1.00 → variations brusques fréquentes (chaotique)'
+            ),
+        }
+
+        # Collecter les slots continuous présents dans ce verdict
+        present_continuous = [s for s in slot_order if s in SLOT_LEGENDS]
+        if present_continuous:
+            legend_lines = ['Lecture des valeurs continues :']
+            for s in present_continuous:
+                legend_lines.append(SLOT_LEGENDS[s])
+            legend_text = '\n\n'.join(legend_lines)
+
+            fig.text(
+                0.01, -0.02, legend_text,
+                ha='left', va='top',
+                fontsize=7, color=DIM_COLOR,
+                fontfamily='monospace',
+                transform=ax.transAxes,
+                bbox=dict(facecolor=PANEL_BG, alpha=0.7,
+                          edgecolor=GRID_COLOR, boxstyle='round,pad=0.5'),
+            )
+            # Agrandir la figure pour l'encart
+            fig.subplots_adjust(bottom=0.18 + 0.06 * len(present_continuous))
 
         _save(fig, str(out / f'{label}_signature_heatmap.png'), dpi=130)
 

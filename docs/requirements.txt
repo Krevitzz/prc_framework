@@ -1,0 +1,25 @@
+# requirements.txt — PRC Pipeline v7 (Windows CPU)
+#
+# Installation (conda env prc, Python 3.11) :
+#   pip install -r documentation/requirements.txt
+#
+# Note MKL : retiré. JAX utilise XLA (son propre BLAS/LAPACK).
+# MKL + XLA = conflits threading. numpy OpenBLAS stable avec JAX.
+#
+# GPU (plus tard, si runs > 30min avec features complètes) :
+#   Remplacer jax[cpu] par jax[cuda12] sous WSL2 Ubuntu.
+#   Wiper jax_cache/ obligatoire après changement de backend.
+
+# Core Math
+numpy>=1.24
+scipy>=1.10
+
+# JAX CPU
+jax[cpu]>=0.4.0
+
+# Data Processing & Utils
+pandas>=2.0
+pyarrow>=12.0
+scikit-learn>=1.3
+pyyaml>=6.0
+pytest>=7.0

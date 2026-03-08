@@ -1,0 +1,52 @@
+# configs/phases/poc/calib_timeline.yaml
+# Calibration convergence catch22 — timeline layer
+#
+# Objectif : identifier pour quel triplet (n_dof, famille gamma, signal)
+#            les features catch22 se stabilisent, et à partir de quel max_it
+#
+# Métrique d'analyse : variance inter-seeds des features catch22 par signal
+#                      → quand variance s'effondre = convergence atteinte
+#
+# Volume estimé : 4 gammas × 3 encodings × 1 modifier × 7 max_it × 5 n_dof × 5 seeds
+#                 = ~2100 runs (gérable)
+
+phase: calib_timeline
+config_mode: default
+
+max_iterations: [10, 25, 50, 100, 200, 500, 1000]
+n_dof: [10, 50, 100, 200]
+
+axes:
+
+  gamma:
+
+    - id: GAM-001                    # markovian — référence déterministe
+                                     # pas de seed → variance inter-seeds = bruit pur
+
+    - id: GAM-006                    # non-markovian — mémoire différentielle
+                                     # pas de seed
+
+    - id: GAM-010                    # stochastique — variance inter-seeds significative
+      params:
+        sigma: 0.05                  # valeur nominale, pas d'axe sigma ici
+        seed_run: [null, 0, 1, 2, 42]
+
+    - id: GAM-013                    # structural — hebbien, dynamique longue
+                                     # pas de seed — carré uniquement (R3 skipé auto)
+
+  encoding:
+
+    - id: SYM-002                    # rang 2 symétrique — couvre GAM-001/006/010/013
+      params:
+        seed_CI: [null, 0, 1, 2, 42]
+
+    - id: ASY-001                    # rang 2 asymétrique
+      params:
+        seed_CI: [null, 0, 1, 2, 42]
+
+    - id: R3-001                     # rang 3 — skipé auto par GAM-013 (carré only)
+      params:                        # valide pour GAM-001, GAM-006, GAM-010
+        seed_CI: [null, 0, 1, 2, 42]
+
+  modifier:
+    - id: M0                         # baseline — pas de bruit modifier pour isoler signal pur

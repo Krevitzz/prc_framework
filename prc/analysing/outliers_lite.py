@@ -12,41 +12,13 @@ FIX : inf remplacé par valeur sentinelle finie avant IsolationForest
 import numpy as np
 from typing import Dict, List, Set, Tuple
 from sklearn.ensemble import IsolationForest
+from featuring.layers_lite import extract_common_features
 
 # Valeur sentinelle pour inf — suffisamment grande pour discriminer
 # sans overflow dans IsolationForest
 _INF_SENTINEL = 1e15
 
 
-def _extract_common_features(rows: List[Dict]) -> Set[str]:
-    """
-    Identifie features présentes dans TOUS les runs.
-
-    Args:
-        rows : Liste {composition, features}
-
-    Returns:
-        Set features communes (intersection)
-
-    Notes:
-        - Exclut features non numériques (has_*, is_*)
-        - Retourne intersection stricte (présent partout)
-    """
-    if len(rows) == 0:
-        return set()
-
-    common = set(rows[0]['features'].keys())
-
-    for row in rows[1:]:
-        common &= set(row['features'].keys())
-
-    # Filtrer flags booléens
-    common = {
-        k for k in common
-        if not k.startswith('has_') and not k.startswith('is_')
-    }
-
-    return common
 
 
 def _sanitize_vector(vector: List[float]) -> List[float]:
@@ -99,7 +71,7 @@ def detect_outliers(
         - 216/216 runs analysés — aucune exclusion silencieuse
         - Features communes : intersection stricte, sans has_* et is_*
     """
-    common_features = _extract_common_features(rows)
+    common_features = extract_common_features(rows)
 
     if len(common_features) == 0:
         print("  WARNING: Aucune feature commune — outliers detection skipped")
@@ -230,7 +202,7 @@ def analyze_outliers(rows: List[Dict], contamination: float = 0.1) -> Dict:
     encoding_rec = compute_atomic_recurrence(rows, outlier_idx, 'encoding_id')
     modifier_rec = compute_atomic_recurrence(rows, outlier_idx, 'modifier_id')
 
-    common_features = _extract_common_features(rows)
+    common_features = extract_common_features(rows)
 
     return {
         'n_outliers'      : n_outliers,

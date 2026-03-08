@@ -1,0 +1,68 @@
+{
+  "trace": [
+    {
+      "level": 0,
+      "n_input": 216,
+      "n_extracted": 181,
+      "n_residual": 35,
+      "metric": "cosine",
+      "selection": "eom",
+      "threshold": 0.65
+    },
+    {
+      "level": 1,
+      "n_input": 35,
+      "n_extracted": 31,
+      "n_residual": 4,
+      "metric": "cosine",
+      "selection": "eom",
+      "threshold": 0.7000000000000001
+    }
+  ],
+  "extracted": [
+    {
+      "level": 0,
+      "local_cluster": 0,
+      "n": 181,
+      "homogeneity": 0.8725824769683024,
+      "threshold": 0.65,
+      "metric": "cosine",
+      "selection": "eom",
+      "pca_dims": null,
+      "config_ari": 0.8422916145417414,
+      "regime_dist": null,
+      "final_label": 0,
+      "global_indices_count": 181
+    },
+    {
+      "level": 1,
+      "local_cluster": 0,
+      "n": 10,
+      "homogeneity": 0.9425805810228638,
+      "threshold": 0.7000000000000001,
+      "metric": "cosine",
+      "selection": "eom",
+      "pca_dims": 5,
+      "config_ari": null,
+      "regime_dist": null,
+      "final_label": 1,
+      "global_indices_count": 10
+    },
+    {
+      "level": 1,
+      "local_cluster": 1,
+      "n": 21,
+      "homogeneity": 0.7128951099221428,
+      "threshold": 0.7000000000000001,
+      "metric": "cosine",
+      "selection": "eom",
+      "pca_dims": 5,
+      "config_ari": null,
+      "regime_dist": null,
+      "final_label": 2,
+      "global_indices_count": 21
+    }
+  ],
+  "n_clusters": 3,
+  "n_unresolved": 4
+}

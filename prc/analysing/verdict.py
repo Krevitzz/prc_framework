@@ -22,16 +22,12 @@ import pandas as pd
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from utils.data_loading_lite import load_yaml
+from utils.data_loading_lite import load_yaml, fix_str
 from analysing.profiling_lite import run_profiling
 from analysing.hub_analysing import run_analysing
 from analysing.concordance_lite import run_concordance_cross_phases
 from analysing.outliers_lite import analyze_outliers
-from analysing.regimes_lite import (          # DEPRECATED — transition
-    load_regime_thresholds,
-    classify_regimes_batch,
-    refine_conserves_norm_with_cv,
-)
+
 
 
 # =============================================================================
@@ -39,7 +35,7 @@ from analysing.regimes_lite import (          # DEPRECATED — transition
 # =============================================================================
 
 def load_pool_requirements() -> Dict:
-    req_path = Path('configs/constraints/pool_requirements.yaml')
+    req_path = Path('configs/pool_requirements.yaml')
     if not req_path.exists():
         return {
             'n_dof'        : {'min': None, 'max': None},
@@ -102,6 +98,7 @@ def run_verdict_intra(
     label             : str  = 'verdict',
     plot              : bool = True,
     n_skipped_batch   : int  = 0,   # runs skippés par le runner (RunnerError/featuring)
+    debug             : bool = False,  # sauvegarder JSON intermédiaires
 ) -> Dict:
     """
     Verdict complet sur rows en RAM.
@@ -148,30 +145,20 @@ def run_verdict_intra(
     print(f"Outliers : {outliers_results['n_outliers']} "
           f"({outliers_results['outlier_fraction']*100:.1f}%)")
 
-    # ── Régimes (DEPRECATED — transition) ─────────────────────────────────
-    print("\n=== Classification régimes (transition) ===")
-    thresholds      = load_regime_thresholds(regime_profile)
-    regimes_results = classify_regimes_batch(
-        rows, outliers_results['stable_indices'], thresholds
-    )
-    regimes_results = refine_conserves_norm_with_cv(rows, regimes_results, thresholds)
-    print(f"Régimes : {len(regimes_results['regimes'])}")
-
-    # Vecteur régimes aligné sur rows → passé au namer
-    run_regimes = _build_run_regimes(rows, regimes_results)
 
     # ── Analysing — peeling + namer + visualizer ───────────────────────────
     print("\n=== Analysing ===")
     analysing_results = run_analysing(
         rows             = rows,
         stratified       = True,
-        run_regimes      = run_regimes,
+        run_regimes      = None,
         peeling_cfg_path = peeling_cfg_path,
         namer_cfg_path   = namer_cfg_path,
         tsne_cache_path  = tsne_cache_path,
         output_dir       = output_dir,
         label            = label,
         plot             = plot,
+        save_debug       = debug,
     )
 
     # ── Metadata ──────────────────────────────────────────────────────────
@@ -203,7 +190,6 @@ def run_verdict_intra(
         'profiling' : profiling_results,
         'analysing' : analysing_results,
         'outliers'  : outliers_results,
-        'regimes'   : regimes_results,   # DEPRECATED
         'metadata'  : metadata,
     }
 
@@ -221,6 +207,7 @@ def run_verdict_from_parquet(
     output_dir       : Optional[str] = None,
     label            : Optional[str] = None,
     plot             : bool = True,
+    debug            : bool = False,
 ) -> Dict:
     """Verdict depuis Parquet."""
     print(f"\n=== Verdict depuis Parquet ===")
@@ -230,11 +217,14 @@ def run_verdict_from_parquet(
     print(f"Observations : {len(df)} | Colonnes : {len(df.columns)}\n")
 
     axes_cols     = ['gamma_id', 'encoding_id', 'modifier_id', 'n_dof', 'max_iterations']
-    features_cols = [c for c in df.columns if c not in axes_cols + ['phase']]
+    meta_cols     = ['phase', 'gamma_params', 'encoding_params']
+    features_cols = [c for c in df.columns if c not in axes_cols + meta_cols]
 
     rows = []
     for _, row_df in df.iterrows():
-        comp     = {col: row_df[col] for col in axes_cols}
+        comp = {col: row_df[col] for col in axes_cols}
+        comp['gamma_params']    = json.loads(row_df.get('gamma_params', '{}'))
+        comp['encoding_params'] = json.loads(row_df.get('encoding_params', '{}'))
         features = {col: row_df[col] for col in features_cols}
         rows.append({'composition': comp, 'features': features, 'layers': ['timeline']})
 
@@ -249,6 +239,7 @@ def run_verdict_from_parquet(
         output_dir       = output_dir,
         label            = _label,
         plot             = plot,
+        debug            = debug,
     )
 
 
@@ -363,6 +354,7 @@ def write_verdict_report(verdict_results: Dict, output_path: Path):
     print(f"\n✓ JSON : {output_path}")
 
 
+
 def write_verdict_report_txt(verdict_results: Dict, output_path: Path):
     """Rapport TXT lisible humain."""
     output_path = Path(output_path)
@@ -370,7 +362,7 @@ def write_verdict_report_txt(verdict_results: Dict, output_path: Path):
 
     lines    = []
     metadata = verdict_results.get('metadata', {})
-    phase    = output_path.stem.replace('verdict_', '').upper()
+    phase = metadata.get('label', output_path.stem).upper()
 
     lines.append(f"=== VERDICT {phase} ===")
     n_success  = metadata.get('n_observations_filtered', 0)
@@ -418,7 +410,7 @@ def write_verdict_report_txt(verdict_results: Dict, output_path: Path):
 
     for nc in sorted(named, key=lambda x: x.get('cluster_id', 999)):
         cid  = nc.get('cluster_id', '?')
-        name = nc.get('name', '?')
+        name = fix_str(nc.get('name', '?'))
         n    = nc.get('n', 0)
         homo = nc.get('cluster_homogeneity', 0.0)
         het  = ' ⚠ hétérogène' if nc.get('heterogeneous') else ''
@@ -432,17 +424,18 @@ def write_verdict_report_txt(verdict_results: Dict, output_path: Path):
         lines.append(f"  Cluster {cid} ({n} runs, niveau {lv}) "
                      f"homo={homo:.2f}{het}")
         lines.append(f"    Nom : {name}")
-        if nc.get('name_full') != name:
-            lines.append(f"    Complet : {nc['name_full']}")
+        nf = fix_str(nc.get('name_full', ''))
+        if nf and nf != name:
+            lines.append(f"    Complet : {nf}")
 
         for s in nc.get('slots', []):
             conf_s = f'{s["conf"]:.2f}' if s.get('conf') is not None else '—'
-            lines.append(f"    [{s['slot']:15s}] {s.get('term','?'):25s} "
+            lines.append(f"    [{fix_str(s.get('slot','')):15s}] {fix_str(s.get('term','?')):25s} "
                          f"conf={conf_s}")
 
         sec = nc.get('slots_secondary', [])
         if sec:
-            sec_str = ', '.join(f'({s["term"]})' for s in sec)
+            sec_str = ', '.join(f'({fix_str(s["term"])})' for s in sec)
             lines.append(f"    Secondaires : {sec_str}")
 
         uncalib = [s['slot'] for s in nc.get('slots_uncalibrated', [])]
@@ -469,7 +462,7 @@ def write_verdict_report_txt(verdict_results: Dict, output_path: Path):
     if pure:
         best = max(pure, key=lambda x: x.get('cluster_homogeneity', 0))
         lines.append(f"  - Cluster le plus homogène : C{best['cluster_id']} "
-                     f"'{best['name']}' "
+                     f"'{fix_str(best['name'])}' "
                      f"(homo={best['cluster_homogeneity']:.2f}, n={best['n']})")
     if n_unresolved > 0:
         n_obs = metadata.get('n_observations_filtered', 1)
