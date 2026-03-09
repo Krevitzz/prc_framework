@@ -1,0 +1,111 @@
+# featuring/configs/features_applicability.yaml
+#
+# Source de vérité sur les features à NaN structurel.
+# Lue par l'analysing pour distinguer NaN applicabilité (INVALID feature)
+# de NaN pathologique.
+#
+# Format :
+#   feature_name:
+#     condition   : expression lisible — quand la feature est inapplicable
+#     parquet_col : colonne parquet à tester pour dériver la condition
+#     parquet_val : valeur(s) déclenchant l'inapplicabilité
+#     famille     : famille de features concernée
+#
+# Convention : ces features retournent NaN dans le parquet.
+# L'analysing exclut ces colonnes pour les runs où la condition est vraie,
+# exactement comme run_status=INVALID exclut un run entier.
+
+structural_nan:
+
+  # ---------------------------------------------------------------------------
+  # F3 — Enchevêtrement inter-modes
+  # mode1 : nécessite au moins 3 dimensions pour avoir un second unfolding
+  # ---------------------------------------------------------------------------
+  f3_entanglement_entropy_mode1_mean:
+    condition  : "rank_eff == 2"
+    parquet_col: rank_eff
+    parquet_val: [2]
+    famille    : F3_entanglement
+
+  f3_entanglement_entropy_mode1_final:
+    condition  : "rank_eff == 2"
+    parquet_col: rank_eff
+    parquet_val: [2]
+    famille    : F3_entanglement
+
+  # ---------------------------------------------------------------------------
+  # F4 — Dynamique locale (Hutchinson)
+  # jvp indéfini si gamma non-différentiable (argmax, step, etc.)
+  # Lyapunov empirique (f4_lyapunov_empirical_*) reste valide — tous gammas
+  # ---------------------------------------------------------------------------
+  f4_trace_J_mean:
+    condition  : "differentiable == False"
+    parquet_col: gamma_id
+    parquet_val: registry  # lire metadata.differentiable depuis le registry
+    famille    : F4_dynamics
+
+  f4_trace_J_std:
+    condition  : "differentiable == False"
+    parquet_col: gamma_id
+    parquet_val: registry
+    famille    : F4_dynamics
+
+  f4_trace_J_final:
+    condition  : "differentiable == False"
+    parquet_col: gamma_id
+    parquet_val: registry
+    famille    : F4_dynamics
+
+  f4_jvp_norm_mean:
+    condition  : "differentiable == False"
+    parquet_col: gamma_id
+    parquet_val: registry
+    famille    : F4_dynamics
+
+  f4_jvp_norm_final:
+    condition  : "differentiable == False"
+    parquet_col: gamma_id
+    parquet_val: registry
+    famille    : F4_dynamics
+
+  f4_jacobian_asymmetry_mean:
+    condition  : "differentiable == False"
+    parquet_col: gamma_id
+    parquet_val: registry
+    famille    : F4_dynamics
+
+  f4_jacobian_asymmetry_final:
+    condition  : "differentiable == False"
+    parquet_col: gamma_id
+    parquet_val: registry
+    famille    : F4_dynamics
+
+  f4_local_lyapunov_mean:
+    condition  : "differentiable == False"
+    parquet_col: gamma_id
+    parquet_val: registry
+    famille    : F4_dynamics
+
+  f4_local_lyapunov_std:
+    condition  : "differentiable == False"
+    parquet_col: gamma_id
+    parquet_val: registry
+    famille    : F4_dynamics
+
+  # ---------------------------------------------------------------------------
+  # F5 — Transport
+  # frob_gradient : row-variance ratio inter-modes — nécessite rank_eff >= 3
+  # Sur rank=2 : mode-0 et mode-1 sont transposés → ratio structurellement ~1
+  # → retourne NaN (pas d'information inter-modes exploitable)
+  # ---------------------------------------------------------------------------
+  f5_frob_gradient_mean:
+    condition  : "rank_eff == 2"
+    parquet_col: rank_eff
+    parquet_val: [2]
+    famille    : F5_transport
+
+  f5_frob_gradient_final:
+    condition  : "rank_eff == 2"
+    parquet_col: rank_eff
+    parquet_val: [2]
+    famille    : F5_transport

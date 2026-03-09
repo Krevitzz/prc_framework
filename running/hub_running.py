@@ -49,6 +49,7 @@ from compositions.compositions_jax import (
 )
 from running.run_one_jax import _run_jit
 from featuring.hub_featuring import post_scan, FEATURE_NAMES
+from featuring.jax_features import FEATURES_STRUCTURAL_NAN
 from utils.data_loading_jax import (
     discover_gammas_jax,
     discover_encodings_jax,
@@ -196,15 +197,31 @@ def _run_status_from_features(features: Dict) -> str:
     """
     Détermine run_status depuis les features d'un run individuel.
 
-    OK        — toutes les features sont finies (pas inf, nan possible si calcul)
-    EXPLOSION — au moins une feature est inf
+    OK        — features finies, comportement nominal
+    EXPLOSION — au moins un Inf (divergence réelle, P2 charter : Inf = information)
+    NAN_ALL   — toutes features non-structurelles NaN, zéro Inf
+                ("rien de mesurable" — distinct d'une explosion)
     """
-    for v in features.values():
+    has_inf     = False
+    non_structural_vals = []
+
+    for k, v in features.items():
         try:
-            if np.isinf(float(v)):
-                return 'EXPLOSION'
+            fv = float(v)
         except (TypeError, ValueError):
-            pass
+            continue
+        if np.isinf(fv):
+            has_inf = True
+        # Exclure features structurellement conditionnelles + health flags
+        if k not in FEATURES_STRUCTURAL_NAN and not k.startswith('health_'):
+            non_structural_vals.append(fv)
+
+    if has_inf:
+        return 'EXPLOSION'
+
+    if non_structural_vals and all(np.isnan(v) for v in non_structural_vals):
+        return 'NAN_ALL'
+
     return 'OK'
 
 

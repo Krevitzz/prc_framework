@@ -12,20 +12,23 @@ Modes 2 et 3 parkés — verdict/analysing non portés en v7.
 TAG: CLEANUP_PHASE2 (débrancher stub quand verdict_lite disponible)
 """
 
-# Cache XLA disque — doit être configuré AVANT tout import JAX
-# Survit aux relances process, invalidé automatiquement si le bytecode change.
+# Filtres warnings — AVANT tout import (y compris JAX/numpy)
+import warnings
+warnings.filterwarnings('ignore', message='.*SLASCLS.*')
+warnings.filterwarnings('ignore', message='.*divide by zero.*')
+
+# Env XLA — AVANT tout import JAX
 import os
-os.environ['JAX_COMPILATION_CACHE_DIR'] = str(
-    __import__('pathlib').Path(__file__).parent / 'jax_cache'
-)
+# Cache disque supprimé : ratio coût/bénéfice négatif sur YAML variables.
+# Recompilation acceptée entre runs — intra-run cache RAM suffisant.
+# XLA_PYTHON_CLIENT_MEM_FRACTION : part de RAM allouée aux buffers XLA (pas VRAM).
+os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '0.6'
 # Supprime les warnings/errors C++ XLA (SIGILL prefer-no-gather, version compat...)
 # 0=tout, 1=info+, 2=warning+, 3=error+, 4=fatal uniquement
 os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '4')
 
 import argparse
 from pathlib import Path
-import warnings
-warnings.filterwarnings('ignore', message='.*SLASCLS.*')
 
 from running.hub_running import run_batch_jax
 

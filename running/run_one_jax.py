@@ -15,9 +15,10 @@ K1-K5 esprit conservé :
   - Aucune validation sémantique
 
 Carry étendu (v7 features complètes) :
-  carry = (state, key, state_prev, A_k, P_k)
-  - state_prev : état t-1 — requis F4 Lyapunov empirique, F5 transport
-  - A_k, P_k   : carry DMD streaming dans espace spectral (n_dof × n_dof)
+  carry = (state, key, state_prev, sigmas_prev, A_k, P_k)
+  - state_prev  : état t-1 — requis F4 Lyapunov empirique, F5 transport
+  - sigmas_prev : valeurs singulières t-1 — O1, évite 1 SVD/pas (DMD update)
+  - A_k, P_k    : carry DMD streaming dans espace spectral (n_dof × n_dof)
 
 dmd_rank : argument statique → recompilation si changé.
            Configurable via YAML (clé : dmd_rank, défaut : 16).
@@ -43,14 +44,14 @@ def _step_fn(gamma_fn, gamma_params, is_differentiable, carry, _):
     Args:
         gamma_fn     : Fonction gamma (statique — capturée à la compilation)
         gamma_params : Dict params gamma (dynamique — tracé par JAX)
-        carry        : (state, key, state_prev, A_k, P_k)
+        carry        : (state, key, state_prev, sigmas_prev, A_k, P_k)
         _            : index pas (ignoré — None length scan)
 
     Returns:
-        carry_next : (state_next, key_next, state, A_k_new, P_k_new)
+        carry_next : (state_next, key_next, state, sigmas, A_k_new, P_k_new)
         measures   : dict scalaires shape ()
     """
-    state, key, state_prev, A_k, P_k = carry
+    state, key, state_prev, sigmas_prev, A_k, P_k = carry
 
     # Trois splits : gamma, features stochastiques (F4 Hutchinson), réservé
     key, subkey_gamma = jax.random.split(key)
@@ -58,7 +59,7 @@ def _step_fn(gamma_fn, gamma_params, is_differentiable, carry, _):
 
     state_next = gamma_fn(state, gamma_params, subkey_gamma)
 
-    measures, A_k_new, P_k_new = measure_state(
+    measures, A_k_new, P_k_new, sigmas = measure_state(
         state,
         state_next,
         state_prev,
@@ -68,10 +69,11 @@ def _step_fn(gamma_fn, gamma_params, is_differentiable, carry, _):
         A_k,
         P_k,
         is_differentiable,
+        sigmas_prev,
     )
 
-    # state devient state_prev au prochain pas
-    carry_next = (state_next, key, state, A_k_new, P_k_new)
+    # state/sigmas deviennent state_prev/sigmas_prev au prochain pas
+    carry_next = (state_next, key, state, sigmas, A_k_new, P_k_new)
     return carry_next, measures
 
 
@@ -105,16 +107,18 @@ def _run_jit(
     D_modified = modifier_fn(D_initial, modifier_params, subkey_mod)
 
     # Initialisation carry étendu
-    n_dof      = D_modified.shape[0]
-    state_prev = jnp.zeros_like(D_modified)
-    A_k        = jnp.zeros((n_dof, n_dof))
-    P_k        = jnp.eye(n_dof) * 1e4          # prior faiblement informatif
+    n_dof        = D_modified.shape[0]
+    state_prev   = jnp.zeros_like(D_modified)
+    # O1 — sigmas_prev initialisés à zéro : pas t=0 ignoré par DMD (carry chaud dès t=1)
+    sigmas_prev  = jnp.zeros(n_dof)
+    A_k          = jnp.zeros((n_dof, n_dof))
+    P_k          = jnp.eye(n_dof) * 1e4          # prior faiblement informatif
 
-    carry_init = (D_modified, key, state_prev, A_k, P_k)
+    carry_init = (D_modified, key, state_prev, sigmas_prev, A_k, P_k)
 
     # Phase 2 — scan
     step = partial(_step_fn, gamma_fn, gamma_params, is_differentiable)
-    (last_state, _, _, A_k_final, P_k_final), signals = lax.scan(
+    (last_state, _, _, _, A_k_final, P_k_final), signals = lax.scan(
         step,
         carry_init,
         None,

@@ -121,10 +121,37 @@ FEATURE_NAMES: List[str] = [
     'ps_pnn40_mode_asymmetry',
 
     # Santé
-    'health_has_nan_inf',
+    'health_has_inf',
     'health_is_collapsed',
 ]
 
+
+# =============================================================================
+# FEATURES À NaN STRUCTUREL — source de vérité pour l'analysing
+# =============================================================================
+# Ces features retournent NaN pour des raisons d'applicabilité, pas d'erreur.
+# Condition documentée ici — l'analysing lit cette constante pour distinguer
+# NaN structurel (INVALID feature) de NaN pathologique.
+#
+# Format : {feature_name: 'condition lisible'}
+FEATURES_STRUCTURAL_NAN: dict = {
+    # F3 mode1 : tenseur rank=2 → unfolding mode-1 sans signification
+    'f3_entanglement_entropy_mode1_mean' : 'rank_eff == 2',
+    'f3_entanglement_entropy_mode1_final': 'rank_eff == 2',
+    # F5 frob_gradient : rank=2 → mode-0/mode-1 transposés → ratio sans info
+    'f5_frob_gradient_mean'              : 'rank_eff == 2',
+    'f5_frob_gradient_final'             : 'rank_eff == 2',
+    # F4 Hutchinson : gamma non-différentiable → jvp indéfini
+    'f4_trace_J_mean'            : 'differentiable == False',
+    'f4_trace_J_std'             : 'differentiable == False',
+    'f4_trace_J_final'           : 'differentiable == False',
+    'f4_jvp_norm_mean'           : 'differentiable == False',
+    'f4_jvp_norm_final'          : 'differentiable == False',
+    'f4_jacobian_asymmetry_mean' : 'differentiable == False',
+    'f4_jacobian_asymmetry_final': 'differentiable == False',
+    'f4_local_lyapunov_mean'     : 'differentiable == False',
+    'f4_local_lyapunov_std'      : 'differentiable == False',
+}
 
 # =============================================================================
 # HELPERS INTERNES — compilés dans lax.scan
@@ -283,10 +310,9 @@ def _f1_spectral(
     var_i      = jnp.mean((i_vals - i_mean)**2) + EPS
     sv_decay_rate = -cov_is / var_i
 
-    # F1.5 — Rang-1 résiduel (SVD complet séparé)
-    U, s_full, Vt = _svd_with_vectors(M)
-    rank1_approx   = jnp.outer(U[:, 0] * s_full[0], Vt[0, :])
-    rank1_residual = jnp.linalg.norm(M - rank1_approx) / (frob_norm + EPS)
+    # F1.5 — Rang-1 résiduel (identité de Pythagore sur les valeurs singulières)
+    # ||M - σ₁u₁v₁ᵀ||²_F = Σᵢ≥1 σᵢ² — pas besoin de U/Vt, économise 1 SVD complet/pas
+    rank1_residual = jnp.sqrt(jnp.sum(sigmas[1:] ** 2)) / (frob_norm + EPS)
 
     # F1.6 — Condition number
     condition_number = sigmas[0] / (sigmas[-1] + EPS)
@@ -482,22 +508,29 @@ def _f5_transport(
     # F5.1 — Distance Frobenius normalisée pas-à-pas
     delta_D = jnp.linalg.norm(state - state_prev) / frob_state
 
-    # F5.2 — Gradient de norme par mode
+    # F5.2 — Row-variance ratio inter-modes
+    # Mesure l'asymétrie structurelle entre mode-0 et mode-1 unfolding.
+    # std(norme_lignes) capture la concentration de la structure par mode.
+    # NaN structurel si rank=2 : mode-0 et mode-1 sont transposés l'un de l'autre
+    # → row_norms identiques à permutation près → ratio toujours ~1, pas d'info.
+    # Applicabilité : rank_eff >= 3 (cf. features_applicability.yaml)
     n0 = state.shape[0]
     M  = state.reshape(n0, -1)
 
-    def _frob_mode1():
-        M1 = jnp.moveaxis(state, 1, 0).reshape(state.shape[1], -1)
-        return jnp.linalg.norm(M1)
+    def _row_var_ratio():
+        # mode-0 : row norms de (n0, -1)
+        row_norms_m0 = jnp.linalg.norm(M, axis=1)          # (n0,)
+        # mode-1 : row norms de (n1, -1)
+        M1           = jnp.moveaxis(state, 1, 0).reshape(state.shape[1], -1)
+        row_norms_m1 = jnp.linalg.norm(M1, axis=1)          # (n1,)
+        std_m0 = jnp.std(row_norms_m0)
+        std_m1 = jnp.std(row_norms_m1)
+        return std_m0 / (std_m1 + EPS)
 
-    frob_m0 = jnp.linalg.norm(M)
-    frob_m1 = lax.cond(
+    frob_gradient = lax.cond(
         len(state.shape) >= 3,
-        _frob_mode1,
-        lambda: frob_m0,
-    )
-    frob_gradient = jnp.std(jnp.array([frob_m0, frob_m1])) / (
-        jnp.mean(jnp.array([frob_m0, frob_m1])) + EPS
+        _row_var_ratio,
+        lambda: jnp.nan,    # rank=2 — NaN structurel (cf. features_applicability.yaml)
     )
 
     # F5.3 — Divergence de Bregman approchée
@@ -524,7 +557,8 @@ def measure_state(
     A_k              : jnp.ndarray,
     P_k              : jnp.ndarray,
     is_differentiable: bool = True,   # Python bool statique — static_argnums dans _run_jit
-) -> Tuple[dict, jnp.ndarray, jnp.ndarray]:
+    sigmas_prev      : jnp.ndarray = None,  # carry O1 — sigmas t-1, évite 1 SVD/pas
+) -> Tuple[dict, jnp.ndarray, jnp.ndarray, jnp.ndarray]:
     """
     Calcule toutes les mesures du pas courant + met à jour le carry DMD.
 
@@ -532,20 +566,22 @@ def measure_state(
     Tous les scalaires shape () présents à chaque appel.
 
     Args:
-        state      : Tenseur au pas t
-        state_next : Tenseur au pas t+1
-        state_prev : Tenseur au pas t-1 (carry)
-        gamma_fn   : Fonction gamma (statique)
-        params     : Params gamma (dynamique)
-        key        : Subkey PRNG du pas courant
-        A_k        : Carry DMD estimateur (n_dof, n_dof)
-        P_k        : Carry DMD covariance inverse (n_dof, n_dof)
+        state         : Tenseur au pas t
+        state_next    : Tenseur au pas t+1
+        state_prev    : Tenseur au pas t-1 (carry)
+        gamma_fn      : Fonction gamma (statique)
+        params        : Params gamma (dynamique)
+        key           : Subkey PRNG du pas courant
+        A_k           : Carry DMD estimateur (n_dof, n_dof)
+        P_k           : Carry DMD covariance inverse (n_dof, n_dof)
+        sigmas_prev   : sigmas au pas t-1 (carry O1) — évite 1 SVD/pas
 
     Returns:
-        (measures, A_k_new, P_k_new)
+        (measures, A_k_new, P_k_new, sigmas)
         measures : dict scalaires shape () — structure fixe
+        sigmas   : valeurs singulières du pas courant — à passer en carry
     """
-    # Unfolding + SVD (réutilisés F1/F2/F3)
+    # Unfolding + SVD (réutilisés F1/F2/F3 + DMD)
     M      = _mode0_unfolding(state)
     sigmas = _svd_no_vectors(M)
 
@@ -564,8 +600,7 @@ def measure_state(
     # F5
     f5 = _f5_transport(state, state_prev)
 
-    # DMD streaming update dans espace spectral
-    sigmas_prev = _svd_no_vectors(_mode0_unfolding(state_prev))
+    # DMD streaming update — O1 : sigmas_prev issu du carry, pas de SVD supplémentaire
     A_k_new, P_k_new = _dmd_streaming_update(sigmas_prev, sigmas, A_k, P_k)
 
     measures = {
@@ -598,7 +633,7 @@ def measure_state(
         'f5_bregman_cost' : f5['bregman_cost'],
     }
 
-    return measures, A_k_new, P_k_new
+    return measures, A_k_new, P_k_new, sigmas
 
 
 # =============================================================================
@@ -784,13 +819,16 @@ def post_scan(
 
     # -------------------------------------------------------------------------
     # Santé
+    # health_has_inf : uniquement les Inf — NaN structurels exclus (voir
+    #   FEATURES_STRUCTURAL_NAN). Les NaN applicabilité sont lisibles depuis
+    #   rank_eff et gamma.differentiable dans le parquet + registry.
     # -------------------------------------------------------------------------
-    all_vals   = jnp.array([v for v in out.values() if isinstance(v, float)])
-    has_nan_inf = bool(jnp.any(~jnp.isfinite(all_vals)))
+    all_vals     = jnp.array([v for v in out.values() if isinstance(v, float)])
+    has_inf      = bool(jnp.any(jnp.isinf(all_vals)))
     is_collapsed = bool(jnp.std(last_state) < EPS)
 
     out.update({
-        'health_has_nan_inf' : float(has_nan_inf),
+        'health_has_inf'     : float(has_inf),
         'health_is_collapsed': float(is_collapsed),
     })
 
