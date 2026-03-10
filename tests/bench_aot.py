@@ -38,6 +38,7 @@ from typing import Dict, List, Tuple
 
 import jax
 import jax.numpy as jnp
+from functools import partial
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -190,68 +191,170 @@ def _build_batch(g: Dict, chunk: Dict, registries: Dict) -> Tuple:
     return gp_b, mp_b, D_b, keys_b, in_g, in_m
 
 
-def _exec_chunk(g, chunk, registries, chunk_size, dmd_rank, jit_fn) -> float:
-    """Exécute un chunk, retourne temps compute."""
+def _exec_chunk(g, chunk, registries, chunk_size, dmd_rank, jit_fn,
+                aot: bool = False) -> float:
+    """
+    Exécute un chunk, retourne temps compute.
+
+    aot=False : jit_fn est un jax.jit standard — appele avec les 9 args.
+    aot=True  : jit_fn est un binaire AOT vmapped — appele avec (gp_b, mp_b, D_b, keys_b).
+                Le vmap et les statiques sont baked in a la compilation.
+    """
     gp_b, mp_b, D_b, keys_b, in_g, in_m = _build_batch(g, chunk, registries)
     max_it  = g['max_it']
     is_diff = _is_diff(g, registries)
 
-    run_vmap = jax.vmap(
-        jit_fn,
-        in_axes=(None, in_g, None, in_m, 0, 0, None, None, None)
-    )
     t0 = time.perf_counter()
-    result = run_vmap(
-        g['gamma_fn'], gp_b,
-        g['mod_fn'],   mp_b,
-        D_b, keys_b,
-        max_it, dmd_rank, is_diff,
-    )
+
+    if aot:
+        # jit_fn est un dict {n_batch -> compiled_fn}.
+        # Selectionner le binaire compile pour la taille de ce chunk.
+        actual_n = D_b.shape[0]
+        fn_for_n = jit_fn.get(actual_n)
+        if fn_for_n is None:
+            raise RuntimeError(f"Pas de binaire AOT pour batch_size={actual_n}. "
+                               f"Disponibles: {list(jit_fn.keys())}")
+        result = fn_for_n(gp_b, mp_b, D_b, keys_b)
+    else:
+        run_vmap = jax.vmap(
+            jit_fn,
+            in_axes=(None, in_g, None, in_m, 0, 0, None, None, None)
+        )
+        result = run_vmap(
+            g['gamma_fn'], gp_b,
+            g['mod_fn'],   mp_b,
+            D_b, keys_b,
+            max_it, dmd_rank, is_diff,
+        )
+
     jax.block_until_ready(result)
     return time.perf_counter() - t0
 
 
-def _run_group_with(g, registries, chunk_size, dmd_rank, jit_fn) -> float:
+def _run_group_with(g, registries, chunk_size, dmd_rank, jit_fn,
+                    aot: bool = False) -> float:
     """Exécute tous les chunks d'un groupe, retourne temps compute total."""
     t = 0.0
     for chunk in chunk_group(g, chunk_size):
-        t += _exec_chunk(g, chunk, registries, chunk_size, dmd_rank, jit_fn)
+        t += _exec_chunk(g, chunk, registries, chunk_size, dmd_rank, jit_fn, aot=aot)
     return t
 
 
-def _compile_group(g, registries, dmd_rank) -> Tuple[object, float, float]:
-    """AOT-compile le kernel. Retourne (compiled, compile_s, binary_mb)."""
+def _compile_group(g, registries, dmd_rank, chunk_size) -> Tuple[object, float, float]:
+    """
+    AOT-compile la fonction vmappée pour ce groupe avec batch_size=chunk_size fixe.
+
+    La batch size est baked in dans le binaire XLA — le lowering doit utiliser
+    la meme shape que les vrais appels. On compile avec chunk_size, et on paddera
+    les derniers chunks plus petits dans _exec_chunk.
+
+    Retourne (compiled_fn, compile_s, binary_mb).
+    compiled_fn : appel direct avec (gp_b, mp_b, D_b, keys_b) de taille chunk_size.
+    """
     n_dof    = g['n_dof']
     rank_eff = g['rank_eff']
     shape    = (n_dof,) * rank_eff
     max_it   = g['max_it']
     is_diff  = _is_diff(g, registries)
 
-    r0     = g['runs'][0]
-    gp_ex  = r0['gamma_params']
-    mp_ex  = r0['mod_params']
-    D_ex   = jnp.zeros(shape, dtype=jnp.float32)
-    key_ex = jax.random.PRNGKey(0)
+    # Fonction avec statiques fermes — ne prend que les 4 args dynamiques
+    def _run_dynamic(gp, mp, D, key):
+        return _run_jit(g['gamma_fn'], gp, g['mod_fn'], mp, D, key,
+                        max_it, dmd_rank, is_diff)
 
+    # Compiler avec la vraie batch size du groupe.
+    # Chaque groupe a un nombre de runs fixe connu upfront — c'est la shape a baker in.
+    # Pour les groupes > chunk_size, on compile un binaire par taille de chunk
+    # (chunk_size pour les chunks pleins, reste pour le dernier chunk si different).
+    # Dans notre bench tous les groupes ont <= chunk_size runs donc un seul binaire suffit.
+    n_runs_group = len(g['runs'])
+    # Chunks : tous chunk_size sauf eventuellement le dernier
+    chunk_sizes_needed = set()
+    for c in chunk_group(g, chunk_size):
+        chunk_sizes_needed.add(len(c['runs']))
+
+    # Compiler un binaire par taille de chunk distincte
+    compiled_by_n = {}
     ram_pre = _ram_mb()
     t0 = time.perf_counter()
-    try:
-        fn      = jax.jit(_run_jit, static_argnums=(0, 2, 6, 7, 8))
-        lowered = fn.lower(
-            g['gamma_fn'], gp_ex,
-            g['mod_fn'],   mp_ex,
-            D_ex, key_ex,
-            max_it, dmd_rank, is_diff,
+    compile_ok = True
+    for n_batch in sorted(chunk_sizes_needed):
+        runs_ex = (g['runs'] * n_batch)[:n_batch]
+        gp_ex, mp_ex, D_b_ex, keys_b_ex, in_g_ex, in_m_ex = _build_batch(
+            g, {'runs': runs_ex}, registries
         )
-        compiled  = lowered.compile()
-        compile_s = time.perf_counter() - t0
-    except Exception as e:
-        print(f"  [compile FAIL] {_group_key(g)[:50]} — {e}", flush=True)
-        compiled  = None
-        compile_s = time.perf_counter() - t0
+        try:
+            vmapped  = jax.vmap(_run_dynamic, in_axes=(in_g_ex, in_m_ex, 0, 0))
+            lowered  = jax.jit(vmapped).lower(gp_ex, mp_ex, D_b_ex, keys_b_ex)
+            compiled_by_n[n_batch] = lowered.compile()
+        except Exception as e:
+            print(f"  [compile FAIL n={n_batch}] {_group_key(g)[:45]} — {e}", flush=True)
+            compile_ok = False
+            break
+    compile_s = time.perf_counter() - t0
+    compiled = compiled_by_n if compile_ok and compiled_by_n else None
 
     binary_mb = max(0.0, _ram_mb() - ram_pre)
     return compiled, compile_s, binary_mb
+
+
+def _verify_coherence(g, registries, chunk_size, dmd_rank) -> bool:
+    """
+    Verifie que S0 (JIT) et AOT produisent les memes resultats numeriques.
+    Teste sur le premier chunk du groupe.
+    Retourne True si coherent, False sinon.
+    """
+    chunk = chunk_group(g, chunk_size)[0]
+
+    # S0 — JIT reference
+    jit_fn = jax.jit(_run_jit, static_argnums=(0, 2, 6, 7, 8))
+    gp_b, mp_b, D_b, keys_b, in_g, in_m = _build_batch(g, chunk, registries)
+    run_vmap = jax.vmap(jit_fn, in_axes=(None, in_g, None, in_m, 0, 0, None, None, None))
+    ref = run_vmap(
+        g['gamma_fn'], gp_b, g['mod_fn'], mp_b,
+        D_b, keys_b, g['max_it'], dmd_rank, _is_diff(g, registries)
+    )
+    jax.block_until_ready(ref)
+
+    # AOT — compile + call
+    compiled, _, _ = _compile_group(g, registries, dmd_rank, chunk_size)
+    if compiled is None:
+        print(f"  [COHERENCE] SKIP {_group_key(g)[:40]} — compile failed")
+        return False
+
+    actual_n = D_b.shape[0]
+    actual_n = D_b.shape[0]
+    fn_for_n = compiled.get(actual_n)
+    if fn_for_n is None:
+        print(f"  [COHERENCE] SKIP — pas de binaire pour n={actual_n}")
+        return False
+    aot_out = fn_for_n(gp_b, mp_b, D_b, keys_b)
+    jax.block_until_ready(aot_out)
+
+    # Comparaison leaf par leaf
+    ok = True
+    ref_leaves  = jax.tree_util.tree_leaves(ref)
+    aot_leaves  = jax.tree_util.tree_leaves(aot_out)
+    if len(ref_leaves) != len(aot_leaves):
+        print(f"  [COHERENCE] FAIL {_group_key(g)[:40]} — nb outputs differ: {len(ref_leaves)} vs {len(aot_leaves)}")
+        return False
+
+    for i, (r_leaf, a_leaf) in enumerate(zip(ref_leaves, aot_leaves)):
+        try:
+            max_diff = float(jnp.max(jnp.abs(r_leaf - a_leaf)))
+            mean_ref = float(jnp.mean(jnp.abs(r_leaf)))
+            rel = max_diff / (mean_ref + 1e-8)
+            if rel > 1e-3:
+                print(f"  [COHERENCE] FAIL leaf[{i}] {_group_key(g)[:35]} — max_diff={max_diff:.2e}  rel={rel:.2e}")
+                ok = False
+        except Exception as e:
+            print(f"  [COHERENCE] WARN leaf[{i}] — {e}")
+
+    if ok:
+        print(f"  [COHERENCE] OK   {_group_key(g)[:50]}")
+    del compiled
+    gc.collect()
+    return ok
 
 
 # =============================================================================
@@ -307,7 +410,7 @@ def run_s1(groups, registries, chunk_size, dmd_rank, monitor) -> StrategyResult:
     compiled_map = {}
     for g in groups:
         gkey = _group_key(g)
-        compiled, cs, bm = _compile_group(g, registries, dmd_rank)
+        compiled, cs, bm = _compile_group(g, registries, dmd_rank, chunk_size)
         compiled_map[gkey] = compiled
         binary_mbs.append(bm)
         result.compile_s += cs
@@ -320,9 +423,11 @@ def run_s1(groups, registries, chunk_size, dmd_rank, monitor) -> StrategyResult:
     for i, g in enumerate(groups):
         gkey   = _group_key(g)
         n_runs = len(g['runs'])
-        fn     = compiled_map.get(gkey) or jax.jit(_run_jit, static_argnums=(0, 2, 6, 7, 8))
+        _compiled = compiled_map.get(gkey)
+        fn         = _compiled if _compiled is not None else jax.jit(_run_jit, static_argnums=(0, 2, 6, 7, 8))
+        _is_aot    = _compiled is not None
 
-        t_compute = _run_group_with(g, registries, chunk_size, dmd_rank, fn)
+        t_compute = _run_group_with(g, registries, chunk_size, dmd_rank, fn, aot=_is_aot)
         result.groups.append(GroupMeasure(
             group_key=gkey, gamma_id=g['gamma_id'], enc_id=g['enc_id'],
             n_dof=g['n_dof'], rank_eff=g['rank_eff'], max_it=g['max_it'],
@@ -365,7 +470,7 @@ def run_s2(groups, registries, chunk_size, dmd_rank, monitor, window=2) -> Strat
     t_wall = time.perf_counter()
 
     def _worker(g):
-        return _compile_group(g, registries, dmd_rank)
+        return _compile_group(g, registries, dmd_rank, chunk_size)
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=window) as pool:
         futures = {j: pool.submit(_worker, groups[j]) for j in range(min(window, n))}
@@ -385,8 +490,9 @@ def run_s2(groups, registries, chunk_size, dmd_rank, monitor, window=2) -> Strat
             binary_mbs.append(bm)
             ram_peak = max(ram_peak, _ram_mb())
 
-            fn = compiled if compiled is not None else jax.jit(_run_jit, static_argnums=(0, 2, 6, 7, 8))
-            t_compute = _run_group_with(g, registries, chunk_size, dmd_rank, fn)
+            _is_aot = compiled is not None
+            fn = compiled if _is_aot else jax.jit(_run_jit, static_argnums=(0, 2, 6, 7, 8))
+            t_compute = _run_group_with(g, registries, chunk_size, dmd_rank, fn, aot=_is_aot)
 
             del compiled, fn
             gc.collect()
@@ -551,6 +657,14 @@ def main():
     results = []
     ts = time.strftime('%Y%m%d_%H%M%S')
     cs, dr = args.chunk_size, args.dmd_rank
+
+    # Vérification cohérence S0 vs AOT sur un sous-ensemble de groupes
+    print('─'*60)
+    print('VÉRIFICATION COHÉRENCE JIT vs AOT (3 premiers groupes)')
+    print('─'*60)
+    for g in groups[:3]:
+        _verify_coherence(g, registries, cs, dr)
+    print()
 
     if 0 in args.strategies:
         print('─'*60, '\nS0 — JIT baseline\n' + '─'*60)

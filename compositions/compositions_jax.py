@@ -380,99 +380,101 @@ def _get_rank_eff(enc_entry: Dict) -> int:
 # GÉNÉRATION GROUPES
 # =============================================================================
 
-def generate_groups(
+# =============================================================================
+# GÉNÉRATEUR DE GROUPES (streaming — 1 groupe en RAM à la fois)
+# =============================================================================
+
+def generate_groups_lazy(
     run_config : Dict[str, Any],
     registries : Dict[str, Dict],
-    chunk_size : int = 256,
-) -> List[Dict]:
+):
     """
-    Génère les groupes vmappables depuis un YAML de run.
+    Générateur de groupes vmappables — version streaming.
 
-    Un groupe = même clé de compilation XLA :
-      (gamma_fn, enc_fn, mod_fn, n_dof, rank_eff, max_it)
+    Streaming pur — yield un groupe à la fois.
+    Jamais plus d'un groupe (+ ses runs) en RAM simultanément.
+    Le groupe est yield complet avec runs, le chunking est délégué
+    a chunk_group() dans la hot loop.
 
-    Chaque groupe contient une liste de runs :
-      (gamma_params, enc_params, mod_params, key_CI, key_run)
-
-    Args:
-        run_config : Dict chargé depuis YAML de run
-        registries : {'gamma': registry, 'encoding': registry, 'modifier': registry}
-        chunk_size : Taille max d'un chunk vmap (défaut 256)
-
-    Returns:
-        Liste de groupes, chacun avec 'runs' prêts pour vmap
+    Yields:
+        group dict :
+        {gamma_id, gamma_fn, enc_id, enc_fn, mod_id, mod_fn,
+         n_dof, rank_eff, max_it, non_markovian, phase, runs}
     """
-    axes    = run_config.get('axes', {})
-    phase   = run_config.get('phase', 'unknown')
-    n_dofs  = _normalize_to_list(run_config.get('n_dof', 10))
-    max_its = _normalize_to_list(run_config.get('max_iterations', 200))
+    axes    = run_config.get("axes", {})
+    phase   = run_config.get("phase", "unknown")
+    n_dofs  = _normalize_to_list(run_config.get("n_dof", 10))
+    max_its = _normalize_to_list(run_config.get("max_iterations", 200))
 
-    # Résolution axes
-    gamma_config    = axes.get('gamma', 'all')
-    encoding_config = axes.get('encoding', 'all')
-    modifier_config = axes.get('modifier', [{'id': 'M0'}])
+    gamma_config    = axes.get("gamma", "all")
+    encoding_config = axes.get("encoding", "all")
+    modifier_config = axes.get("modifier", [{"id": "M0"}])
 
-    gammas    = _resolve_gamma_axis(gamma_config, registries['gamma'])
-    encodings = resolve_axis_atomic(encoding_config, registries['encoding'])
-    modifiers = resolve_axis_atomic(modifier_config, registries['modifier'])
+    gammas    = _resolve_gamma_axis(gamma_config, registries["gamma"])
+    encodings = resolve_axis_atomic(encoding_config, registries["encoding"])
+    modifiers = resolve_axis_atomic(modifier_config, registries["modifier"])
 
-    # Seeds globaux
-    seed_CIs  = _normalize_to_list(run_config.get('seed_CI', [None]))
-    seed_runs = _normalize_to_list(run_config.get('seed_run', [None]))
+    seed_CIs  = _normalize_to_list(run_config.get("seed_CI", [None]))
+    seed_runs = _normalize_to_list(run_config.get("seed_run", [None]))
 
-    # Construction groupes
-    groups_map = {}
+    gammas_by_id = {}
+    for g in gammas:
+        gammas_by_id.setdefault(g["id"], []).append(g)
 
-    for gamma_e, enc_e, mod_e, n_dof, max_it in product(
-        gammas, encodings, modifiers, n_dofs, max_its
-    ):
-        rank_eff = _get_rank_eff(enc_e)
+    encs_by_key = {}
+    for e in encodings:
+        k = (e["id"], _get_rank_eff(e))
+        encs_by_key.setdefault(k, []).append(e)
 
-        group_key = (
-            gamma_e['id'], enc_e['id'], mod_e['id'],
-            n_dof, rank_eff, max_it,
-        )
+    mods_by_id = {}
+    for m in modifiers:
+        mods_by_id.setdefault(m["id"], []).append(m)
 
-        if group_key not in groups_map:
-            groups_map[group_key] = {
-                'gamma_id'      : gamma_e['id'],
-                'gamma_fn'      : gamma_e['fn'],
-                'enc_id'        : enc_e['id'],
-                'enc_fn'        : enc_e['fn'],
-                'mod_id'        : mod_e['id'],
-                'mod_fn'        : mod_e['fn'],
-                'n_dof'         : n_dof,
-                'rank_eff'      : rank_eff,
-                'max_it'        : max_it,
-                'non_markovian' : bool(
-                    gamma_e['metadata'].get('non_markovian', False)
-                ),
-                'phase'         : phase,
-                'runs'          : [],
-            }
+    for (gamma_id, gamma_entries), (enc_key, enc_entries), (mod_id, mod_entries), n_dof, max_it \
+        in product(
+            gammas_by_id.items(),
+            encs_by_key.items(),
+            mods_by_id.items(),
+            n_dofs,
+            max_its,
+        ):
+        enc_id, rank_eff = enc_key
+        g_rep = gamma_entries[0]
+        e_rep = enc_entries[0]
+        m_rep = mod_entries[0]
 
-        grp = groups_map[group_key]
-
-        # Runs : produit cartésien seeds × params déjà résolus dans les entries
-        for seed_CI, seed_run in product(seed_CIs, seed_runs):
+        runs = []
+        for gamma_e, enc_e, mod_e, seed_CI, seed_run in product(
+            gamma_entries, enc_entries, mod_entries, seed_CIs, seed_runs
+        ):
             key_CI  = _seed_to_key(seed_CI)
-            key_run = _make_run_key(
-                _seed_to_key(seed_run),
-                gamma_e['id'],
-                enc_e['id'],
-            )
-
-            grp['runs'].append({
-                'gamma_params': gamma_e['params'],
-                'enc_params'  : enc_e['params'],
-                'mod_params'  : mod_e['params'],
-                'seed_CI'     : seed_CI,
-                'seed_run'    : seed_run,
-                'key_CI'      : key_CI,
-                'key_run'     : key_run,
+            key_run = _make_run_key(_seed_to_key(seed_run), gamma_id, enc_id)
+            runs.append({
+                "gamma_params": gamma_e["params"],
+                "enc_params"  : enc_e["params"],
+                "mod_params"  : mod_e["params"],
+                "seed_CI"     : seed_CI,
+                "seed_run"    : seed_run,
+                "key_CI"      : key_CI,
+                "key_run"     : key_run,
             })
 
-    return list(groups_map.values())
+        yield {
+            "gamma_id"     : gamma_id,
+            "gamma_fn"     : g_rep["fn"],
+            "enc_id"       : enc_id,
+            "enc_fn"       : e_rep["fn"],
+            "mod_id"       : mod_id,
+            "mod_fn"       : m_rep["fn"],
+            "n_dof"        : n_dof,
+            "rank_eff"     : rank_eff,
+            "max_it"       : max_it,
+            "non_markovian": bool(g_rep["metadata"].get("non_markovian", False)),
+            "phase"        : phase,
+            "runs"         : runs,
+        }
+
+        del runs
 
 
 # =============================================================================
@@ -484,7 +486,7 @@ def chunk_group(group: Dict, chunk_size: int) -> List[Dict]:
     Découpe les runs d'un groupe en chunks vmappables.
 
     Args:
-        group      : Un groupe depuis generate_groups()
+        group      : Un groupe depuis generate_groups_lazy()
         chunk_size : Taille max d'un chunk
 
     Returns:
@@ -511,7 +513,7 @@ def generate_chunks(
     """
     Générateur de chunks vmappables — version streaming.
 
-    Contrairement à generate_groups(), ne matérialise jamais plus d'un groupe
+    Ne matérialise jamais plus d'un groupe
     à la fois en RAM. Chaque groupe est yielded chunk par chunk puis libéré (GC).
 
     Stratégie :
@@ -622,52 +624,3 @@ def generate_chunks(
 # =============================================================================
 # STATS + DRY RUN
 # =============================================================================
-
-def count_stats(groups: List[Dict], chunk_size: int = 256) -> Dict:
-    """
-    Calcule les statistiques du plan d'exécution.
-
-    Returns:
-        {
-            'n_groups'  : int  — compilations XLA max
-            'n_runs'    : int  — lignes parquet totales
-            'n_chunks'  : int  — appels vmap totaux
-        }
-    """
-    n_runs   = sum(len(g['runs']) for g in groups)
-    n_chunks = sum(ceil(len(g['runs']) / chunk_size) for g in groups)
-    return {
-        'n_groups' : len(groups),
-        'n_runs'   : n_runs,
-        'n_chunks' : n_chunks,
-    }
-
-
-def dry_run(
-    run_config : Dict[str, Any],
-    registries : Dict[str, Dict],
-    chunk_size : int = 256,
-) -> bool:
-    """
-    Affiche le plan d'exécution et demande confirmation.
-
-    Returns:
-        True si l'utilisateur confirme, False sinon.
-    """
-    groups = generate_groups(run_config, registries, chunk_size)
-    stats  = count_stats(groups, chunk_size)
-    phase  = run_config.get('phase', 'unknown')
-
-    print()
-    print("=" * 50)
-    print(f"  Dry run — phase : {phase}")
-    print("=" * 50)
-    print(f"  Groupes   (compilations XLA max) : {stats['n_groups']}")
-    print(f"  Runs      (lignes parquet)        : {stats['n_runs']}")
-    print(f"  Chunks    (appels vmap)           : {stats['n_chunks']}")
-    print(f"  Chunk size                        : {chunk_size}")
-    print("=" * 50)
-    print()
-
-    answer = input("  Continuer ? (o/n) : ").strip().lower()
-    return answer == 'o'

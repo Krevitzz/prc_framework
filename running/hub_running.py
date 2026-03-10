@@ -28,12 +28,14 @@ Mémoire :
   hot loop : generate_chunks() — générateur, 1 groupe en RAM à la fois
 """
 
+import concurrent.futures
+import gc
 import math
 import sys
 import time
 import warnings
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -43,9 +45,8 @@ import pyarrow.parquet as pq
 
 from compositions.compositions_jax import (
     chunk_group,
-    generate_groups,
+    generate_groups_lazy,
     generate_chunks,
-    count_stats,
 )
 from running.run_one_jax import _run_jit
 from featuring.hub_featuring import post_scan, FEATURE_NAMES
@@ -340,6 +341,155 @@ def _in_axes_for_params(params_batch: dict):
 
 
 # =============================================================================
+# AOT PRE-COMPILATION
+# =============================================================================
+
+def _compile_group_aot(
+    group      : Dict,
+    registries : Dict,
+    dmd_rank   : int,
+    chunk_size : int,
+) -> Optional[Dict]:
+    """
+    AOT-compile le kernel vmappé pour un groupe.
+
+    Appelée dans un thread worker (ThreadPoolExecutor) — thread-safe.
+    Compile un binaire par taille de chunk distincte du groupe
+    (chunk_size pour les chunks pleins, reste pour le dernier si different).
+
+    Utilise prepare_params si disponible dans le module gamma — critique pour
+    les gammas dont les shapes preparees different des shapes brutes (ex: GAM-011 W).
+
+    Returns:
+        {n_batch: compiled_fn, ...}  — appel direct (gp_b, mp_b, D_b, keys_b)
+        None si echec (la hot loop bascule sur JIT standard)
+    """
+    gamma_id  = group['gamma_id']
+    n_dof     = group['n_dof']
+    max_it    = group['max_it']
+    dmd_rank  = dmd_rank
+    is_diff   = registries['gamma'].get(
+        gamma_id, {}
+    ).get('metadata', {}).get('differentiable', True)
+
+    gamma_entry = registries['gamma'].get(gamma_id, {})
+    prepare_fn  = gamma_entry.get('prepare_params', None)
+
+    # Fonction avec statiques fermes dans la closure
+    gamma_fn = group['gamma_fn']
+    mod_fn   = group['mod_fn']
+
+    def _run_dynamic(gp, mp, D, key):
+        return _run_jit(gamma_fn, gp, mod_fn, mp, D, key, max_it, dmd_rank, is_diff)
+
+    # Tailles de chunks distinctes pour ce groupe
+    chunks = chunk_group(group, chunk_size)
+    sizes  = sorted({len(c['runs']) for c in chunks})
+
+    compiled_by_n = {}
+
+    for n_batch in sizes:
+        # Construire un exemple batch de taille n_batch avec prepare_params
+        runs_ex = (group['runs'] * n_batch)[:n_batch]
+
+        # gamma_params avec prepare_params si disponible
+        params_list = []
+        for run in runs_ex:
+            raw = run['gamma_params']
+            p   = prepare_fn(raw, n_dof, run['key_CI']) if prepare_fn else raw
+            params_list.append(p)
+
+        if params_list and params_list[0]:
+            gp_ex = {k: jnp.stack([p[k] for p in params_list]) for k in params_list[0]}
+            in_g  = {k: 0 for k in gp_ex}
+        else:
+            gp_ex = {}
+            in_g  = {}
+
+        # mod_params
+        mp_list = [run['mod_params'] for run in runs_ex]
+        if mp_list and mp_list[0]:
+            mp_ex = {k: jnp.stack([p[k] for p in mp_list]) for k in mp_list[0]}
+            in_m  = {k: 0 for k in mp_ex}
+        else:
+            mp_ex = {}
+            in_m  = {}
+
+        # D_batch
+        D_ex = jnp.stack([
+            group['enc_fn'](n_dof, run['enc_params'], run['key_CI'])
+            for run in runs_ex
+        ])
+
+        # keys_batch
+        keys_ex = jnp.stack([run['key_run'] for run in runs_ex])
+
+        try:
+            vmapped  = jax.vmap(_run_dynamic, in_axes=(in_g, in_m, 0, 0))
+            lowered  = jax.jit(vmapped).lower(gp_ex, mp_ex, D_ex, keys_ex)
+            compiled_by_n[n_batch] = lowered.compile()
+        except Exception as e:
+            warnings.warn(
+                f"[AOT compile FAIL] {gamma_id} n_dof={n_dof} max_it={max_it} "
+                f"n_batch={n_batch} : {e} — fallback JIT"
+            )
+            return None
+
+    return compiled_by_n if compiled_by_n else None
+
+
+def _run_chunk_aot(
+    chunk         : Dict,
+    group         : Dict,
+    compiled_by_n : Dict,
+    registries    : Dict,
+    dmd_rank      : int,
+    is_diff       : bool,
+) -> Tuple:
+    """
+    Execute un chunk via le binaire AOT pre-compile.
+
+    Interface identique au bloc vmap de la hot loop JIT :
+    retourne (signals_b, last_states, A_k_b, P_k_b).
+
+    Construit les batches avec prepare_params si disponible.
+    """
+    gamma_id   = group['gamma_id']
+    n_dof      = group['n_dof']
+    runs       = chunk['runs']
+    n_batch    = len(runs)
+
+    gamma_entry = registries['gamma'].get(gamma_id, {})
+    prepare_fn  = gamma_entry.get('prepare_params', None)
+
+    # gamma_params avec prepare_params
+    params_list = []
+    for run in runs:
+        raw = run['gamma_params']
+        p   = prepare_fn(raw, n_dof, run['key_CI']) if prepare_fn else raw
+        params_list.append(p)
+
+    if params_list and params_list[0]:
+        gp_b = {k: jnp.stack([p[k] for p in params_list]) for k in params_list[0]}
+    else:
+        gp_b = {}
+
+    # mod_params
+    mp_list = [run['mod_params'] for run in runs]
+    if mp_list and mp_list[0]:
+        mp_b = {k: jnp.stack([p[k] for p in mp_list]) for k in mp_list[0]}
+    else:
+        mp_b = {}
+
+    D_b    = _build_enc_batch(chunk, group)
+    keys_b = _build_keys_batch(chunk)
+
+    fn = compiled_by_n[n_batch]
+    signals_b, last_states, A_k_b, P_k_b = fn(gp_b, mp_b, D_b, keys_b)
+    return signals_b, last_states, A_k_b, P_k_b
+
+
+# =============================================================================
 # POST-SCAN + ROWS
 # =============================================================================
 
@@ -606,6 +756,9 @@ def run_batch_jax(
     run_config = load_yaml(yaml_path)
     phase      = run_config.get('phase', 'unknown')
     dmd_rank   = int(run_config.get('dmd_rank', 16))   # statique XLA — wiper cache si changé
+    aot_window  = int(run_config.get('aot_window',  80))    # groupes compilés d'avance
+    aot_workers = int(run_config.get('aot_workers', 16))   # threads compilateurs
+    aot_ram_gb  = float(run_config.get('aot_ram_gb', 4.0)) # plafond RAM binaires (Go)
 
     # ------------------------------------------------------------------
     # Dry run arithmétique — zéro instanciation
@@ -668,107 +821,216 @@ def run_batch_jax(
     n_runs_est    = stats['n_runs']   # pour % progression
     backup_every  = max(flush_every * 10, 10_000)  # backup parquet tous les N rows
 
+    # Helpers internes partagés JIT et AOT
+    def _progress(n_grp):
+        n_done  = n_ok + n_explosion + n_invalid + n_fail
+        pct     = n_done / n_runs_est * 100 if n_runs_est > 0 else 0
+        elapsed = time.time() - t_start
+        eta_str = ''
+        if pct > 1 and elapsed > 0:
+            eta_s   = elapsed / pct * (100 - pct)
+            eta_str = f"  ETA {int(eta_s//60)}m{int(eta_s%60):02d}s"
+        print(
+            f"\r  [{n_grp:>5}g | {pct:5.1f}% | "
+            f"{int(elapsed//60)}m{int(elapsed%60):02d}s{eta_str}]  "
+            f"OK={n_ok}  EXP={n_explosion}  INV={n_invalid}  FAIL={n_fail}",
+            end='', file=sys.stderr
+        )
+
+    def _process_chunk_results(chunk, group, signals_b, last_states, A_k_b, P_k_b):
+        nonlocal n_ok, n_explosion
+        last_states.block_until_ready()
+        rows = _rows_from_chunk(chunk, group, signals_b, last_states, A_k_b, P_k_b)
+        del signals_b, last_states, A_k_b, P_k_b
+        for r in rows:
+            if r['run_status'] == 'EXPLOSION': n_explosion += 1
+            else:                              n_ok        += 1
+        return rows
+
+    def _process_chunk_fallback(chunk, group, is_diff):
+        nonlocal n_ok, n_explosion, n_fail
+        rows = _fallback_individual(chunk, group, registries, dmd_rank, is_diff)
+        for r in rows:
+            s = r['run_status']
+            if s == 'OK':          n_ok        += 1
+            elif s == 'EXPLOSION': n_explosion += 1
+            else:                  n_fail      += 1
+        return rows
+
+    def _vmap_chunk(chunk, group):
+        is_diff_g      = registries['gamma'].get(
+            group['gamma_id'], {}
+        ).get('metadata', {}).get('differentiable', True)
+        D_batch        = _build_enc_batch(chunk, group)
+        gamma_params_b = _build_gamma_params_batch(chunk, group, registries)
+        mod_params_b   = _build_mod_params_batch(chunk)
+        keys_batch     = _build_keys_batch(chunk)
+        in_axes_gamma  = _in_axes_for_params(gamma_params_b)
+        in_axes_mod    = _in_axes_for_params(mod_params_b)
+        run_batch_fn   = jax.vmap(
+            _run_jit,
+            in_axes=(None, in_axes_gamma, None, in_axes_mod, 0, 0, None, None, None)
+        )
+        s_b, ls, ak, pk = run_batch_fn(
+            group['gamma_fn'], gamma_params_b,
+            group['mod_fn'],   mod_params_b,
+            D_batch, keys_batch, group['max_it'], dmd_rank, is_diff_g,
+        )
+        del D_batch
+        return s_b, ls, ak, pk, is_diff_g
+
     try:
-        for chunk in generate_chunks(run_config, registries, chunk_size):
+        if aot_window > 0:
+            # ── HOT LOOP AOT ROLLING — streaming + N compilateurs parallèles ──
+            #
+            # Principe :
+            #   - generate_groups_lazy() : streaming, 1 groupe en RAM à la fois
+            #   - ThreadPoolExecutor(aot_workers) : N compilations XLA parallèles
+            #   - deque pending (FIFO) : max aot_window groupes en vol
+            #   - RAM binaires bornée par aot_ram_gb (plafond souple)
+            #   - GPU démarre dès que la compile du groupe courant est prête
+            #   - CPU ne s'arrête jamais de compiler tant que pending < window
 
-            # Comptage groupes XLA réels + progress
-            xla_key = (
-                chunk['gamma_id'], chunk['enc_id'], chunk['mod_id'],
-                chunk['n_dof'], chunk['rank_eff'], chunk['max_it'],
-            )
-            if xla_key != last_xla_key:
+            from collections import deque
+
+            AVG_BINARY_MB   = 5.0   # estimation fixe (5MB/binaire mesuré sur bench)
+            ram_binaries_gb = 0.0
+            pending         = deque()   # (group, future)
+            groups_gen      = generate_groups_lazy(run_config, registries)
+
+            def _submit(group):
+                nonlocal ram_binaries_gb
+                f = pool.submit(_compile_group_aot, group, registries, dmd_rank, chunk_size)
+                pending.append((group, f))
+                ram_binaries_gb += AVG_BINARY_MB / 1024.0
+
+            def _consume():
+                nonlocal ram_binaries_gb, n_groups_seen
+                group, future = pending.popleft()
+                compiled_by_n = future.result()
+                ram_binaries_gb = max(0.0, ram_binaries_gb - AVG_BINARY_MB / 1024.0)
                 n_groups_seen += 1
-                last_xla_key   = xla_key
+                _progress(n_groups_seen)
+                return group, compiled_by_n
 
-                n_done   = n_ok + n_explosion + n_invalid + n_fail
-                pct      = n_done / n_runs_est * 100 if n_runs_est > 0 else 0
-                elapsed  = time.time() - t_start
-                eta_str  = ''
-                if pct > 1 and elapsed > 0:
-                    eta_s   = elapsed / pct * (100 - pct)
-                    eta_str = f"  ETA {int(eta_s//60)}m{int(eta_s%60):02d}s"
-                print(
-                    f"\r  [{n_groups_seen:>5}g | {pct:5.1f}% | "
-                    f"{int(elapsed//60)}m{int(elapsed%60):02d}s{eta_str}]  "
-                    f"OK={n_ok}  EXP={n_explosion}  INV={n_invalid}  FAIL={n_fail}",
-                    end='', file=sys.stderr
+            def _execute_group(group, compiled_by_n):
+                nonlocal n_invalid, rows_buffer, rows_since_flush, writer_state
+                is_diff = registries['gamma'].get(
+                    group['gamma_id'], {}
+                ).get('metadata', {}).get('differentiable', True)
+
+                if _check_invalid(group, registries['gamma']):
+                    for chunk in chunk_group(group, chunk_size):
+                        rows = _rows_invalid(chunk, group)
+                        n_invalid += len(rows)
+                        for r in rows: r['features'].pop('_exc', None)
+                        rows_buffer.extend(rows)
+                        rows_since_flush += len(rows)
+                    return
+
+                for chunk in chunk_group(group, chunk_size):
+                    try:
+                        if compiled_by_n is not None:
+                            s_b, ls, ak, pk = _run_chunk_aot(
+                                chunk, group, compiled_by_n, registries, dmd_rank, is_diff
+                            )
+                        else:
+                            s_b, ls, ak, pk, is_diff = _vmap_chunk(chunk, group)
+                        rows = _process_chunk_results(chunk, group, s_b, ls, ak, pk)
+                    except Exception as e:
+                        if verbose:
+                            warnings.warn(
+                                f"[hub_running AOT] ({group['gamma_id']} × "
+                                f"{group['enc_id']}) : {e} — fallback individuel"
+                            )
+                        rows = _process_chunk_fallback(chunk, group, is_diff)
+
+                    for r in rows: r['features'].pop('_exc', None)
+                    rows_buffer.extend(rows)
+                    rows_since_flush += len(rows)
+                    if rows_since_flush >= flush_every:
+                        writer_state = _flush_buffer(
+                            rows_buffer, writer_state, phase, output_dir
+                        )
+                        rows_buffer.clear()
+                        rows_since_flush = 0
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=aot_workers) as pool:
+
+                # Pré-remplir le pipeline
+                for group in groups_gen:
+                    _submit(group)
+                    if len(pending) >= aot_window or ram_binaries_gb >= aot_ram_gb:
+                        break
+
+                # Boucle principale
+                for next_group in groups_gen:
+                    group_exec, compiled_by_n = _consume()
+
+                    # Soumettre suivant immédiatement (CPU ne s'arrête pas)
+                    _submit(next_group)
+
+                    _execute_group(group_exec, compiled_by_n)
+                    del group_exec, compiled_by_n
+                    gc.collect()
+
+                # Vider le pipeline
+                while pending:
+                    group_exec, compiled_by_n = _consume()
+                    _execute_group(group_exec, compiled_by_n)
+                    del group_exec, compiled_by_n
+                    gc.collect()
+
+        else:
+            # ── HOT LOOP JIT BASELINE (inchangée) ───────────────────────────
+            for chunk in generate_chunks(run_config, registries, chunk_size):
+                xla_key = (
+                    chunk['gamma_id'], chunk['enc_id'], chunk['mod_id'],
+                    chunk['n_dof'], chunk['rank_eff'], chunk['max_it'],
                 )
+                if xla_key != last_xla_key:
+                    n_groups_seen += 1
+                    last_xla_key   = xla_key
+                    _progress(n_groups_seen)
 
-            # --- Check INVALID statique (avant tout appel JAX) ---------------
-            if _check_invalid(chunk, registries['gamma']):
-                rows = _rows_invalid(chunk, chunk)
-                n_invalid += len(rows)
+                is_diff = registries['gamma'].get(
+                    chunk['gamma_id'], {}
+                ).get('metadata', {}).get('differentiable', True)
 
-            else:
-                # --- Fast path : vmap ----------------------------------------
-                try:
-                    D_batch        = _build_enc_batch(chunk, chunk)
-                    gamma_params_b = _build_gamma_params_batch(
-                        chunk, chunk, registries
+                if _check_invalid(chunk, registries['gamma']):
+                    rows = _rows_invalid(chunk, chunk)
+                    n_invalid += len(rows)
+                else:
+                    try:
+                        s_b, ls, ak, pk, is_diff = _vmap_chunk(chunk, chunk)
+                        rows = _process_chunk_results(chunk, chunk, s_b, ls, ak, pk)
+                    except Exception as e:
+                        if verbose:
+                            warnings.warn(
+                                f"[hub_running] vmap failed "
+                                f"({chunk['gamma_id']} × {chunk['enc_id']}) : {e}"
+                                f" — fallback individuel"
+                            )
+                        rows = _process_chunk_fallback(chunk, chunk, is_diff)
+
+                for r in rows: r['features'].pop('_exc', None)
+                rows_buffer.extend(rows)
+                rows_since_flush += len(rows)
+
+                if rows_since_flush >= flush_every:
+                    writer_state     = _flush_buffer(rows_buffer, writer_state, phase, output_dir)
+                    rows_buffer.clear()
+                    rows_since_flush = 0
+                elif rows_since_flush >= backup_every:
+                    writer_state     = _flush_buffer(rows_buffer, writer_state, phase, output_dir)
+                    rows_buffer.clear()
+                    rows_since_flush = 0
+                    n_done_total     = n_ok + n_explosion + n_invalid + n_fail
+                    print(
+                        f"\n  [backup] {n_done_total} rows sur disque → "
+                        f"{writer_state['path']}",
+                        file=sys.stderr
                     )
-                    mod_params_b   = _build_mod_params_batch(chunk)
-                    keys_batch     = _build_keys_batch(chunk)
-
-                    in_axes_gamma = _in_axes_for_params(gamma_params_b)
-                    in_axes_mod   = _in_axes_for_params(mod_params_b)
-
-                    is_diff = registries['gamma'].get(
-                        chunk['gamma_id'], {}
-                    ).get('metadata', {}).get('differentiable', True)
-
-                    run_batch_fn = jax.vmap(
-                        _run_jit,
-                        in_axes=(
-                            None, in_axes_gamma,
-                            None, in_axes_mod,
-                            0, 0, None, None, None,   # max_it, dmd_rank, is_diff — statiques
-                        )
-                    )
-
-                    signals_b, last_states, A_k_b, P_k_b = run_batch_fn(
-                        chunk['gamma_fn'], gamma_params_b,
-                        chunk['mod_fn'],  mod_params_b,
-                        D_batch, keys_batch, chunk['max_it'], dmd_rank, is_diff,
-                    )
-                    last_states.block_until_ready()
-
-                    rows = _rows_from_chunk(
-                        chunk, chunk, signals_b, last_states, A_k_b, P_k_b
-                    )
-                    del D_batch, signals_b, last_states, A_k_b, P_k_b
-
-                    for r in rows:
-                        if r['run_status'] == 'EXPLOSION':
-                            n_explosion += 1
-                        else:
-                            n_ok += 1
-
-                except Exception as e:
-                    # --- Fallback individuel : zéro skip ---------------------
-                    if verbose:
-                        warnings.warn(
-                            f"[hub_running] vmap failed "
-                            f"({chunk['gamma_id']} × {chunk['enc_id']}) : {e}"
-                            f" — fallback individuel"
-                        )
-                    rows = _fallback_individual(chunk, chunk, registries, dmd_rank, is_diff)
-                    for r in rows:
-                        s = r['run_status']
-                        if s == 'OK':          n_ok        += 1
-                        elif s == 'EXPLOSION': n_explosion += 1
-                        else:
-                            n_fail += 1
-                            if verbose:
-                                exc_msg = r['features'].pop('_exc', '?')
-                                warnings.warn(
-                                    f"  FAIL "
-                                    f"({r['composition']['gamma_id']} × "
-                                    f"{r['composition']['encoding_id']}) "
-                                    f"γ={r['composition']['gamma_params']} : "
-                                    f"{exc_msg}"
-                                )
-                            else:
-                                r['features'].pop('_exc', None)
 
             # Purger _exc (défense)
             for r in rows:

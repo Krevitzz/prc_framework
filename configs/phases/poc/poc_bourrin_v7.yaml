@@ -43,8 +43,8 @@ max_iterations: [50, 200]
 # Chaque valeur de rank dans RN-* params génère un groupe XLA distinct.
 # Ici rank=[2,3] → 2 groupes par combinaison (gamma, mod, n_dof, max_it)
 
-seed_CI: [0, 1]
-seed_run: [null, 0]
+seed_CI: [0, 1,2]
+seed_run: [null, 0,1]
 
 # ---------------------------------------------------------------------------
 # AXES ATOMICS
