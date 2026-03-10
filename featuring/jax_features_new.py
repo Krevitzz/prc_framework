@@ -591,8 +591,16 @@ def measure_state(
 # =============================================================================
 
 def _f7_safe(A_k: jnp.ndarray) -> Tuple:
-    """F7 sur A_k finie — branche lax.cond."""
-    eigenvalues     = jnp.linalg.eigvals(A_k)
+    """F7 sur A_k finie — branche lax.cond.
+
+    Sanitization obligatoire avant eigvals : sous vmap, JAX évalue les deux
+    branches de lax.cond pour tous les éléments du batch avant de sélectionner.
+    cuSolver plante sur inf/nan même si la branche _f7_nan sera retournée.
+    jnp.where remplace inf/nan par 0 — le résultat est masqué par lax.cond
+    pour les éléments où A_k n'est pas finie.
+    """
+    A_k_clean       = jnp.where(jnp.isfinite(A_k), A_k, jnp.zeros_like(A_k))
+    eigenvalues     = jnp.linalg.eigvals(A_k_clean)
     abs_eigs        = jnp.abs(eigenvalues)
     spectral_radius = jnp.max(abs_eigs)
     n_complex       = jnp.sum(jnp.abs(jnp.imag(eigenvalues)) > 1e-4).astype(jnp.float32)
