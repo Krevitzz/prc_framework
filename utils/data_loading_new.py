@@ -399,3 +399,88 @@ def fix_str(s: str) -> str:
         return s.encode("cp1252").decode("utf-8")
     except (UnicodeEncodeError, UnicodeDecodeError):
         return s
+
+
+# =============================================================================
+# SECTION 5 — LECTURE PARQUET CIBLÉE
+# =============================================================================
+
+# Colonnes parquet v7 qui ne sont pas des features
+_META_COLS_V7 = {
+    'run_status', 'phase',
+    'gamma_id', 'encoding_id', 'modifier_id',
+    'n_dof', 'rank_eff', 'max_it',
+    'gamma_params', 'encoding_params', 'modifier_params',
+    'seed_CI', 'seed_run',
+}
+
+
+def read_parquet_rows(
+    parquet_path : Path,
+    filters      : list = None,
+) -> list:
+    """
+    Lecture parquet v7 avec filtres pyarrow pushdown optionnels.
+
+    Interface bas niveau — utilisée par analysing/parquet_filter.py.
+    Retourne les rows brutes avant post-filtres.
+
+    Les filtres pyarrow sont construits par parquet_filter.build_pyarrow_filters().
+    Ne pas appeler directement — utiliser analysing.parquet_filter.load_rows().
+
+    Args:
+        parquet_path : Path vers .parquet v7
+        filters      : Liste de tuples pyarrow (col, op, val) ou None
+
+    Returns:
+        List[Dict] — {composition: dict, features: dict}
+
+    Notes:
+        Zéro dépendance vers analysing/ — data_loading reste découplé.
+        Les post-filtres (seeds: one, pool_requirements) sont dans parquet_filter.py.
+    """
+    import json as _json
+
+    parquet_path = Path(parquet_path)
+    if not parquet_path.exists():
+        raise FileNotFoundError(f"Parquet introuvable : {parquet_path}")
+
+    df = pq.read_table(str(parquet_path), filters=filters or None)
+
+    all_cols     = df.schema.names
+    feature_cols = [c for c in all_cols if c not in _META_COLS_V7]
+    cols         = df.to_pydict()
+    n            = len(df)
+
+    def _pj(s):
+        if s is None: return {}
+        try: return _json.loads(s)
+        except: return {}
+
+    def _ff(v):
+        if v is None: return float('nan')
+        try: return float(v)
+        except: return float('nan')
+
+    rows = []
+    for i in range(n):
+        rows.append({
+            'composition': {
+                'gamma_id'       : cols['gamma_id'][i],
+                'encoding_id'    : cols['encoding_id'][i],
+                'modifier_id'    : cols['modifier_id'][i],
+                'n_dof'          : int(cols['n_dof'][i]),
+                'rank_eff'       : int(cols['rank_eff'][i]),
+                'max_it'         : int(cols['max_it'][i]),
+                'run_status'     : cols['run_status'][i],
+                'phase'          : cols['phase'][i],
+                'seed_CI'        : cols['seed_CI'][i],
+                'seed_run'       : cols['seed_run'][i],
+                'gamma_params'   : _pj(cols['gamma_params'][i]),
+                'encoding_params': _pj(cols['encoding_params'][i]),
+                'modifier_params': _pj(cols['modifier_params'][i]),
+            },
+            'features': {k: _ff(cols[k][i]) for k in feature_cols},
+        })
+
+    return rows

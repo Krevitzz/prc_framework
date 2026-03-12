@@ -12,6 +12,7 @@ import jax
 import jax.numpy as jnp
 
 METADATA = {
+    'jax_vmappable': True,
     'id'        : 'SYM-003',
     'rank'      : 2,
     'stochastic': True,
@@ -28,6 +29,6 @@ def create(n_dof: int, params: dict, key: jax.Array) -> jnp.ndarray:
     Returns:
         jnp.ndarray (n_dof, n_dof) symétrique
     """
-    sigma = float(params.get('sigma', 0.3))
+    sigma = params.get('sigma', 0.3)
     B     = jax.random.normal(key, (n_dof, n_dof)) * sigma
     return (B + B.T) / 2.0

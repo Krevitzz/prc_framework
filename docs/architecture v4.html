@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>PRC — Architecture Map v4 (complète)</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap');
+:root{--bg:#080a0d;--bg2:#0d1117;--bg3:#131920;--border:#1a2030;--border2:#243040;--text:#b0bcc8;--dim:#485060;--bright:#dce6f0;--blue:#4a9eff;--cyan:#00d4c8;--green:#3dba6a;--amber:#f0a020;--red:#e05050;--purple:#9a70f0;--slate:#5a7090;--orange:#e07830;--mono:'JetBrains Mono',monospace;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:11px;line-height:1.65;padding:28px 32px;}
+.header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border2);padding-bottom:14px;margin-bottom:32px;}
+.header-left{display:flex;align-items:baseline;gap:16px;}
+.title{font-size:13px;font-weight:700;color:var(--bright);letter-spacing:.12em;text-transform:uppercase;}
+.subtitle{font-size:10px;color:var(--dim);letter-spacing:.06em;}
+.badge{font-size:9px;padding:3px 8px;background:var(--bg3);border:1px solid var(--border2);color:var(--cyan);letter-spacing:.1em;}
+.sl{font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin-bottom:10px;padding-left:8px;border-left:2px solid var(--border2);}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:24px;}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px;}
+.full{margin-bottom:24px;}
+.card{background:var(--bg2);border:1px solid var(--border);padding:12px 14px;position:relative;}
+.ct{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:7px;}
+.dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.tag{display:inline-block;font-size:8px;font-weight:600;padding:1px 6px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px;}
+.td{background:rgba(224,80,80,.12);color:var(--red);border:1px solid rgba(224,80,80,.25);}
+.tt{background:rgba(240,160,32,.12);color:var(--amber);border:1px solid rgba(240,160,32,.25);}
+.ta{background:rgba(61,186,106,.10);color:var(--green);border:1px solid rgba(61,186,106,.25);}
+.tb{background:rgba(74,158,255,.10);color:var(--blue);border:1px solid rgba(74,158,255,.25);}
+.fn{color:var(--cyan);font-size:10px;margin:2px 0;}
+.fn span{color:var(--dim);}
+.note{font-size:10px;color:var(--dim);margin-top:6px;line-height:1.5;}
+.note em{color:var(--amber);font-style:normal;}
+.note strong{color:var(--text);font-weight:500;}
+.fl{font-size:10px;padding:3px 0;color:var(--text);border-bottom:1px solid var(--border);}
+.fl:last-child{border-bottom:none;}
+.fl .st{color:var(--dim);min-width:20px;display:inline-block;}
+.fl .md{color:var(--blue);}
+.fl .fn2{color:var(--cyan);}
+.fl .io{color:var(--slate);font-size:9px;}
+.fl .rt{color:var(--green);font-size:9px;}
+.pill-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+.pill{font-size:9px;padding:2px 7px;background:var(--bg3);border:1px solid var(--border2);color:var(--text);letter-spacing:.05em;}
+.pill.g{color:var(--green);border-color:rgba(61,186,106,.3);}
+.pill.b{color:var(--blue);border-color:rgba(74,158,255,.3);}
+.pill.r{color:var(--red);border-color:rgba(224,80,80,.3);}
+.pill.a{color:var(--amber);border-color:rgba(240,160,32,.3);}
+.slot{background:var(--bg3);border:1px solid var(--border2);padding:6px 8px;font-size:9px;}
+.sn{color:var(--purple);font-weight:600;letter-spacing:.06em;display:block;margin-bottom:3px;}
+.sf{color:var(--dim);}
+.rule{font-size:10px;padding:4px 0;border-bottom:1px dashed var(--border);color:var(--dim);}
+.rule:last-child{border-bottom:none;}
+.rl{color:var(--red);font-weight:600;margin-right:6px;}
+.ro{color:var(--green);font-weight:600;margin-right:6px;}
+.ra{color:var(--amber);font-weight:600;margin-right:6px;}
+.tree{font-size:10px;line-height:1.8;}
+.td2{color:var(--blue);}
+.tf{color:var(--text);}
+.tn{color:var(--dim);font-size:9px;}
+.tt2{color:var(--amber);}
+.kv{display:flex;justify-content:space-between;font-size:10px;margin:2px 0;}
+.kv .k{color:var(--dim);}
+.kv .v{font-weight:500;}
+.audit-flag{font-size:9px;padding:2px 6px;border-radius:2px;display:inline-block;margin-top:4px;}
+.af-dead{background:rgba(224,80,80,.15);color:var(--red);border:1px solid rgba(224,80,80,.3);}
+.af-ram{background:rgba(240,160,32,.15);color:var(--amber);border:1px solid rgba(240,160,32,.3);}
+.af-ext{background:rgba(61,186,106,.15);color:var(--green);border:1px solid rgba(61,186,106,.3);}
+.af-obs{background:rgba(90,112,144,.15);color:var(--slate);border:1px solid rgba(90,112,144,.3);}
+.audit-legend{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <span class="title">PRC &mdash; Architecture Map</span>
+    <span class="subtitle">v4 &middot; tous les fichiers lus</span>
+  </div>
+  <span class="badge">v4 &middot; 2026-03-12 &middot; COMPLET</span>
+</div>
+
+<div class="audit-legend">
+  <span class="audit-flag af-dead">&#9888; code mort / redondant</span>
+  <span class="audit-flag af-ram">&#9650; RAM non essentielle</span>
+  <span class="audit-flag af-ext">&#10010; point d'extension</span>
+  <span class="audit-flag af-obs">&#9432; observation</span>
+</div>
+
+<!-- =================================================== -->
+<!-- ARBORESCENCE REELLE                                 -->
+<!-- =================================================== -->
+<div class="sl">Arborescence réelle — tree 2026-03-12 (corrigé)</div>
+<div class="full"><div class="card">
+  <div class="ct"><span class="dot" style="background:var(--slate)"></span>Structure complète</div>
+  <div class="tree">
+    <div><span class="td2">analysing/</span></div>
+    <div>&nbsp;&nbsp; clustering_peeling_v2.py · clustering_v2.py · cluster_namer_v2.py · concordance_lite.py</div>
+    <div>&nbsp;&nbsp; hub_analysing_v2.py · outliers_v2.py · parquet_filter_v2.py · pipeline_v2.py · profiling_v2.py</div>
+    <div>&nbsp;&nbsp; verdict_v2.py · visualizer_v2.py</div>
+    <div>&nbsp;&nbsp; <span class="td2">configs/</span> analysing_default.yaml · cluster_namer.yaml</div>
+    <div><span class="td2">atomics/</span></div>
+    <div>&nbsp;&nbsp; atomics_inventory_v7.md</div>
+    <div>&nbsp;&nbsp; <span class="td2">D_encodings/</span> asy_* · r3_* · rn_* · sym_* (20 fichiers)</div>
+    <div>&nbsp;&nbsp; <span class="td2">modifiers/</span> m0_baseline.py · m1_gaussian_noise.py · m2_uniform_noise.py · <span class="td2">plugins/</span> (biology, gravity, quantum, template)</div>
+    <div>&nbsp;&nbsp; <span class="td2">operators/</span> gam_* (15 fichiers)</div>
+    <div><span class="td2">batch.py</span></div>
+    <div><span class="td2">configs/</span></div>
+    <div>&nbsp;&nbsp; <span class="td2">phases/</span> aot_bench.yaml · <span class="td2">poc/</span> (poc1.yaml, poc_bourrin_v7.yaml, poc_cache_bench.yaml, poc_perf.yaml, poc.yaml)</div>
+    <div>&nbsp;&nbsp; pool_requirements.yaml</div>
+    <div><span class="td2">data/results/</span> <span class="tn">(vide)</span></div>
+    <div><span class="td2">docs/</span> CHARTER_7_1.md · PHASES_GUIDE.md · prc_architecture_v3(1).html · requirements.txt</div>
+    <div><span class="td2">featuring/</span></div>
+    <div>&nbsp;&nbsp; hub_featuring.py · jax_features_new.py</div>
+    <div>&nbsp;&nbsp; <span class="td2">configs/</span> features_applicability.yaml</div>
+    <div><span class="td2">running/</span></div>
+    <div>&nbsp;&nbsp; batching_new.py · hub_running_new.py · kernel_new.py · plan_new.py · run_one_jax.py</div>
+    <div><span class="td2">utils/</span> data_loading_new.py · parquet_to_json.py</div>
+    <div><span class="td2">LICENSE</span></div>
+  </div>
+</div></div>
+
+<!-- =================================================== -->
+<!-- PIPELINE GLOBAL (final)                             -->
+<!-- =================================================== -->
+<div class="sl">Pipeline global — flux bout en bout</div>
+<div class="full"><div class="card">
+  <div class="fl"><span class="st">1</span> <span class="md">batch.py</span> CLI &rarr; <span class="io">MODE 1 : run_phase() | MODE 2 : --verdict {phase} (run_verdict_from_parquet) | MODE 3 : --verdict (run_verdict_cross_phases)</span></div>
+  <div class="fl"><span class="st">2</span> <span class="md">running.hub_running_new.run_phase()</span> &rarr; load_yaml → dry_run_stats → confirmation → registries</div>
+  <div class="fl"><span class="st">3</span> <span class="md">running.plan_new.generate_kernel_groups()</span> &rarr; génère les groupes vmappables (streaming) à partir du YAML et des registries</div>
+  <div class="fl"><span class="st">4</span> <span class="md">running.plan_new.split_into_batches()</span> &rarr; découpe chaque groupe en batches de taille ≤ batch_size</div>
+  <div class="fl"><span class="st">5</span> <span class="md">running.batching_new.execute_batch()</span> (async) → features_async — construit les inputs batchés et appelle jit(vmap(<span class="md">running.kernel_new._run_fn</span>)) via cache global _vmap_cache</div>
+  <div class="fl"><span class="st">6</span> <span class="md">running.batching_new.sync_features_b()</span> &rarr; np.array() force sync GPU→CPU</div>
+  <div class="fl"><span class="st">7</span> <span class="md">running.batching_new.rows_from_synced()</span> &rarr; construit les rows parquet avec statut (OK/EXPLOSION/NAN_ALL)</div>
+  <div class="fl"><span class="st">8</span> <span class="md">running.hub_running_new</span> collecte rows_buffer → flush → open_parquet_writer/write_rows_to_parquet → <span class="rt">data/results/{phase}.parquet</span></div>
+  <div class="fl"><span class="st">9</span> <span class="md">analysing.hub_analysing_v2.run_verdict_from_parquet()</span> &rarr; lit parquet via <span class="md">parquet_filter_v2.load_analysing_data()</span>, puis appelle <span class="md">pipeline_v2.run_analysing_pipeline()</span> et écrit les rapports (<span class="md">verdict_v2</span>)</div>
+  <div class="fl"><span class="st">10</span> <span class="md">analysing.hub_analysing_v2.run_verdict_cross_phases()</span> &rarr; compare plusieurs phases via <span class="md">concordance_lite</span>, sortie dans <span class="rt">data/results/reports/</span></div>
+  <div class="note"><em>Statuts run : OK (features finies), EXPLOSION (Inf), NAN_ALL (toutes NaN non structurelles), INVALID (rank_constraint), FAIL (exception) — définis dans hub_running_new et batching_new.</em></div>
+</div></div>
+
+<!-- =================================================== -->
+<!-- CLI + RUNNING (tous lus)                            -->
+<!-- =================================================== -->
+<div class="sl">CLI + Running — orchestration</div>
+<div class="g2">
+  <!-- batch.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--orange)"></span>batch.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="note" style="margin-bottom:8px">
+      <code>python -m batch {phase}</code> &rarr; MODE 1 : run phase<br>
+      <code>python -m batch --verdict {phase}</code> &rarr; MODE 2 : verdict depuis parquet<br>
+      <code>python -m batch --verdict</code> &rarr; MODE 3 : verdict cross-phases
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Args</strong> : --verbose · --auto-confirm · --cfg (chemin config analysing) · --plot (PNG) · --debug (save labels+trace)<br>
+      <strong>Imports</strong> : run_phase (running.hub_running_new) · run_verdict_from_parquet · run_verdict_cross_phases (analysing.hub_analysing_v2)<br>
+      <strong>Output dir</strong> : data/results/ pour parquet ; data/results/reports/ pour rapports
+    </div>
+    <span class="audit-flag af-obs">&#9432; yaml_path hardcodé sur configs/phases/poc/{phase}.yaml — sous-dossier poc/ en dur, pas flexible pour d'autres familles (ex: aot_bench.yaml est dans phases/ directement mais non accessible par ce chemin)</span><br>
+    <span class="audit-flag af-obs">&#9432; cfg_path résolu avec resolve() mais si --cfg non fourni, utilise analysing/configs/analysing_default.yaml (existe dans tree) ✓</span><br>
+    <span class="audit-flag af-obs">&#9432; warnings filtrés au niveau module : filterwarnings('ignore', message='.*SLASCLS.*') — masque un warning spécifique lié à LAPACK</span><br>
+    <span class="audit-flag af-obs">&#9432; os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '0.75' — contrôle mémoire JAX</span>
+  </div>
+  <!-- hub_running_new.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--orange)"></span>running/hub_running_new.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">run_phase(yaml_path, output_dir, auto_confirm, batch_size=256, flush_every=1000, aot_ram_gb=5.0, verbose) &rarr; Dict</div>
+    <div class="fn">dry_run_stats(run_config, batch_size) &rarr; Dict métriques (zéro instanciation)</div>
+    <div class="fn">_check_invalid(kernel_group, gamma_registry) &rarr; bool</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Workflow run_phase()</strong> :<br>
+      1. load_yaml → extrait phase, dmd_rank, aot_ram_gb<br>
+      2. dry_run_stats() → affichage + confirmation<br>
+      3. registries = discover_*_jax()<br>
+      4. generate_kernel_groups() + rolling_compile_window()<br>
+      5. Pour chaque kernel_group : split_into_batches()<br>
+      6. Pour chaque batch : _check_invalid() → si INVALID → make_nan_rows() direct<br>
+      7. Sinon : execute_batch() async → features_async<br>
+      8. Pendant que GPU compute, traite le batch précédent (pending) : sync_features_b() + rows_from_synced() → rows_buffer<br>
+      9. Flush tous les flush_every via open_parquet_writer/write_rows_to_parquet<br>
+      10. En finally : close_parquet_writer()<br>
+      <strong>Statuts run</strong> : OK (features finies), EXPLOSION (Inf), NAN_ALL (toutes NaN), INVALID (rank_constraint), FAIL (exception)
+    </div>
+    <span class="audit-flag af-obs">&#9432; aot_ram_gb peut être surchargé par YAML (clé 'aot_ram_gb') — paramètre configurable.</span><br>
+    <span class="audit-flag af-obs">&#9432; dmd_rank lu du YAML (défaut 16) — utilisé dans execute_batch.</span><br>
+    <span class="audit-flag af-obs">&#9432; rolling_compile_window utilise n_workers = max(1, os.cpu_count()-2) — parallélisme CPU/GPU.</span><br>
+    <span class="audit-flag af-ram">&#9650; double boucle : pending + batch suivant — mais nécessaire pour overlap CPU/GPU.</span><br>
+    <span class="audit-flag af-ram">&#9650; rows_buffer + flush_every = 1000 — consommation mémoire maîtrisée.</span><br>
+    <span class="audit-flag af-dead">&#9888; _check_invalid utilise gamma_registry.get('metadata',{}).get('rank_constraint') — si rank_constraint absent, pas d'invalidation.</span>
+  </div>
+</div>
+<div class="g3">
+  <!-- batching_new.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--orange)"></span>running/batching_new.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">execute_batch(batch, dmd_rank) → features_b dict {str: jnp.array(B,)} [async]</div>
+    <div class="fn">sync_features_b(features_b) → {str: np.ndarray(B,)}</div>
+    <div class="fn">rows_from_synced(batch, synced_features, phase) → List[Dict] rows parquet</div>
+    <div class="fn">make_nan_rows(batch, run_status, phase) → List[Dict] (INVALID/FAIL)</div>
+    <div class="fn">_build_batch_inputs(batch) → (D_b, gp_b, mp_b, keys_b)</div>
+    <div class="fn">_get_kernel_fn(batch, dmd_rank, gp_keys, mp_keys) → callable jit(vmap)</div>
+    <div class="fn">_compile_one(kg, dmd_rank, batch_size) → None (peuple _vmap_cache)</div>
+    <div class="fn">rolling_compile_window(kg_gen, dmd_rank, batch_size, n_workers, ram_gb) → Generator[kg] (fenêtre glissante de pré-compilation)</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Cache global _vmap_cache</strong> : dictionnaire process, clé = (id(gamma_fn), id(mod_fn), n_dof, max_it, dmd_rank, is_differentiable, gamma_param_keys, mod_param_keys).<br>
+      Une entrée par kernel_group → jit(vmap(<span class="md">kernel_new._run_fn</span>)) partagé entre tous ses batches.<br>
+      _compile_one pré-compile les deux tailles de batch possibles (batch_size et remainder) pour éviter les recompilations.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Construction des inputs batchés</strong> :<br>
+      - D_b : encodings vmappables si enc_vmappable=True (vmap), sinon loop Python.<br>
+      - gp_b : gamma_params après prepare_params (ex: GAM-011 'scale' → 'W').<br>
+      - mp_b : mod_params (M0 → {}).<br>
+      - keys_b : PRNGKeys batchées.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Statuts run (déterminés dans _run_status_from_features)</strong> :<br>
+      - OK : features finies.<br>
+      - EXPLOSION : au moins un Inf (P2 charter).<br>
+      - NAN_ALL : toutes les features non structurelles (hors FEATURES_STRUCTURAL_NAN et health_*) sont NaN, sans Inf.<br>
+      Utilisé par rows_from_synced pour alimenter la colonne run_status.
+    </div>
+    <span class="audit-flag af-obs">&#9432; FEATURE_NAMES et FEATURES_STRUCTURAL_NAN importés depuis jax_features_new — cohérence avec l'extraction.</span><br>
+    <span class="audit-flag af-obs">&#9432; rolling_compile_window utilise une fenêtre glissante (window_size = n_workers*2) pour overlap compilation/execution. ram_gb non utilisé actuellement (commentaire).</span><br>
+    <span class="audit-flag af-ext">&#10010; _vmap_cache est un point d'extension implicite : tout nouveau gamma/modifier avec des param_keys différentes créera une nouvelle entrée.</span><br>
+    <span class="audit-flag af-ram">&#9650; _build_enc_batch avec enc_vmappable=False fait une boucle Python → peut devenir goulot si beaucoup de samples et encodings non vmappables.</span><br>
+    <span class="audit-flag af-dead">&#9888; rolling_compile_window a un paramètre ram_gb non utilisé dans le calcul de window_size (seulement commenté).</span>
+  </div>
+  <!-- kernel_new.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--orange)"></span>running/kernel_new.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">_step_fn(carry, _) → (carry_next, measures) — un pas de dynamique (utilisé dans lax.scan)</div>
+    <div class="fn">_run_fn(gamma_fn, gamma_params, modifier_fn, modifier_params, D_initial, key, max_it, dmd_rank, is_differentiable) → dict features JAX (vmappable)</div>
+    <div class="fn">run_one_jax(...) → dict {str: float} (interface pour exécution unitaire)</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Noyau compilé unique — applique modificateur, scan gamma, post-traitement en un seul graphe XLA.<br>
+      <em>_run_fn</em> est la fonction nue vmappable, utilisée par batching_new via jit(vmap(...)).<br>
+      <em>run_one_jax</em> est une version JIT pour usage unitaire (non batch).
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Phases internes</strong> :<br>
+      1. modifier_fn(D_initial, modifier_params, subkey_mod) → D_modified<br>
+      2. lax.scan sur max_it pas avec carry étendu (state, key, state_prev, sigmas_prev, A_k, P_k) — chaque pas appelle measure_state (depuis jax_features_new)<br>
+      3. _post_scan_jax(signals, last_state, A_k_final) → dict de features (intégré, signaux jamais matérialisés hors XLA)
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Carry étendu</strong> :<br>
+      - state_prev : état t-1 (pour Lyapunov empirique F4, transport F5)<br>
+      - sigmas_prev : valeurs singulières t-1 (évite un SVD par pas)<br>
+      - A_k, P_k : carry DMD streaming dans espace spectral (n_dof × n_dof)
+    </div>
+    <span class="audit-flag af-obs">&#9432; dmd_rank est un argument statique — toute modification (via YAML) nécessite de vider le cache JAX (jax_cache/).</span><br>
+    <span class="audit-flag af-obs">&#9432; float() sur le premier scalaire dans run_one_jax bloque implicitement jusqu'à la fin du calcul (block_until_ready).</span><br>
+    <span class="audit-flag af-obs">&#9432; La séparation _run_fn / _run_jit permet de vmapper _run_fn sans décorateur jit (batching_new applique jit(vmap(...))).</span><br>
+    <span class="audit-flag af-ram">&#9650; Le carry contient des matrices (A_k, P_k) de taille n_dof×n_dof — mémoire négligeable par run, mais en batch vmap cela devient (B, n_dof, n_dof). Heureusement, le carry est interne au scan et n'est pas stocké en batch (vmap sur l'axe batch).</span>
+  </div>
+  <!-- plan_new.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--orange)"></span>running/plan_new.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">generate_kernel_groups(run_config, registries) &rarr; generator[Dict]</div>
+    <div class="fn">split_into_batches(kernel_group, batch_size) &rarr; List[Dict]</div>
+    <div class="fn">count_total_samples(run_config, registries) &rarr; Dict</div>
+    <div class="fn">_resolve_gamma_axis(gamma_config, gamma_registry) &rarr; List</div>
+    <div class="fn">_resolve_gamma_sequence(lines_config, registry, weights_cfg=None) &rarr; List</div>
+    <div class="fn">make_composed_gamma(gamma_fns, weights=None) &rarr; callable</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Transformer YAML + registries en kernel_groups vmappables.<br>
+      Un kernel_group = même clé de compilation XLA (gamma_id, enc_id, mod_id, n_dof, rank_eff, max_it).<br>
+      Streaming : un groupe en RAM à la fois.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Contenu d'un kernel_group</strong> :
+      gamma_id, gamma_fn, enc_id, enc_fn, mod_id, mod_fn, n_dof, rank_eff, max_it,
+      is_differentiable, non_markovian, enc_vmappable,
+      gamma_param_keys, mod_param_keys, prepare_params, phase,
+      samples (liste de dicts avec gamma_params, enc_params, mod_params, seeds, keys).
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Gestion des séquences pondérées</strong> :
+      - _resolve_gamma_sequence stocke sequence_fns et sequence_ids dans le dict composé.
+      - Le bloc pondération (weights) utilise ces listes pour générer des combinaisons de poids.
+      - Bug #3 corrigé : maintenant les gammas individuels sont accessibles pour la pondération.
+    </div>
+    <span class="audit-flag af-ext">&#10010; make_composed_gamma retourne une nouvelle fonction Python à chaque appel → clé de cache XLA distincte (comportement attendu).</span><br>
+    <span class="audit-flag af-obs">&#9432; _get_rank_eff() détermine le rang effectif : priorité à metadata['rank'], sinon params['rank'].</span><br>
+    <span class="audit-flag af-obs">&#9432; _seed_to_key() et _make_run_key() garantissent des clés JAX déterministes par composition.</span><br>
+    <span class="audit-flag af-dead">&#9888; count_total_samples() itère sur tous les groupes pour compter — en pratique utilisé avant confirmation, mais peut être lourd si très grand nombre de groupes. Alternativement, dry_run_stats dans hub_running_new fait une estimation plus rapide sans itération.</span>
+  </div>
+  <!-- run_one_jax.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--orange)"></span>running/run_one_jax.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">run_one_jax(gamma_fn, gamma_params, modifier_fn, modifier_params, D_initial, key, max_it, dmd_rank=16, is_differentiable=True) → dict {str: float}</div>
+    <div class="fn">_run_jit(...) → (signals, last_state, A_k_final, P_k_final) [JIT compilé]</div>
+    <div class="fn">_step_fn(carry, _) → (carry_next, measures)</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Noyau compilé pour un run unique (non batch).<br>
+      Importe measure_state et post_scan depuis <span class="md">featuring.hub_featuring</span> (contrairement à kernel_new qui utilise jax_features_new).<br>
+      Sémantique identique à kernel_new.run_one_jax mais avec un chemin d'import différent.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Phases</strong> :<br>
+      1. modifier_fn(D_initial, modifier_params, subkey_mod) → D_modified<br>
+      2. lax.scan sur max_it pas avec carry étendu (state, key, state_prev, sigmas_prev, A_k, P_k) — chaque pas appelle measure_state (depuis hub_featuring)<br>
+      3. last_state.block_until_ready() puis post_scan(signals, last_state, A_k_final, P_k_final) → dict features Python
+    </div>
+    <span class="audit-flag af-obs">&#9432; La fonction run_one_jax est strictement redondante avec kernel_new.run_one_jax (même signature, même logique mais imports différents).</span><br>
+    <span class="audit-flag af-obs">&#9432; dmd_rank est statique — recompilation nécessaire si changé.</span><br>
+    <span class="audit-flag af-ram">&#9650; last_state.block_until_ready() force une synchronisation GPU avant post_scan — similaire à float() dans kernel_new.</span><br>
+    <span class="audit-flag af-dead">&#9888; Ce fichier semble être un vestige de l'ancienne organisation ; il coexiste avec kernel_new.py mais pourrait être supprimé si la transition vers jax_features_new est complète.</span>
+  </div>
+</div>
+
+<!-- =================================================== -->
+<!-- FEATURING (tous lus, y compris YAML)                -->
+<!-- =================================================== -->
+<div class="sl">Featuring — extraction intra-run</div>
+<div class="g2">
+  <!-- hub_featuring.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--blue)"></span>featuring/hub_featuring.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">__all__ = ['measure_state', 'post_scan', 'FEATURE_NAMES']</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Hub de routage pur — réexporte les fonctions de <span class="md">featuring.jax_features</span> (module non présent dans l'arbre, probablement <code>jax_features_new.py</code>).<br>
+      Zéro logique métier.
+    </div>
+    <span class="audit-flag af-obs">&#9432; Import depuis <code>featuring.jax_features</code> alors que le fichier existant est <code>jax_features_new.py</code> — incohérence de nom à vérifier.</span><br>
+    <span class="audit-flag af-ext">&#10010; Point d'entrée unique pour les kernels, facilite le changement d'implémentation sous-jacente.</span>
+  </div>
+  <!-- jax_features_new.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--blue)"></span>featuring/jax_features_new.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">measure_state(state, state_next, state_prev, gamma_fn, params, key, A_k, P_k, is_differentiable, sigmas_prev) → (measures, A_k_new, P_k_new, sigmas)</div>
+    <div class="fn">_post_scan_jax(signals, last_state, A_k) → dict features JAX (vmappable)</div>
+    <div class="fn">post_scan(signals, last_state, A_k, P_k) → dict {str: float}</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Implémentation complète des features F1–F7, santé, dérivées.<br>
+      Contient les constantes <code>FEATURE_NAMES</code> (68 noms) et <code>FEATURES_STRUCTURAL_NAN</code> (liste des features NaN par applicabilité).<br>
+      Utilisé par <code>kernel_new.py</code> (import direct) et indirectement par <code>run_one_jax.py</code> via <code>hub_featuring</code>.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Organisation</strong> :<br>
+      - <code>measure_state</code> : appelée à chaque pas de scan, retourne les mesures du pas courant et met à jour le carry DMD.<br>
+      - <code>_post_scan_jax</code> : agrège les signaux (moyennes, deltas, finales) et calcule F6, F7, autocorr, santé. Version pure JAX, vmappable, intégrée dans <code>_run_fn</code>.<br>
+      - <code>post_scan</code> : wrapper de compatibilité pour <code>run_one_jax</code> (convertit en floats Python).
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Points clés</strong> :<br>
+      - Utilisation de <code>lax.cond</code> pour les branches conditionnelles (F7, entanglement mode1) → vmappable, pas de try/except.<br>
+      - <code>FEATURES_STRUCTURAL_NAN</code> permet de distinguer NaN structurels des NaN d'erreur.<br>
+      - Santé : <code>health_has_inf</code> détecté via <code>jnp.stack</code> sur toutes les features non-health (pas de boucle Python).<br>
+      - DMD streaming : <code>_dmd_streaming_update</code> met à jour A_k et P_k dans le carry.
+    </div>
+    <span class="audit-flag af-ext">&#10010; L'ajout d'une nouvelle feature se fait en étendant les fonctions <code>_fN_*</code> et en les intégrant dans <code>measure_state</code> et <code>_post_scan_jax</code>.</span><br>
+    <span class="audit-flag af-obs">&#9432; <code>_first_min_autocorr</code> utilise <code>lax.dynamic_slice</code> pour rester traçable sous vmap.</span><br>
+    <span class="audit-flag af-obs">&#9432; <code>FEATURE_NAMES_ORDERED_FOR_HEALTH</code> est dérivé de <code>FEATURE_NAMES</code> et doit rester synchronisé manuellement.</span><br>
+    <span class="audit-flag af-ram">&#9650; <code>_approx_transfer_entropy</code> calcule des corrélations sur les signaux complets (T,) — coût O(T) par run, acceptable.</span>
+  </div>
+  <!-- features_applicability.yaml (lu) -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--blue)"></span>featuring/configs/features_applicability.yaml</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Source de vérité pour les NaN structurels. Liste les features qui peuvent être NaN pour des raisons d'applicabilité (ex: entanglement mode1 sur rang=2, features différentielles sur gamma non différentiable).<br>
+      Utilisé par l'analyse pour distinguer ces NaN des NaN pathologiques.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Structure</strong> : chaque entrée indique la condition (sous forme de commentaire), la colonne parquet à tester (<code>rank_eff</code> ou <code>gamma_id</code>), et la valeur déclenchant le NaN.
+    </div>
+    <span class="audit-flag af-obs">&#9432; Le champ <code>parquet_val: registry</code> pour les gammas non différentiables indique que la valeur doit être résolue via le registre, pas directement dans le YAML.</span>
+  </div>
+</div>
+
+<!-- =================================================== -->
+<!-- ANALYSING (tous les fichiers lus, y compris YAMLs)  -->
+<!-- =================================================== -->
+<div class="sl">Analysing — clustering + verdict</div>
+<div class="g3">
+  <!-- clustering_peeling_v2.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/clustering_peeling_v2.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">run_peeling(M_ortho, cfg, mcs_global=None, ms_global=None, M_2d=None, run_regimes=None, output_dir=None, label='peeling', save_debug=False, verbose=False) → Dict</div>
+    <div class="fn">_run_level(...) → (level_result, residual_global)</div>
+    <div class="fn">_homogeneity_score(...) → float</div>
+    <div class="fn">_mcs_residual(...) → int</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Algorithme de peeling résiduel. Applique HDBSCAN à plusieurs niveaux, avec adaptation des paramètres et score d'homogénéité pour décider si un cluster est définitivement extrait.<br>
+      Utilisé par <code>clustering_v2.run_clustering</code>.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Principe</strong> :<br>
+      - Niveau 0 : config unique (<code>level_0</code>) sur tous les points.<br>
+      - Niveaux suivants : batterie de configs (<code>residual_configs</code>) sur le résidu.<br>
+      - Pour chaque cluster candidat, calcul d'un score d'homogénéité (moyenne des probabilités, silhouette, pureté des régimes).<br>
+      - Si score ≥ seuil (fonction du niveau), le cluster est extrait (label permanent).<br>
+      - Sinon, ses points retournent dans le résidu.<br>
+      - mcs adaptatif pour les niveaux suivants (<code>_mcs_residual</code>).
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Détails clés</strong> :<br>
+      - <code>_run_level</code> essaie toutes les configs de la batterie, choisit celle avec le meilleur score composite (nombre de clusters, bruit, ARI bootstrap).<br>
+      - <code>_homogeneity_score</code> utilise les poids configurés dans <code>cfg['homogeneity']</code>.<br>
+      - Bootstrap ARI optionnel pour évaluer la stabilité de la config.<br>
+      - Les résultats de chaque niveau sont tracés (<code>trace</code>) et les labels finaux sont assignés séquentiellement.
+    </div>
+    <span class="audit-flag af-obs">&#9432; Le paramètre <code>run_regimes</code> est optionnel ; s'il est fourni, il est utilisé dans le score d'homogénéité (pureté des régimes).</span><br>
+    <span class="audit-flag af-obs">&#9432; Les sorties debug (<code>save_debug=True</code>) sauvegardent <code>labels.npy</code> et un JSON de trace.</span><br>
+    <span class="audit-flag af-obs">&#9432; Le calcul de mcs adaptatif utilise la trace de la covariance comme proxy de la densité.</span><br>
+    <span class="audit-flag af-ram">&#9650; Le bootstrap ARI peut être coûteux si <code>n_iter</code> est grand ; il est désactivable dans la config.</span><br>
+    <span class="audit-flag af-ram">&#9650; La boucle sur les configs à chaque niveau peut être lourde si la batterie est grande, mais le nombre de niveaux est limité (<code>max_levels</code>).</span>
+  </div>
+  <!-- clustering_v2.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/clustering_v2.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">prepare_matrix(data, corr_threshold=0.85, protected_features=None) → (M_ortho, kept_names, matrix_meta)</div>
+    <div class="fn">compute_projection(M_ortho, cfg=None, cache_path=None) → M_2d</div>
+    <div class="fn">run_clustering(M_ortho, feat_names, peeling_cfg, M_2d=None, output_dir=None, label='clustering', save_debug=False, verbose=False) → Optional[Dict]</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Préparation de la matrice (normalisation, log‑transform, robust scaling, orthogonalisation) et interface vers le peeling.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>prepare_matrix</strong> :<br>
+      - Utilise <code>data.features_for_ml()</code> pour exclure les colonnes <code>health_*</code>.<br>
+      - nan → 0.0, log‑transform si dynamique > 1e6, RobustScaler, puis sélection orthogonale (corr < 0.85, protège <code>PROTECTED_FEATURES_V7</code>).<br>
+      - Retourne M_ortho (float64) et les noms conservés.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>compute_projection</strong> :<br>
+      - PCA(50) puis t‑SNE (perplexity auto = min(50, max(5, sqrt(n)//3)) ou UMAP si n ≥ umap_threshold (défaut 50k) et umap installé.<br>
+      - Cache .npy optionnel.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>run_clustering</strong> :<br>
+      - Appelle <code>clustering_peeling_v2.run_peeling</code> avec les paramètres de la config.<br>
+      - Calcule mcs = max(peeling_cfg['mcs_floor'], n//30) et ms = max(peeling_cfg['ms_floor'], n//100).<br>
+      - Retourne un dict contenant labels, n_clusters, n_noise, etc.
+    </div>
+    <span class="audit-flag af-obs">&#9432; <code>PROTECTED_FEATURES_V7</code> est un set de features qui ne sont jamais éliminées lors de l'orthogonalisation.</span><br>
+    <span class="audit-flag af-obs">&#9432; En cas d'échec de RobustScaler (par ex. colonne constante), on utilise les données brutes après log‑transform.</span><br>
+    <span class="audit-flag af-ram">&#9650; Le calcul de corrélation (O(F² n)) peut être coûteux si F est grand, mais le nombre de features est modéré (~68).</span>
+  </div>
+  <!-- cluster_namer_v2.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/cluster_namer_v2.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">build_cluster_profile(cluster_mask, M_ortho, feat_names) → dict</div>
+    <div class="fn">build_layer_distribution(M_ortho, feat_names) → dict</div>
+    <div class="fn">ClusterNamer(cfg).name_cluster(profil, layer_dist, cluster_homogeneity, n, cluster_id) → dict</div>
+    <div class="fn">ClusterNamer.name_all(peeling_result, M_ortho, feat_names) → List[dict]</div>
+    <div class="fn">print_naming_report(named_clusters)</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Nommage compositionnel des clusters basé sur les distributions des features.<br>
+      Entièrement piloté par la configuration YAML (<code>cluster_namer.yaml</code>) : les modes (zones, delta, threshold, uncalibrated) et leurs paramètres y sont définis.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Architecture</strong> :<br>
+      - Les fonctions <code>build_cluster_profile</code> et <code>build_layer_distribution</code> agrègent les statistiques du cluster (médiane, IQR, etc.).<br>
+      - La classe <code>ClusterNamer</code> lit la config, puis pour chaque slot (ex: AMPLITUDE, VITESSE) applique le handler correspondant (<code>_eval_zones</code>, <code>_eval_delta</code>, etc.) qui retourne un terme et une confiance.<br>
+      - Les termes avec confiance ≥ <code>conf_min_name</code> deviennent le nom primaire, ceux ≥ <code>conf_min_display</code> sont secondaires.<br>
+      - Les slots non calibrés (<code>calibrated: false</code>) sont traités par <code>_eval_uncalibrated</code> et apparaissent comme <code>[slot=?]</code>.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Modes disponibles</strong> :<br>
+      - <code>zones</code> : zones exclusives avec bornes lo/hi (ex: AMPLITUDE, DMD).<br>
+      - <code>delta</code> : bidirectionnel autour de 0, avec possibilité d'omettre si neutre (ENT, RNK, LYA).<br>
+      - <code>threshold</code> : seuil unique, omit_if_clean (CND).<br>
+      - <code>uncalibrated</code> : placeholder pour slots non calibrés (SEQ).
+    </div>
+    <span class="audit-flag af-ext">&#10010; Ajouter un nouveau slot : une entrée dans le YAML suffit ; le code dispatche via le mode.</span><br>
+    <span class="audit-flag af-ext">&#10010; Ajouter un nouveau mode : écrire un handler et l'ajouter dans <code>_EVAL_DISPATCH</code>.</span><br>
+    <span class="audit-flag af-obs">&#9432; Le mode <code>uncalibrated</code> est une dette technique documentée : le slot SEQ nécessite des features phasiques (F8) non encore disponibles.</span><br>
+    <span class="audit-flag af-obs">&#9432; La fonction <code>_percentile_rank</code> utilise <code>np.searchsorted</code> pour un calcul vectorisé efficace.</span><br>
+    <span class="audit-flag af-ram">&#9650; La construction du profil (<code>build_cluster_profile</code>) itère sur toutes les features (F~68) ; reste léger.</span>
+  </div>
+  <!-- concordance_lite.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/concordance_lite.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">compute_kappa_stub(labels1, labels2) → float (stub = 0.5)</div>
+    <div class="fn">compute_dtw_stub(traj1, traj2) → float (stub = distance euclidienne)</div>
+    <div class="fn">run_concordance_cross_phases(phases_data) → Dict</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Stub pour l'analyse de concordance entre phases.<br>
+      Utilisé par <code>hub_analysing_v2.run_verdict_cross_phases</code>.<br>
+      Les calculs réels (Cohen's Kappa, DTW) ne sont pas implémentés – le module retourne des valeurs fictives.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Détails</strong> :<br>
+      - <code>compute_kappa_stub</code> retourne systématiquement 0.5.<br>
+      - <code>compute_dtw_stub</code> retourne la norme euclidienne entre deux tableaux aléatoires (non basée sur les vraies trajectoires).<br>
+      - <code>run_concordance_cross_phases</code> produit un dictionnaire avec des clés 'kappa' et 'trajectories' remplies de stubs.
+    </div>
+    <span class="audit-flag af-dead">&#9888; Code non fonctionnel – à remplacer par une vraie implémentation (sklearn, dtaidistance) dans une version ultérieure.</span><br>
+    <span class="audit-flag af-ext">&#10010; Point d'extension clairement identifié pour les futures analyses cross‑phases.</span>
+  </div>
+  <!-- hub_analysing_v2.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/hub_analysing_v2.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">scan_major_phases(results_dir) → List[Path]</div>
+    <div class="fn">run_verdict_from_parquet(parquet_path, cfg_path=None, output_dir=None, label=None, plot=True, save_debug=False) → Dict</div>
+    <div class="fn">run_verdict_cross_phases(results_dir=None, cfg_path=None, output_dir=None, plot=False) → Dict</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Hub de routage pour la phase d'analyse. Charge config, filtre les données via <code>parquet_filter_v2.load_analysing_data</code>, exécute le pipeline (<code>pipeline_v2.run_analysing_pipeline</code>) et écrit les rapports (<code>verdict_v2.write_verdict_report*</code>).
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Workflow run_verdict_from_parquet</strong> :<br>
+      1. load_yaml(cfg_path)<br>
+      2. load_analysing_data(parquet_path, scope=scope, apply_pool=apply_pool)<br>
+      3. Si data.n == 0 → retourne metadata vide<br>
+      4. run_analysing_pipeline(data, cfg, output_dir, label, plot, save_debug)<br>
+      5. write_verdict_report (json) et write_verdict_report_txt (txt)<br>
+      <strong>Workflow run_verdict_cross_phases</strong> :<br>
+      1. scan_major_phases() → fichiers rN.parquet<br>
+      2. Pour chaque phase : load_analysing_data + run_analysing_pipeline<br>
+      3. run_concordance_cross_phases(phases_data) depuis concordance_lite<br>
+      4. Écrit rapport global
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>scan_major_phases</strong> : filtre les fichiers commençant par 'r' et de longueur 2 (ex: r0, r1) — ignore les phases comme poc.parquet, aot_bench.parquet.
+    </div>
+    <span class="audit-flag af-obs">&#9432; <code>apply_pool</code> lu depuis cfg['pool_requirements']['apply'] — indique si le filtre pool doit être appliqué.</span><br>
+    <span class="audit-flag af-obs">&#9432; Si <code>output_dir</code> non fourni dans run_verdict_from_parquet et plot=True, le répertoire par défaut est <code>data/results/reports/{label}</code>.</span><br>
+    <span class="audit-flag af-obs">&#9432; <code>run_concordance_cross_phases</code> importé de concordance_lite (module stub).</span><br>
+    <span class="audit-flag af-ext">&#10010; Point d'entrée unique pour les verdicts ; l'ajout d'un nouveau type d'analyse se ferait dans le pipeline, pas ici.</span>
+  </div>
+  <!-- outliers_v2.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/outliers_v2.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">detect_outliers(data, contamination=0.1) → (outlier_mask, stable_mask)</div>
+    <div class="fn">compute_atomic_recurrence(entity_arr, mask) → Dict[str, Dict]</div>
+    <div class="fn">analyze_outliers(data, contamination=0.1) → Dict</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Détection d’outliers via IsolationForest et calcul de récurrence des atomiques parmi les outliers.<br>
+      Utilise <code>data.features_for_ml()</code> pour obtenir la matrice sans les colonnes <code>health_*</code>.<br>
+      Remplace les NaN par 0.0 (valeur sentinelle <code>_NAN_FILL</code>) car IsolationForest ne les accepte pas.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Détails</strong> :<br>
+      - <code>detect_outliers</code> : entraîne IsolationForest (random_state=42, n_jobs=-1) et retourne les masques.<br>
+      - <code>compute_atomic_recurrence</code> : pour un masque donné (ex: outliers), calcule la fréquence de chaque gamma, encoding, modifier dans le sous-ensemble.<br>
+      - <code>analyze_outliers</code> : agrège les résultats, y compris les récurrences, et retourne un dictionnaire avec compteurs et masques.
+    </div>
+    <span class="audit-flag af-obs">&#9432; La contamination est un paramètre (défaut 0.1) – elle est passée depuis la config dans le pipeline.</span><br>
+    <span class="audit-flag af-obs">&#9432; Les NaN sont remplacés par 0.0, ce qui peut biaiser la détection si les NaN sont nombreux. L’hypothèse est que les NaN structurels ont déjà été exclus via <code>features_for_ml()</code>.</span><br>
+    <span class="audit-flag af-ram">&#9650; IsolationForest est réentraîné à chaque appel ; pour de grands volumes, cela peut être coûteux, mais le nombre de runs est limité en pratique.</span>
+  </div>
+  <!-- parquet_filter_v2.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/parquet_filter_v2.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">load_analysing_data(parquet_path, scope=None, apply_pool=False, pool_path=None, verbose=True) → AnalysingData</div>
+    <div class="fn">features_for_ml(self) → (M, feat_names) sans health_*</div>
+    <div class="fn">_mask_seeds_one(data) → np.ndarray</div>
+    <div class="fn">_mask_pool_requirements(data, req) → np.ndarray</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Chargement et filtrage du parquet vers le format columnar <code>AnalysingData</code>.<br>
+      Utilise pyarrow pour le pushdown, convertit les colonnes en numpy, remplace inf par nan.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>AnalysingData</strong> :<br>
+      - M (n, F) float32 : matrice des features<br>
+      - feat_names : liste des noms<br>
+      - meta arrays : gamma_ids, encoding_ids, modifier_ids, n_dofs, rank_effs, max_its, run_statuses, phases, seed_CIs, seed_runs
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Filtres</strong> :<br>
+      - Pushdown pyarrow sur run_status, n_dof, rank_eff, modifier_id<br>
+      - seeds:one → sélectionne un échantillon par (gamma_id, encoding_id) (premier vu)<br>
+      - pool_requirements : n_dof min/max + atomics deprecated
+    </div>
+    <span class="audit-flag af-obs">&#9432; Les valeurs <code>None</code> dans seed_CI/seed_run sont remplacées par -1 pour le typage numpy.</span><br>
+    <span class="audit-flag af-obs">&#9432; <code>_mask_seeds_one</code> utilise <code>np.unique</code> vectorisé (O(n log n)) plutôt qu'une boucle Python.</span><br>
+    <span class="audit-flag af-obs">&#9432; La fonction <code>features_for_ml</code> centralise l'exclusion des colonnes <code>health_*</code> — utilisée par les modules aval (profiling, outliers, clustering, namer).</span><br>
+    <span class="audit-flag af-ram">&#9650; La conversion de toutes les colonnes features en float32 peut être coûteuse en mémoire, mais c'est le format pivot unique.</span>
+  </div>
+  <!-- pipeline_v2.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/pipeline_v2.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">run_analysing_pipeline(data, cfg, output_dir=None, label='verdict', plot=True, save_debug=False) → Dict</div>
+    <div class="fn">_empty_result() → Dict</div>
+    <div class="fn">_print_naming_summary(named_clusters)</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Orchestration complète de l'analyse à partir d'<code>AnalysingData</code>.<br>
+      Enchaîne : profiling → outliers → préparation matrice → projection (t‑SNE) → clustering peeling → nommage → visualisation.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Étapes détaillées</strong> :<br>
+      1. <code>run_profiling(data)</code> — agrège stats par gamma/encoding/modifier<br>
+      2. <code>analyze_outliers(data, contamination)</code> — détecte outliers via IsolationForest<br>
+      3. <code>prepare_matrix(data, corr_threshold)</code> — normalise, orthogonalise, retourne M_ortho<br>
+      4. Si plot : <code>compute_projection(M_ortho, cfg['projection'])</code> — t‑SNE ou UMAP (cache .npy)<br>
+      5. <code>run_clustering(M_ortho, feat_names, peeling_cfg, ...)</code> — peeling HDBSCAN<br>
+      6. <code>ClusterNamer.from_yaml().name_all(...)</code> — nomme les clusters selon la config<br>
+      7. Si plot : <code>ClusterVisualizer(...).plot_all(...)</code> — génère PNG<br>
+      8. Retourne un dict contenant tous les résultats + metadata
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Particularités</strong> :<br>
+      - <code>prepare_matrix</code> n'est appelée qu'une seule fois ; M_ortho est partagé entre clustering et namer.<br>
+      - Si <code>data.n</code> est trop faible (< 5), retourne un résultat vide.<br>
+      - La clé <code>'peeling'</code> dans cfg est obligatoire.<br>
+      - Les résultats intermédiaires sont imprimés en console.
+    </div>
+    <span class="audit-flag af-obs">&#9432; Le dictionnaire de retour inclut <code>M_2d</code> (coordonnées projetées) même si non utilisé ensuite — peut consommer de la mémoire.</span><br>
+    <span class="audit-flag af-obs">&#9432; <code>data.M</code> n'est pas explicitement libéré (<code>del data.M</code> commenté) — en pratique, la référence persiste dans <code>data</code>.</span><br>
+    <span class="audit-flag af-ext">&#10010; Le pipeline est conçu pour être modulaire : remplacer un module (ex: clustering) n'affecte pas les autres.</span><br>
+    <span class="audit-flag af-ram">&#9650; La matrice M_ortho est conservée en mémoire jusqu'à la fin du pipeline — acceptable pour des tailles modérées.</span>
+  </div>
+  <!-- profiling_v2.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/profiling_v2.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">run_profiling(data) → Dict avec clés 'gamma', 'encoding', 'modifier'</div>
+    <div class="fn">_aggregate_by_meta_array(M, feat_names, entity_arr) → profiles</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Agrégation cross‑runs par entité (gamma, encoding, modifier).<br>
+      Utilise <code>data.features_for_ml()</code> pour obtenir la matrice sans les colonnes <code>health_*</code>.<br>
+      Groupby vectorisé via <code>np.unique</code> et masques, calcule médiane, Q1, Q3 pour chaque feature.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Détails</strong> :<br>
+      - <code>_aggregate_by_meta_array</code> : pour chaque entité, extrait les lignes correspondantes, convertit en float64, ignore les NaN.<br>
+      - Les résultats sont des dictionnaires imbriqués : <code>{entity_id: {feature_name: {'median':..., 'q1':..., 'q3':..., 'n_runs':...}}}</code>.<br>
+      - Si <code>data.n == 0</code>, retourne un dictionnaire vide.
+    </div>
+    <span class="audit-flag af-obs">&#9432; Utilisation de <code>np.nanmedian</code> et <code>np.nanpercentile</code> est implicite via <code>np.median</code> qui ignore NaN par défaut (car <code>col</code> a déjà été filtré des NaN).</span><br>
+    <span class="audit-flag af-obs">&#9432; La conversion en float64 assure la précision pour les percentiles.</span><br>
+    <span class="audit-flag af-ram">&#9650; La boucle sur les entités est en Python, mais le nombre d'entités est généralement faible (dizaines).</span>
+  </div>
+  <!-- verdict_v2.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/verdict_v2.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">write_verdict_report(verdict_results, output_path) → None (JSON)</div>
+    <div class="fn">write_verdict_report_txt(verdict_results, output_path) → None (TXT)</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Génération des rapports de verdict (JSON et texte lisible).<br>
+      Zéro calcul : reçoit le dictionnaire produit par <code>pipeline_v2.run_analysing_pipeline</code> et écrit les fichiers.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Détails</strong> :<br>
+      - JSON : sérialise les types numpy (ndarray → list, int/float → natifs). Exclut la clé <code>'M_2d'</code> (trop volumineuse).<br>
+      - TXT : format human‑readable avec header, outliers, clusters nommés, signatures et insights.
+    </div>
+    <span class="audit-flag af-obs">&#9432; La fonction de sérialisation JSON utilise <code>default=_serial</code> pour convertir les types numpy.</span><br>
+    <span class="audit-flag af-obs">&#9432; Le rapport TXT affiche les signatures vectorielles et les slots non calibrés.</span>
+  </div>
+  <!-- visualizer_v2.py -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/visualizer_v2.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">ClusterVisualizer(M_2d, named_clusters, peeling_result, run_regimes=None, gammas=None)</div>
+    <div class="fn">plot_peeling_summary(output_dir, label)</div>
+    <div class="fn">plot_layer(layer_name, output_dir, label)</div>
+    <div class="fn">plot_signature_heatmap(output_dir, label)</div>
+    <div class="fn">plot_all(output_dir, label)</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Génération des visualisations PNG (clusters, niveaux, heatmap, vues par layer).<br>
+      Utilisé par le pipeline quand <code>plot=True</code>.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Fonctionnalités</strong> :<br>
+      - <code>plot_peeling_summary</code> : deux panels – clusters colorés avec noms annotés, et niveaux d'extraction.<br>
+      - <code>plot_layer</code> : projection t‑SNE avec annotations pour un layer donné (actuellement uniquement 'universal').<br>
+      - <code>plot_signature_heatmap</code> : matrice slots × clusters (confiance) avec couleur RdYlGn et annotations.<br>
+      - <code>plot_all</code> appelle les trois vues.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Style</strong> : thème sombre (<code>DARK_BG</code>, <code>PANEL_BG</code>, <code>GRID_COLOR</code>), palette de couleurs pour les niveaux, texte en <code>TEXT_COLOR</code>.
+    </div>
+    <span class="audit-flag af-obs">&#9432; Utilise <code>matplotlib.use('Agg')</code> pour éviter les problèmes d'affichage interactif.</span><br>
+    <span class="audit-flag af-obs">&#9432; La fonction <code>fix_str</code> (importée de utils.data_loading_new) est utilisée pour nettoyer les noms avant annotation.</span><br>
+    <span class="audit-flag af-ext">&#10010; Les définitions de légende des slots continuous (LAG, PNN) sont actuellement en dur ; pourraient être externalisées dans la config.</span>
+  </div>
+  <!-- analysing/configs/ (YAMLs lus) -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--purple)"></span>analysing/configs/</div>
+    <div class="note">Deux fichiers YAML lus :</div>
+    <div class="rule"><span class="ro">&#10003;</span><code>analysing_default.yaml</code> — configuration par défaut du pipeline (scope, orthogonalisation, peeling, outliers, projection).</div>
+    <div class="rule"><span class="ro">&#10003;</span><code>cluster_namer.yaml</code> — registre de nommage : définition des slots (CND, AMP, ENT, RNK, LYA, DMD, LAG, PNN, SEQ), leurs modes, seuils et termes associés.</div>
+  </div>
+</div>
+
+<!-- =================================================== -->
+<!-- UTILS (data_loading_new lu)                         -->
+<!-- =================================================== -->
+<div class="sl">Utils — data loading, conversions</div>
+<div class="g2">
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--slate)"></span>utils/data_loading_new.py</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="fn">discover_gammas_jax(), discover_encodings_jax(), discover_modifiers_jax() → registries</div>
+    <div class="fn">load_yaml(path) → dict</div>
+    <div class="fn">open_parquet_writer(phase, output_dir, sample_row) → pq.ParquetWriter</div>
+    <div class="fn">write_rows_to_parquet(writer, rows, phase) → int</div>
+    <div class="fn">close_parquet_writer(writer)</div>
+    <div class="fn">read_parquet_rows(parquet_path, filters) → list[dict]</div>
+    <div class="fn">merge_configs(base, override) → dict</div>
+    <div class="fn">fix_str(s) → str</div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Rôle</strong> : Module utilitaire central. Fournit la découverte des atomiques, la lecture YAML, l'écriture et la lecture parquet.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Découverte atomics</strong> : scan des répertoires, import dynamique, vérification de la présence de <code>METADATA</code> et du callable (apply/create). <code>prepare_params</code> optionnel.<br>
+      Lève <code>CriticalDiscoveryError</code> si METADATA ou id manquant.
+    </div>
+    <div class="note" style="margin-bottom:6px">
+      <strong>Parquet</strong> : écriture par batches (append) via <code>open_parquet_writer</code>, <code>write_rows_to_parquet</code>, <code>close_parquet_writer</code>. Les paramètres sont sérialisés en JSON.<br>
+      Lecture avec pushdown pyarrow optionnel.
+    </div>
+    <span class="audit-flag af-obs">&#9432; La fonction <code>read_parquet_rows</code> est utilisée par <code>parquet_filter_v2</code> mais reste découplée du module analysing.</span><br>
+    <span class="audit-flag af-obs">&#9432; <code>merge_configs</code> effectue un deep merge récursif – utilisé dans la résolution des YAMLs.</span><br>
+    <span class="audit-flag af-obs">&#9432; <code>fix_str</code> corrige les doubles encodages – utilisé par le visualizer pour les noms de clusters.</span>
+  </div>
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--slate)"></span>utils/parquet_to_json.py</div>
+    <span class="tag tb">non lu</span>
+    <div class="note">En attente source réelle.</div>
+  </div>
+</div>
+
+<!-- =================================================== -->
+<!-- YAMLs DE CONFIGURATION (tous lus)                   -->
+<!-- =================================================== -->
+<div class="sl">YAMLs de configuration — tous lus</div>
+<div class="g3">
+  <!-- configs/phases/aot_bench.yaml (non fourni) -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--slate)"></span>configs/phases/aot_bench.yaml</div>
+    <span class="tag tb">non lu</span>
+    <div class="note">Fichier non fourni dans l’audit.</div>
+  </div>
+  <!-- configs/phases/poc/poc.yaml (non fourni) -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--slate)"></span>configs/phases/poc/poc.yaml</div>
+    <span class="tag tb">non lu</span>
+    <div class="note">Fichier non fourni dans l’audit.</div>
+  </div>
+  <!-- configs/phases/poc/poc1.yaml (non fourni) -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--slate)"></span>configs/phases/poc/poc1.yaml</div>
+    <span class="tag tb">non lu</span>
+    <div class="note">Fichier non fourni dans l’audit.</div>
+  </div>
+  <!-- configs/phases/poc/poc_bourrin_v7.yaml (non fourni) -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--slate)"></span>configs/phases/poc/poc_bourrin_v7.yaml</div>
+    <span class="tag tb">non lu</span>
+    <div class="note">Fichier non fourni dans l’audit.</div>
+  </div>
+  <!-- configs/phases/poc/poc_cache_bench.yaml (non fourni) -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--slate)"></span>configs/phases/poc/poc_cache_bench.yaml</div>
+    <span class="tag tb">non lu</span>
+    <div class="note">Fichier non fourni dans l’audit.</div>
+  </div>
+  <!-- configs/phases/poc/poc_perf.yaml (non fourni) -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--slate)"></span>configs/phases/poc/poc_perf.yaml</div>
+    <span class="tag tb">non lu</span>
+    <div class="note">Fichier non fourni dans l’audit.</div>
+  </div>
+  <!-- configs/pool_requirements.yaml (lu) -->
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--slate)"></span>configs/pool_requirements.yaml</div>
+    <span class="tag ta">lu ✓</span>
+    <div class="note">Contient les contraintes globales (n_dof, max_iterations, deprecated). Version 1.0, tous les champs sont actuellement <code>null</code> ou vides. Utilisé par <code>parquet_filter_v2</code> si <code>apply_pool=True</code>.</div>
+  </div>
+  <!-- featuring/configs/features_applicability.yaml déjà traité dans FEATURING -->
+  <!-- analysing/configs/analysing_default.yaml déjà traité dans ANALYSING -->
+  <!-- analysing/configs/cluster_namer.yaml déjà traité dans ANALYSING -->
+</div>
+
+<!-- =================================================== -->
+<!-- ATOMICS (hors scope pipeline)                       -->
+<!-- =================================================== -->
+<div class="sl">Atomiques — opérateurs, encodings, modificateurs</div>
+<div class="full"><div class="card">
+  <div class="ct"><span class="dot" style="background:var(--dim)"></span>atomics/</div>
+  <div class="note">
+    <strong>D_encodings</strong> : 20 fichiers (asy, r3, rn, sym) — contrat METADATA+create()<br>
+    <strong>modifiers</strong> : m0, m1, m2 + plugins (biology, gravity, quantum, template)<br>
+    <strong>operators</strong> : 15 gammas (gam_001..015) — pas de g015_svd_truncation.py (supprimé)<br>
+    L'audit se concentre sur le pipeline ; ces composants sont supposés conformes au contrat d'interface. Leur découverte est assurée par <code>data_loading_new.py</code>.
+  </div>
+</div></div>
+
+<!-- =================================================== -->
+<!-- SYNTHESE (à compléter après analyse)                -->
+<!-- =================================================== -->
+<div class="sl">Synthèse audit — à compléter</div>
+<div class="g2">
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--red)"></span>Code mort & redondances</div>
+    <div class="note">Liste non exhaustive des points relevés dans les fichiers :<br>
+      - <code>run_one_jax.py</code> est strictement redondant avec <code>kernel_new.py</code>.<br>
+      - <code>concordance_lite.py</code> est un stub non fonctionnel.<br>
+      - <code>_check_invalid</code> dans <code>hub_running_new.py</code> est inopérant si <code>rank_constraint</code> absent.<br>
+      - <code>count_total_samples</code> dans <code>plan_new.py</code> est lourd et rarement utilisé.<br>
+      - <code>rolling_compile_window</code> a un paramètre <code>ram_gb</code> non utilisé.<br>
+      - Import incohérent dans <code>hub_featuring.py</code> (<code>featuring.jax_features</code> vs <code>jax_features_new</code>).
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--amber)"></span>RAM non essentielle</div>
+    <div class="note">Consommation mémoire notable mais généralement maîtrisée :<br>
+      - Double <code>prepare_matrix</code> dans <code>hub_analysing</code> (t‑SNE puis clustering).<br>
+      - Conservation de <code>M_2d</code> dans le résultat.<br>
+      - Boucles Python dans <code>_build_enc_batch</code> si <code>enc_vmappable=False</code>.<br>
+      - Matrices de carry DMD (<code>n_dof×n_dof</code>) multipliées par la taille du batch.<br>
+      - Conversion de toutes les features en float32 dans <code>parquet_filter</code>.
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--green)"></span>Points d'extension</div>
+    <div class="note">Zones prévues pour des évolutions futures :<br>
+      - <code>_vmap_cache</code> : support de nouveaux gamma/modifier.<br>
+      - <code>cluster_namer.yaml</code> : ajout de slots sans modifier le code.<br>
+      - <code>_EVAL_DISPATCH</code> : ajout de nouveaux modes de nommage.<br>
+      - <code>concordance_lite</code> : stub pour vraie analyse cross‑phases.<br>
+      - <code>features_applicability.yaml</code> : extension à d'autres conditions structurelles.
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct"><span class="dot" style="background:var(--red)"></span>Interdictions actives</div>
+    <div class="note">Règles explicites ou implicites :<br>
+      - Zéro logique métier dans les hubs (running, analysing, featuring).<br>
+      - Les registres (timeline, universal) doivent rester des fonctions pures.<br>
+      - Pas de I/O dans les fonctions de features.<br>
+      - Les paramètres doivent être externalisés dans les YAML, pas de hardcoding (exceptions : sentinelle 148.413, seuils d'alerte RAM).<br>
+      - Le code doit suivre l'ordre Algo → Structure → Code.
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -16,6 +16,7 @@ import jax
 import jax.numpy as jnp
 
 METADATA = {
+    'jax_vmappable': True,
     'id'        : 'R3-003',
     'rank'      : 3,
     'stochastic': True,
@@ -32,7 +33,7 @@ def create(n_dof: int, params: dict, key: jax.Array) -> jnp.ndarray:
     Returns:
         jnp.ndarray (n_dof, n_dof, n_dof) sparse local coupling
     """
-    radius = int(params.get('radius', 2))
+    radius = params.get('radius', 2)
 
     i = jnp.arange(n_dof)
     j = jnp.arange(n_dof)

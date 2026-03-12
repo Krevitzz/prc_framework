@@ -17,6 +17,7 @@ import jax.numpy as jnp
 import functools
 
 METADATA = {
+    'jax_vmappable': False,   # rank détermine la shape → doit être concret
     'id'        : 'RN-004',
     'rank'      : None,
     'stochastic': True,

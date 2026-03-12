@@ -11,6 +11,7 @@ import jax
 import jax.numpy as jnp
 
 METADATA = {
+    'jax_vmappable': True,
     'id'        : 'SYM-005',
     'rank'      : 2,
     'stochastic': False,
@@ -28,14 +29,14 @@ def create(n_dof: int, params: dict, key: jax.Array) -> jnp.ndarray:
     Returns:
         jnp.ndarray (n_dof, n_dof) symétrique bande creuse
     """
-    bandwidth = int(params.get('bandwidth', 3))
-    amplitude = float(params.get('amplitude', 0.5))
+    bandwidth = params.get('bandwidth', 3)
+    amplitude = params.get('amplitude', 0.5)
 
     i = jnp.arange(n_dof)
     j = jnp.arange(n_dof)
     diff = jnp.abs(i[:, None] - j[None, :])
 
     in_band = diff <= bandwidth
-    values  = amplitude * jnp.cos(jnp.pi * diff / max(bandwidth, 1))
+    values  = amplitude * jnp.cos(jnp.pi * diff / jnp.maximum(bandwidth, 1))
 
     return jnp.where(in_band, values, 0.0)

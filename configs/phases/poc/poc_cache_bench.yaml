@@ -22,7 +22,7 @@ config_mode: default
 dmd_rank: 16    # Rang DMD streaming — statique XLA (wiper jax_cache/ si modifié)
 
 n_dof: [10, 20]
-max_iterations: [50, 200]
+max_iterations: [5, 20]
 
 seed_CI:  [0, 1]
 seed_run: [null, 0]

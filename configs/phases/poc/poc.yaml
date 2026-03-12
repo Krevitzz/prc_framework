@@ -8,13 +8,13 @@ phase: poc_v7
 
 # --- Axes globaux ------------------------------------------------------------
 n_dof          : [10, 50]
-max_iterations : [50, 200]
+max_iterations : [10, 20]
 
 # --- Seeds -------------------------------------------------------------------
 # seed_CI  : initialisation de D (encoding)
 # seed_run : aléatoire dans le scan (gammas stochastiques)
 # liste    → axe d'itération
-seed_CI  : [0, 1, 2]
+seed_CI  : [0, 1]
 seed_run : null          # déterministe — GAM-011 ignore la key
 
 # =============================================================================

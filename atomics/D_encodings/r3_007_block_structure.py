@@ -16,6 +16,7 @@ import jax
 import jax.numpy as jnp
 
 METADATA = {
+    'jax_vmappable': True,
     'id'        : 'R3-007',
     'rank'      : 3,
     'stochastic': True,
@@ -33,9 +34,9 @@ def create(n_dof: int, params: dict, key: jax.Array) -> jnp.ndarray:
     Returns:
         jnp.ndarray (n_dof, n_dof, n_dof)
     """
-    n_blocks = int(params.get('n_blocks', 4))
-    intra    = float(params.get('intra', 0.8))
-    inter    = float(params.get('inter', 0.05))
+    n_blocks = params.get('n_blocks', 4)
+    intra    = params.get('intra', 0.8)
+    inter    = params.get('inter', 0.05)
 
     block_ids = jnp.arange(n_dof) * n_blocks // n_dof
 

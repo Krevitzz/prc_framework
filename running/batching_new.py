@@ -12,6 +12,8 @@ Flux :
   execute_batch(batch, dmd_rank)        → features_b dict {str: jnp.array(B,)} [async]
   sync_features_b(features_b)           → {str: np.ndarray(B,)} [sync GPU→CPU]
   rows_from_synced(batch, synced, phase) → List[Dict] rows parquet
+  _compile_one(kg, dmd_rank, batch_size) → None [peuple _vmap_cache, thread-safe]
+  rolling_compile_window(kg_gen, ...)   → Generator[kg] [fenêtre glissante, overlap compile/GPU]
 
 Différences vs hub_running.py :
   1. AOT layer supprimé (ThreadPoolExecutor, _compile_group_aot, _run_chunk_aot)
@@ -34,6 +36,12 @@ Architecture _vmap_cache :
   Une entrée par kernel_group — partagée entre tous les batches du groupe.
   Lifetime = process — pas de LRU (3700 entrées max, ~quelques KB).
 
+Architecture rolling_compile_window :
+  Fenêtre glissante de kernel_groups pré-compilés en parallèle.
+  ThreadPoolExecutor(n_workers) compile pendant que le GPU execute.
+  window_size = max(n_workers*2, ram_gb*1024/5) — 5MB/kg estimé.
+  Thread safety : _vmap_cache dict Python (GIL), cache JAX interne (XLA thread-safe).
+
 Statuts run :
   OK        — features finies, comportement nominal
   EXPLOSION — au moins un Inf (P2 charter : Inf = information, pas erreur)
@@ -41,7 +49,10 @@ Statuts run :
               (rien de mesurable — distinct d'une explosion)
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+import os
+from collections import deque
+from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -90,7 +101,7 @@ def _cache_key(batch: Dict, dmd_rank: int) -> tuple:
     )
 
 
-def _get_kernel_fn(batch: Dict, dmd_rank: int):
+def _get_kernel_fn(batch: Dict, dmd_rank: int, gp_keys: tuple, mp_keys: tuple):
     """
     Retourne jit(vmap(_run_fn)) depuis _vmap_cache ou le crée.
 
@@ -98,11 +109,13 @@ def _get_kernel_fn(batch: Dict, dmd_rank: int):
     ses batches. La clé encode exactement les dimensions statiques XLA :
     shapes (n_dof, rank_eff via D), longueur scan (max_it), flags statiques.
 
+    gp_keys / mp_keys : clés RÉELLES de gp_b / mp_b après prepare_params.
+    Pas gamma_param_keys du batch — qui reflète les params bruts YAML,
+    pas les params enrichis par prepare_params (ex: GAM-011 'scale' → 'W').
+
     Closure _run_one :
         Capture gamma_fn, mod_fn, max_it, dmd_rank, is_differentiable.
         vmap porte uniquement sur (gp, mp, D, key) — les args dynamiques.
-        Pas de in_axes=None sur callables Python (non supporté par vmap) —
-        les statiques sont capturés proprement dans la closure.
 
     in_axes :
         gp  : {k: 0} si gamma a des params, {} si aucun
@@ -110,17 +123,23 @@ def _get_kernel_fn(batch: Dict, dmd_rank: int):
         D   : 0  (batch dim sur les encodings)
         key : 0  (batch dim sur les seeds)
     """
-    key = _cache_key(batch, dmd_rank)
-    if key in _vmap_cache:
-        return _vmap_cache[key]
+    cache_key = (
+        id(batch['gamma_fn']),
+        id(batch['mod_fn']),
+        batch['n_dof'],
+        batch['max_it'],
+        dmd_rank,
+        batch['is_differentiable'],
+        gp_keys,
+        mp_keys,
+    )
+    if cache_key in _vmap_cache:
+        return _vmap_cache[cache_key]
 
-    # Capturer les statiques dans la closure
-    gamma_fn    = batch['gamma_fn']
-    mod_fn      = batch['mod_fn']
-    max_it      = batch['max_it']
-    is_diff     = batch['is_differentiable']
-    gp_keys     = batch['gamma_param_keys']
-    mp_keys     = batch['mod_param_keys']
+    gamma_fn = batch['gamma_fn']
+    mod_fn   = batch['mod_fn']
+    max_it   = batch['max_it']
+    is_diff  = batch['is_differentiable']
 
     in_axes_gp = {k: 0 for k in gp_keys} if gp_keys else {}
     in_axes_mp = {k: 0 for k in mp_keys} if mp_keys else {}
@@ -136,7 +155,7 @@ def _get_kernel_fn(batch: Dict, dmd_rank: int):
     vmapped = jax.vmap(_run_one, in_axes=(in_axes_gp, in_axes_mp, 0, 0))
     kernel  = jax.jit(vmapped)
 
-    _vmap_cache[key] = kernel
+    _vmap_cache[cache_key] = kernel
     return kernel
 
 
@@ -309,21 +328,17 @@ def execute_batch(
     """
     Execute un batch via jit(vmap(_run_fn)) — résultat JAX async.
 
+    Construit les inputs en premier pour connaître les clés réelles de
+    gp_b après prepare_params (peuvent différer des clés YAML brutes,
+    ex: GAM-011 'scale' → 'W' après prepare_params).
+
     Zéro synchronisation CPU/GPU — les arrays retournés sont en vol
     sur le device. La sync se fait dans sync_features_b() via np.array().
-    Cela permet d'accumuler plusieurs batches avant de synchroniser
-    (overlap GPU compute et écriture parquet).
-
-    Args:
-        batch    : Un batch depuis split_into_batches
-        dmd_rank : Rang DMD (statique XLA — doit être constant dans une phase)
-
-    Returns:
-        features_b : {feature_name: jnp.ndarray shape (B,)} — JAX async
-                     68 clés (FEATURE_NAMES)
     """
-    kernel_fn           = _get_kernel_fn(batch, dmd_rank)
     D_b, gp_b, mp_b, keys_b = _build_batch_inputs(batch)
+    gp_keys    = tuple(sorted(gp_b.keys()))
+    mp_keys    = tuple(sorted(mp_b.keys()))
+    kernel_fn  = _get_kernel_fn(batch, dmd_rank, gp_keys, mp_keys)
     return kernel_fn(gp_b, mp_b, D_b, keys_b)
 
 
@@ -440,9 +455,116 @@ def rows_from_synced(
     return rows
 
 
+
 # =============================================================================
-# SENTINELLE NaN (INVALID / FAIL)
+# PRÉ-COMPILATION PARALLÈLE — fenêtre glissante
 # =============================================================================
+
+def _compile_one(kg: Dict, dmd_rank: int, batch_size: int) -> None:
+    """
+    Déclenche la compilation JIT pour un kg — peuple _vmap_cache.
+
+    Compile pour les deux tailles de batch possibles :
+      - min(batch_size, n_samples) : cas général
+      - n_samples % batch_size     : dernier batch partiel (si différent)
+
+    Un cache miss XLA se produit si la batch dim B change entre compile
+    et exécution — d'où la compilation des deux tailles.
+
+    Le résultat est jeté (RAM libérée immédiatement).
+    jax.block_until_ready() garantit que la compilation est terminée
+    avant que le thread retourne au pool — pas de faux cache hit.
+
+    Thread safety :
+      _vmap_cache : dict Python — writes GIL-protégées, safe concurrent.
+      Cache JAX interne : thread-safe par design XLA.
+    """
+    n_samples = len(kg['samples'])
+    sizes: set = {min(batch_size, n_samples)}
+    remainder  = n_samples % batch_size
+    if remainder != 0:
+        sizes.add(remainder)
+
+    for size in sizes:
+        batch = {**kg, 'samples': kg['samples'][:size]}
+
+        try:
+            D_b, gp_b, mp_b, keys_b = _build_batch_inputs(batch)
+            gp_keys   = tuple(sorted(gp_b.keys()))
+            mp_keys   = tuple(sorted(mp_b.keys()))
+            kernel_fn = _get_kernel_fn(batch, dmd_rank, gp_keys, mp_keys)
+
+            # Déclenche la compilation + bloque jusqu'à la fin
+            result = kernel_fn(gp_b, mp_b, D_b, keys_b)
+            jax.block_until_ready(result)
+            # résultat jeté — _vmap_cache + cache XLA peuplés
+
+        except Exception:
+            # INVALID (rank_constraint incompatible, etc.) — cache reste vide.
+            # Le kg est quand même yielded : _check_invalid dans hub_running_new
+            # le détecte avant execute_batch et génère make_nan_rows(INVALID).
+            pass
+
+
+def rolling_compile_window(
+    kg_gen    ,
+    dmd_rank  : int,
+    batch_size: int,
+    n_workers : int,
+    ram_gb    : float = 5.0,
+) -> Generator:
+    """
+    Générateur glissant — pré-compile en parallèle, yield dans l'ordre FIFO.
+
+    Principe :
+      Pour chaque kg entrant : soumis immédiatement au pool → _compile_one.
+      Quand la fenêtre est pleine : popleft() → future.result() → yield kg.
+      Le GPU reçoit des kg déjà compilés → zéro idle compile en régime.
+
+    window_size : nombre de kg maintenus en vol simultanément.
+      = max(n_workers * 2, int(ram_gb * 1024 / 5))
+      5 MB/kg estimé (samples + metadata + stack JAX pendant compile).
+      n_workers * 2 minimum — garantit que le pool est toujours alimenté.
+
+    future.result() bloque seulement si le thread n'a pas encore fini.
+    Avec window_size >> n_workers, c'est rare : le pool a toujours de
+    l'avance sur le consommateur.
+
+    Args:
+        kg_gen     : Générateur de kernel_groups (generate_kernel_groups)
+        dmd_rank   : Rang DMD — statique XLA, transmis à _compile_one
+        batch_size : Taille batch — détermine les shapes compilées
+        n_workers  : Threads de compilation (os.cpu_count() - 2 recommandé)
+        ram_gb     : Budget RAM pour la fenêtre (défaut 5.0 GB)
+
+    Yields:
+        kernel_group dict — cache hit garanti dans execute_batch
+    """
+    window_size = n_workers * 2  # lookahead minimal — résultats jetés, ram_gb sans objet ici
+    window: deque = deque()   # deque de (kg, Future)
+
+    with ThreadPoolExecutor(max_workers=n_workers) as pool:
+
+        for kg in kg_gen:
+            future = pool.submit(_compile_one, kg, dmd_rank, batch_size)
+            window.append((kg, future))
+
+            # Drainer dès que la fenêtre est pleine
+            while len(window) >= window_size:
+                kg_ready, fut = window.popleft()
+                fut.result()   # bloque si pas encore compilé (rare)
+                yield kg_ready
+                del kg_ready
+
+        # Drainer le reste après épuisement du générateur
+        while window:
+            kg_ready, fut = window.popleft()
+            fut.result()
+            yield kg_ready
+            del kg_ready
+
+
+
 
 def make_nan_rows(
     batch     : Dict,

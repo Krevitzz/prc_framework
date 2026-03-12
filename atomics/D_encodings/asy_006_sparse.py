@@ -10,6 +10,7 @@ import jax
 import jax.numpy as jnp
 
 METADATA = {
+    'jax_vmappable': True,
     'id'        : 'ASY-006',
     'rank'      : 2,
     'stochastic': True,
@@ -26,7 +27,7 @@ def create(n_dof: int, params: dict, key: jax.Array) -> jnp.ndarray:
     Returns:
         jnp.ndarray (n_dof, n_dof) sparse asymétrique
     """
-    density = float(params.get('density', 0.2))
+    density = params.get('density', 0.2)
 
     k1, k2 = jax.random.split(key)
     mask    = jax.random.uniform(k1, (n_dof, n_dof)) < density

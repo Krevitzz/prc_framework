@@ -11,6 +11,7 @@ import jax
 import jax.numpy as jnp
 
 METADATA = {
+    'jax_vmappable': True,
     'id'        : 'SYM-006',
     'rank'      : 2,
     'stochastic': True,
@@ -28,9 +29,9 @@ def create(n_dof: int, params: dict, key: jax.Array) -> jnp.ndarray:
     Returns:
         jnp.ndarray (n_dof, n_dof) symétrique blocs hiérarchiques
     """
-    n_blocks = int(params.get('n_blocks', min(10, n_dof)))
-    intra    = float(params.get('intra', 0.7))
-    inter    = float(params.get('inter', 0.1))
+    n_blocks = params.get('n_blocks', min(10, n_dof))
+    intra    = params.get('intra', 0.7)
+    inter    = params.get('inter', 0.1)
 
     # Assignation bloc par nœud
     block_ids = jnp.arange(n_dof) * n_blocks // n_dof

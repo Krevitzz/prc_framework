@@ -141,6 +141,8 @@ FEATURE_NAMES: List[str] = [
 FEATURES_STRUCTURAL_NAN: dict = {
     'f3_entanglement_entropy_mode1_mean' : 'rank_eff == 2',
     'f3_entanglement_entropy_mode1_final': 'rank_eff == 2',
+    'f3_inter_mode_sv_var_mean'          : 'rank_eff == 2',
+    'f3_inter_mode_sv_var_final'         : 'rank_eff == 2',
     'f5_frob_gradient_mean'              : 'rank_eff == 2',
     'f5_frob_gradient_final'             : 'rank_eff == 2',
     'f4_trace_J_mean'            : 'differentiable == False',

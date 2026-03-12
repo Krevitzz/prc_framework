@@ -11,6 +11,7 @@ import jax
 import jax.numpy as jnp
 
 METADATA = {
+    'jax_vmappable': True,
     'id'        : 'SYM-007',
     'rank'      : 2,
     'stochastic': False,
@@ -27,6 +28,6 @@ def create(n_dof: int, params: dict, key: jax.Array) -> jnp.ndarray:
     Returns:
         jnp.ndarray (n_dof, n_dof) — équicorrélation uniforme, définie positive
     """
-    rho = float(params.get('correlation', 0.5))
+    rho = params.get('correlation', 0.5)
     C   = jnp.full((n_dof, n_dof), rho)
     return C.at[jnp.arange(n_dof), jnp.arange(n_dof)].set(1.0)
