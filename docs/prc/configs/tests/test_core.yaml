@@ -1,6 +1,0 @@
-# configs/tests/test_core.yaml
-n_dof: 10
-max_iterations: 10
-gamma_id: GAM-001
-encoding_id: SYM-007
-modifier_id: M0

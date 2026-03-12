@@ -1,8 +1,0 @@
-# configs/atomics/modifiers/laxe.yaml
-# Override default avec paramètres plus permissifs
-
-M1:
-  sigma: 0.1  # Bruit gaussien plus fort
-
-M2:
-  amplitude: 0.2  # Bruit uniforme plus fort
