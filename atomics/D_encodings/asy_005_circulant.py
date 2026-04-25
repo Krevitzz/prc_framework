@@ -15,8 +15,8 @@ METADATA = {
     'id'        : 'ASY-005',
     'rank'      : 2,
     'stochastic': False,
+    'jax_vmappable': True,
 }
-
 
 def create(n_dof: int, params: dict, key: jax.Array) -> jnp.ndarray:
     """
@@ -28,13 +28,14 @@ def create(n_dof: int, params: dict, key: jax.Array) -> jnp.ndarray:
     Returns:
         jnp.ndarray (n_dof, n_dof) circulante, asymétrique (A ≠ Aᵀ)
 
-    Construction :
-        Première ligne c[k] = exp(-k) pour k=0..n_dof-1
-        Chaque ligne i = roll(c, i) → circulante standard
-        Asymétrie car exp(-k) ≠ exp(-(n_dof-k)) pour k > 0
+    Construction vectorisée :
+        c[k] = exp(-k) pour k=0..n_dof-1
+        A[i,j] = c[(j - i) % n_dof]
     """
-    k   = jnp.arange(n_dof, dtype=jnp.float32)
-    c   = jnp.exp(-k)   # décroissante → asymétrie garantie
+    k = jnp.arange(n_dof, dtype=jnp.float32)
+    c = jnp.exp(-k)  # première ligne, décroissante
 
-    rows = [jnp.roll(c, i) for i in range(n_dof)]
-    return jnp.stack(rows, axis=0)
+    i = jnp.arange(n_dof)
+    j = jnp.arange(n_dof)
+    indices = (j - i[:, None]) % n_dof  # shape (n_dof, n_dof)
+    return c[indices]

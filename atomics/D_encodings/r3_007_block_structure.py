@@ -20,6 +20,7 @@ METADATA = {
     'id'        : 'R3-007',
     'rank'      : 3,
     'stochastic': True,
+    'jax_vmappable': True,
 }
 
 

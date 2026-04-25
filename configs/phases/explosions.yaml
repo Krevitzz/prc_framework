@@ -1,0 +1,31 @@
+# configs/phases/test_explosions.yaml
+# Focus explosions — gammas qui divergent
+# Vérifie : early stopping, health_has_inf, per-feature freeze
+# GAM-003 explose, GAM-004 decay, GAM-001 stable (référence)
+
+phase: test_explosions
+recording_mode: aggregated
+dmd_rank: 8
+
+gamma:
+  - id: GAM-001
+    params:
+      beta: [1.0]
+  - id: GAM-003
+    params:
+      gamma: [0.03, 0.05, 0.08, 0.15, 0.5]
+  - id: GAM-004
+    params:
+      gamma: [0.03, 0.08, 0.15]
+
+encoding:
+  - id: SYM-002
+  - id: ASY-001
+
+modifier:
+  - id: M0
+
+n_dof: [10, 50]
+max_it: [500]
+seed_CI: [0, 1, 2]
+seed_run: [null]

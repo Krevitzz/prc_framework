@@ -1,0 +1,67 @@
+# analysing/configs/analysing_v8.yaml
+# Config analysing PRC v8
+# Permet de paramétrer le verdict
+
+scope:
+  run_status: [OK, EXPLOSION]
+  seeds: all
+  n_dof: all
+  rank_eff: all
+  modifiers: all
+
+orthogonalization:
+  enabled: true
+  correlation_threshold: 0.98    # v8 : 0.98 (quasi-doublons seulement), v7 était 0.85
+
+pool_requirements:
+  apply: false
+
+peeling:
+  homogeneity:
+    threshold_base: 0.55
+    threshold_step: 0.05
+    threshold_max:  0.80
+    weight_probability: 0.5
+    weight_silhouette:  0.3
+    weight_regime:      0.2
+  mcs_floor: 8
+  ms_floor:  3
+  mcs_divisor: 30              # mcs = max(floor, min(cap, n // divisor))
+  mcs_cap: 500                 # borne haute — empêche mcs délirant sur gros n
+  max_levels: 6
+  min_delta_extracted: 1
+  residual_threshold: 0.30     # retry within-level si >30% résidu (cible finale 1-5%)
+  resolution_step_factor: 2
+  max_resolution_steps: 3
+  mcs_adaptive:
+    enabled: true
+    density_factor_min: 0.5
+    density_factor_max: 2.0
+  bootstrap:
+    enabled: false
+    n_iter:  5
+    subsample: 0.8
+  silhouette:
+    max_samples: 2000
+  level_0:
+    metric:    cosine
+    selection: eom
+    pca_dims:  null
+  residual_configs:
+    - metric: cosine
+      selection: eom
+      pca_dims: null
+    - metric: euclidean
+      selection: leaf
+      pca_dims: 20
+    - metric: cosine
+      selection: leaf
+      pca_dims: null
+
+outliers:
+  contamination: 0.10
+
+projection:
+  umap_threshold: 5000
+
+del_M_threshold: 10000

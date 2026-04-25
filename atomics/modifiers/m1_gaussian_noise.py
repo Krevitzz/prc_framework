@@ -9,10 +9,13 @@ import jax
 import jax.numpy as jnp
 
 METADATA = {
-    'id'        : 'M1',
+    'id': 'M1',
+    'family': 'modifier',
     'stochastic': True,
+    'differentiable': True,
+    'rank_constraint': None,
+    'non_markovian': False,
 }
-
 
 def apply(
     state : jnp.ndarray,

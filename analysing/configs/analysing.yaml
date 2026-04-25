@@ -1,0 +1,100 @@
+# analysing/configs/analysing.yaml
+# Config analysing PRC — refonte post-running v14
+#
+# Séparation claire :
+#   scope          → filtrage des données (pushdown PyArrow)
+#   orthogonalization → transformation matrice ML
+#   peeling        → clustering HDBSCAN multi-niveaux
+#   outliers       → IsolationForest (vérification)
+#   projection     → t-SNE / UMAP (optionnel)
+
+# =========================================================================
+# SCOPE — filtrage pushdown (appliqué à la lecture parquet)
+# =========================================================================
+scope:
+  # OK + OK_TRUNCATED dans l'analyse principale
+  # EXPLOSION + COLLAPSED → statistiques pathologiques séparées
+  run_status: [OK, OK_TRUNCATED, EXPLOSION, COLLAPSED]
+  seeds: all
+  n_dof: all
+  rank_eff: all
+  modifiers: all
+
+# =========================================================================
+# TRANSFORMATION MATRICE ML
+# =========================================================================
+orthogonalization:
+  enabled: true
+  correlation_threshold: 0.98    # quasi-doublons seulement
+  protected_features:            # features gardées même si corrélées
+    - ps_norm_ratio
+    - f2_von_neumann_entropy_delta
+    - f1_effective_rank_delta
+    - ps_condition_ratio
+    - f1_nuclear_frobenius_ratio_final
+    - f1_condition_number_mean
+    - f4_lyapunov_empirical_mean
+    - f7_dmd_spectral_radius
+
+# Seuil de dynamique pour le log-transform.
+# Si max/min > ce seuil, applique sign(x) * log1p(|x|).
+# Provenance : convention. 1e6 = 6 ordres de grandeur.
+log_dynamic_threshold: 1.0e+6
+
+# =========================================================================
+# PEELING HDBSCAN
+# =========================================================================
+peeling:
+  homogeneity:
+    threshold_base: 0.55         # seuil initial niveau 0
+    threshold_step: 0.05         # incrément par niveau
+    threshold_max:  0.80         # plafond
+    weight_probability: 0.5      # poids probabilité HDBSCAN
+    weight_silhouette:  0.3      # poids silhouette score
+
+  mcs_floor: 8                   # min_cluster_size plancher
+  ms_floor:  3                   # min_samples plancher
+  mcs_divisor: 30                # mcs = max(floor, min(cap, n // divisor))
+  mcs_cap: 500                   # borne haute mcs
+  max_levels: 6                  # nombre max de niveaux de peeling
+  min_delta_extracted: 1         # arrêt si aucun cluster extrait
+  residual_threshold: 0.30       # retry si >30% résidu
+  resolution_step_factor: 2      # divise mcs par ce facteur au retry
+  max_resolution_steps: 3        # max retries intra-niveau
+
+  mcs_adaptive:
+    enabled: true
+    density_factor_min: 0.5
+    density_factor_max: 2.0
+
+  silhouette:
+    max_samples: 2000
+
+  level_0:
+    metric:    cosine
+    selection: eom
+    pca_dims:  null
+
+  residual_configs:
+    - metric: cosine
+      selection: eom
+      pca_dims: null
+    - metric: euclidean
+      selection: leaf
+      pca_dims: 20
+    - metric: cosine
+      selection: leaf
+      pca_dims: null
+
+# =========================================================================
+# ISOLATION FOREST (vérification)
+# =========================================================================
+outliers:
+  contamination: 0.10
+
+# =========================================================================
+# PROJECTION 2D (optionnel)
+# =========================================================================
+projection:
+  umap_threshold: 5000           # au-delà → UMAP au lieu de t-SNE
+  max_projection_samples: 5000   # subsample si plus

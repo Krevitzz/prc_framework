@@ -14,6 +14,7 @@ METADATA = {
     'id'        : 'ASY-006',
     'rank'      : 2,
     'stochastic': True,
+    'jax_vmappable': True,
 }
 
 

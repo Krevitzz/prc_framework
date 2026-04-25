@@ -15,6 +15,7 @@ METADATA = {
     'id'        : 'SYM-005',
     'rank'      : 2,
     'stochastic': False,
+    'jax_vmappable': True,
 }
 
 

@@ -1,17 +1,13 @@
 # requirements.txt — PRC Pipeline
 # Généré automatiquement par generate_architecture.py
-# 2026-03-12 23:29
+# 2026-03-14 23:13
 # Ne pas éditer manuellement — éditer les sources .py
 
-analysing  # version inconnue dans l'environnement actif
-featuring  # version inconnue dans l'environnement actif
 jax>=0.9.1
 matplotlib>=3.10.8
 numpy>=2.4.2
 pandas>=3.0.1
 pyarrow>=23.0.1
-running  # version inconnue dans l'environnement actif
 sklearn>=1.8.0
-umap  # version inconnue dans l'environnement actif
-utils  # version inconnue dans l'environnement actif
+umap>=0.5.11
 yaml>=6.0.3

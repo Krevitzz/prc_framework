@@ -1,5 +1,6 @@
 # configs/constraints/pool_requirements.yaml
 # Contraintes pool actif — verdict filtre selon ces règles
+# Assure une base d'analyse homgène même si les parquets sont hétérogènes.
 
 version: "1.0"
 
@@ -17,7 +18,7 @@ max_iterations:
 
 # Atomics deprecated (auto-skip dans verdict)
 deprecated:
-  gammas: []      # Ex futur: ['GAM-003'] si explosion systématique
+  gammas: ['GAM-003', 'GAM-004', 'GAM-011', 'GAM-005', 'GAM-007', 'GAM-002', 'GAM-012', 'GAM-008', 'GAM-001', 'GAM-006']      # Ex futur: ['GAM-003'] si explosion systématique
   encodings: []   # Ex futur: ['SYM-008'] si pathologique
   modifiers: []
 

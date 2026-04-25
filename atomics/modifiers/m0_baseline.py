@@ -11,18 +11,14 @@ Rôle : placeholder structurel — garantit qu'une composition
 import jax
 import jax.numpy as jnp
 
-# ---------------------------------------------------------------------------
-# Métadonnées discovery
-# ---------------------------------------------------------------------------
-
 METADATA = {
-    'id'         : 'M0',
-    'stochastic' : False,
+    'id': 'M0',
+    'family': 'modifier',
+    'stochastic': False,
+    'differentiable': True,
+    'rank_constraint': None,
+    'non_markovian': False,
 }
-
-# ---------------------------------------------------------------------------
-# Apply
-# ---------------------------------------------------------------------------
 
 def apply(state: jnp.ndarray, params: dict, key: jax.Array) -> jnp.ndarray:
     """

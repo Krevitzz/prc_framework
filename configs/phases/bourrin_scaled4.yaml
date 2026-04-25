@@ -1,0 +1,144 @@
+# test_bourrin_scaled4.yaml
+# Exploration fine des paramètres des gammas (≥5 valeurs par paramètre principal)
+# avec encodings réduits pour maîtriser la combinatoire.
+# Basé sur les résultats de scaled3 : on évite les zones pathologiques connues
+# et on explore des plages plus larges pour identifier les régions « saines ».
+
+phase: bourrin_scaled4
+dmd_rank: 8
+
+# ---------------------------------------------------------------------------
+# Axes structurels (réduits pour focaliser sur les paramètres gamma)
+# ---------------------------------------------------------------------------
+n_dof: [10, 50,200]           # deux valeurs : basse et moyenne dimension
+max_it: [1500]            # asymptotique
+seed_CI: [0]
+seed_run: [0]
+
+# ---------------------------------------------------------------------------
+# GAMMAS – 5 valeurs (ou plus) par paramètre, en excluant les valeurs déjà testées
+# ---------------------------------------------------------------------------
+gamma:
+
+  # GAM-001 : beta (couplage) → collapse à partir de 2.0 dans scaled3
+  - id: GAM-001
+    params:
+      beta: [0.5, 1.0, 1.5, 2.0, 2.5]   # 1.0 sain, 2.0/2.5 pathologiques (à confirmer)
+
+  # GAM-002 : alpha (couplage rank‑2)
+  - id: GAM-002
+    params:
+      alpha: [0.01, 0.03, 0.05, 0.08, 0.12]
+
+  # GAM-003 : gamma (croissance exponentielle)
+  - id: GAM-003
+    params:
+      gamma: [0.01, 0.02, 0.03, 0.04, 0.05]
+
+  # GAM-004 : gamma (intensité)
+  - id: GAM-004
+    params:
+      gamma: [0.01, 0.03, 0.05, 0.07, 0.10]
+
+  # GAM-005 : omega (fréquence) → 0.785 provoque collapse
+  - id: GAM-005
+    params:
+      omega: [0, 0.4, 0.8, 1.2, 1.6]
+
+  # GAM-006 : beta (couplage), alpha fixé à 0.3 (valeur saine)
+  - id: GAM-006
+    params:
+      beta: [0.5, 1.0, 1.5, 2.0, 2.5]
+      alpha: [0.3]
+
+  # GAM-007 : epsilon (non‑markovien)
+  - id: GAM-007
+    params:
+      epsilon: [0.05, 0.1, 0.2, 0.4, 0.8]
+
+  # GAM-008 : gamma (collapse structurel) – on explore gamma
+  - id: GAM-008
+    params:
+      gamma: [0.1, 0.3, 0.5, 0.7, 0.9]
+      beta: [1.0]
+
+  # GAM-009 : beta et sigma – produit cartésien 5×5
+  - id: GAM-009
+    params:
+      beta: [0.5, 1.0, 1.5, 2.0, 2.5]
+      sigma: [0.005, 0.01, 0.03, 0.07, 0.15]
+
+  # GAM-010 : sigma
+  - id: GAM-010
+    params:
+      sigma: [0.005, 0.01, 0.03, 0.07, 0.15]
+
+  # GAM-011 : scale (bascule collapse ↔ explosion)
+  - id: GAM-011
+    params:
+      scale: [0, 0.5, 1.0, 2.0, 4.0]
+
+  # GAM-012 : beta (collapse à partir de 2.0)
+  - id: GAM-012
+    params:
+      beta: [0.5, 1.0, 1.5, 2.0, 2.5]
+
+  # GAM-013 : retiré (explosion structurelle)
+
+  # GAM-014 : sans paramètre
+  - id: GAM-014
+    params: {}
+
+  # GAM-015 : k (troncature SVD)
+  - id: GAM-015
+    params:
+      k: [2, 3, 4, 5, 6]
+
+# ---------------------------------------------------------------------------
+# ENCODINGS – deux représentatifs pour limiter la combinatoire
+# (un symétrique simple, un asymétrique simple)
+# ---------------------------------------------------------------------------
+encoding:
+  - id: SYM-001
+  - id: SYM-002
+  - id: SYM-003
+    params: { sigma: 0.3 }              # fixer — ω²=0%
+  - id: SYM-004
+  - id: SYM-005
+    params: { bandwidth: 2, amplitude: 0.3 }  # fixer
+  - id: SYM-006
+    params: { n_blocks: 4, intra: 0.5, inter: 0.05 }  # fixer (ou varier inter pour A3)
+  - id: SYM-007
+    params: { correlation: 0.3 }         # fixer
+  - id: SYM-008
+    params: { mean: 0.0, std: 0.3 }     # fixer
+
+  - id: ASY-001
+  - id: ASY-002
+  - id: ASY-003
+  - id: ASY-004
+    params: { gradient: 0.1, noise: 0.1 }  # fixer
+  - id: ASY-005
+  - id: ASY-006
+    params: { density: 0.1 }            # fixer
+
+  - id: RN-001
+    params: { rank: 2 ,3}                 # fixer (ou varier pour cross-rank)
+  - id: RN-002
+    params: { rank: 2 ,3}
+  - id: RN-003
+    params: { rank: 2 ,3}
+  - id: RN-004
+    params: { rank: 2 ,3}
+
+  - id: R3-003
+    params: { radius: 1 }               # fixer
+  - id: R3-007
+    params: { n_blocks: 3, intra: 0.6, inter: 0.05 }  # fixer (ou varier inter pour A3)
+
+# ---------------------------------------------------------------------------
+# MODIFIERS – aucun (M0 uniquement)
+# ---------------------------------------------------------------------------
+modifier:
+  - id: M0
+    params: {}

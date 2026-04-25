@@ -9,10 +9,6 @@ Comportement attendu :
   - Convergence rapide vers [-1,1] (saturation)
   - Attracteurs possiblement triviaux selon β
   - Rang-agnostique : opère pointwise
-
-Rôle v7 :
-  F1 — rang effectif décroît (saturation → perte rang)
-  F2 — S_VN décroît (compression information)
 """
 
 import jax
@@ -27,17 +23,18 @@ METADATA = {
     'non_markovian'  : False,
 }
 
-
 def apply(
-    state : jnp.ndarray,
-    params: dict,
-    key   : jax.Array,
+    state      : jnp.ndarray,
+    prev_state : jnp.ndarray,  # ignoré
+    params     : dict,
+    key        : jax.Array,    # ignoré
 ) -> jnp.ndarray:
     """
     Args:
-        state  : Tenseur courant, tout rang
-        params : {'beta': float}  défaut 2.0
-        key    : Ignorée (stochastic: False)
+        state      : Tenseur courant, tout rang
+        prev_state : Ignoré (présent pour signature unifiée)
+        params     : {'beta': float}  défaut 2.0
+        key        : Ignoré
 
     Returns:
         jnp.ndarray même shape que state, valeurs dans (-1,1)

@@ -1,0 +1,173 @@
+# bourrin_v1.yaml — Couverture totale des atomics (gammas 15, encodings 20, modifiers 3)
+# max_it 200, n_dof 50/100/200/500, seed_CI 0-3, seed_run 0-3
+# 3 variantes de paramètres par atomic (ou plus) pour stresser le pipeline.
+
+phase: bourrin_scaled
+dmd_rank: 8
+
+# ---------------------------------------------------------------------------
+# Axes structurels
+# ---------------------------------------------------------------------------
+n_dof: [10, 20, 50]
+max_it: [100]
+seed_CI: [0, 11]
+seed_run: [0, 11]
+
+# ---------------------------------------------------------------------------
+# GAMMAS (15) – avec 3 variantes par paramètre principal
+# ---------------------------------------------------------------------------
+gamma:
+
+  # Markovian differentiable
+  - id: GAM-001
+    params:
+      beta: [1.0, 3.0]
+
+  - id: GAM-002
+    params:
+      alpha: [0.05, 0.10]
+
+  - id: GAM-003
+    params:
+      gamma: [0.03, 0.05]
+
+  - id: GAM-004
+    params:
+      gamma: [0.03, 0.08]
+
+  # Non‑markovian
+  - id: GAM-005
+    params:
+      omega: [0, 0.785, 1.571]   # π/4, π/2, 3π/4
+
+  - id: GAM-006
+    params:
+      beta: [1.0, 2.0]
+      alpha: [0.3, 0.5]
+
+  - id: GAM-007
+    params:
+      epsilon: [0.1, 0.3]
+
+  - id: GAM-008
+    params:
+      gamma: [0.3, 0.5]
+      beta: [1.0, 2.0]
+
+  # Stochastic non‑diff
+  - id: GAM-009
+    params:
+      beta: [1.0, 3.0]
+      sigma: [0.01, 0.1]
+
+  - id: GAM-010
+    params:
+      sigma: [0.01, 0.1]
+
+  # Prepare_params
+  - id: GAM-011
+    params:
+      scale: [0.8, 1.2]
+
+  # Structural rank‑2
+  - id: GAM-012
+    params:
+      beta: [1.0, 3.0]
+
+  - id: GAM-013
+    params:
+      eta: [0.005, 0.05]
+
+  - id: GAM-014
+    params: {}
+
+  # SVD truncation non‑diff
+  - id: GAM-015
+    params:
+      k: [2, 4]
+
+# ---------------------------------------------------------------------------
+# ENCODINGS (20) – couverture complète
+# ---------------------------------------------------------------------------
+encoding:
+
+  # SYM (8)
+  - id: SYM-001
+    params: {}
+  - id: SYM-002
+    params: {}
+  - id: SYM-003
+    params:
+      sigma: [0.3, 0.7]
+  - id: SYM-004
+    params: {}
+  - id: SYM-005
+    params:
+      bandwidth: [2, 6]
+      amplitude: [0.3, 0.7]
+  - id: SYM-006
+    params:
+      n_blocks: [4, 8]
+      intra: [0.5, 0.9]
+      inter: [0.05, 0.15]
+  - id: SYM-007
+    params:
+      correlation: [0.3, 0.7]
+  - id: SYM-008
+    params:
+      mean: [0.0, 0.2]
+      std: [0.3, 0.7]
+
+  # ASY (6)
+  - id: ASY-001
+    params: {}
+  - id: ASY-002
+    params: {}
+  - id: ASY-003
+    params: {}
+  - id: ASY-004
+    params:
+      gradient: [0.1, 0.5]
+      noise: [0.1, 0.5]
+  - id: ASY-005
+    params: {}
+  - id: ASY-006
+    params:
+      density: [0.1, 0.4]
+
+  # RN (4) – chaque avec rank 2 et 3
+  - id: RN-001
+    params:
+      rank: [2, 3]
+  - id: RN-002
+    params:
+      rank: [2, 3]
+  - id: RN-003
+    params:
+      rank: [2, 3]
+  - id: RN-004
+    params:
+      rank: [2, 3]
+
+  # R3 conservés (2)
+  - id: R3-003
+    params:
+      radius: [1, 3]
+  - id: R3-007
+    params:
+      n_blocks: [3, 5]
+      intra: [0.6, 0.8]
+      inter: [0.05, 0.15]
+
+# ---------------------------------------------------------------------------
+# MODIFIERS (3)
+# ---------------------------------------------------------------------------
+modifier:
+  - id: M0
+    params: {}
+  - id: M1
+    params:
+      sigma: [0.01, 0.1]
+  - id: M2
+    params:
+      amplitude: [0.05, 0.2]

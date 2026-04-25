@@ -1,0 +1,272 @@
+# cluster_namer_new.yaml
+# Registre de nommage cluster PRC v7
+#
+# Nomenclature compositionnelle — inspirée IUPAC / Gene Ontology
+# Noms courts (≤3 tokens), extensibles, sans langue naturelle.
+#
+# Familles :
+#   AMP  — amplitude / norme         (ps_norm_ratio)
+#   ENT  — entropie informationnelle  (f2_von_neumann_entropy_delta)
+#   RNK  — rang effectif              (ps_rank_delta)
+#   LYA  — exposant de Lyapunov       (f4_lyapunov_empirical_mean)
+#   DMD  — spectre DMD                (f7_dmd_spectral_radius)
+#   LAG  — temporalité / autocorr     (ps_first_min_ac_frob)
+#   PNN  — texture / variabilité      (ps_pnn40_von_neumann)
+#   CND  — pathologies numériques     (health_has_inf, f1_condition_number_final)
+#   SEQ  — séquence phasique          (inférée — calibration R1)
+#
+# Qualificatifs génériques :
+#   <<   collapse / annihilation
+#   ~0   neutre / conservé
+#   +    croissant / expansion
+#   >>   explosion / divergence
+#   osc  oscillatoire (période mesurable)
+#   →    séquence de phases (SEQ slot)
+#
+# Exemple noms composés :
+#   AMP<<·ENT-·LYA-         collapse + entropie décroissante + contraction
+#   AMP+·DMD>>·LYA+         expansion + DMD instable + divergence
+#   AMP~0·RNK-·CND!         conservé + rang s'effondre + mal conditionné
+#   AMP+·SEQ[OSC→STB]       expansion + oscillation puis stabilisation (R1)
+#
+# Dette technique documentée :
+#   SEQ calibrated: false — nécessite F8 features phasiques (R1, max_it≥200)
+#   LAG/PNN : seuils à recalibrer après premier bourrin (valeurs provisoires)
+
+namer:
+
+  # ── Confiance globale ────────────────────────────────────────────────────────
+  conf_min_name:    0.60     # En dessous → slot_secondary
+  conf_min_display: 0.50     # En dessous → affiché entre parenthèses
+  name_separator:   "·"      # Séparateur tokens dans le nom composé
+  heterogeneous_threshold: 0.70
+
+  # ── Ordre slots dans le nom composé ─────────────────────────────────────────
+  # CND en premier si présent (pathologie prime sur tout)
+  # AMP en tête de la sémantique physique
+  # SEQ en dernier (inféré, non calibré R0)
+  slot_order:
+    - CND     # pathologies numériques — priorité maximale
+    - AMP     # amplitude — axe principal
+    - ENT     # entropie
+    - RNK     # rang effectif
+    - LYA     # Lyapunov
+    - DMD     # spectre DMD
+    - LAG     # temporalité
+    - PNN     # texture
+    - SEQ     # séquence phasique (R1)
+
+  # ── Définition slots ─────────────────────────────────────────────────────────
+  # Modes disponibles :
+  #   zones       — zones exclusives avec bornes lo/hi (AMP)
+  #   delta       — bidirectionnel autour de 0, omit_if_neutral (ENT, RNK, LYA)
+  #   threshold   — seuil unique, omit_if_clean (CND)
+  #   inferred    — combinaison de features (SEQ)
+  #   uncalibrated — placeholder, retourne None toujours
+
+  slots:
+
+    # ── CND — Pathologies numériques ────────────────────────────────────────────
+    CND:
+      calibrated: true
+      mode: threshold
+      omit_if_clean: true     # Cluster sain → slot absent du nom
+      features:
+        inf_frac:
+          key: health_has_inf   # float32 : fraction runs avec Inf
+          # Note : health_has_inf = 1.0 si le run a des Inf, 0.0 sinon
+          # Sur le cluster : median de cette valeur = fraction runs EXPLOSION
+        condition_final:
+          key: f1_condition_number_mean
+      terms:
+        CND!:
+          condition: inf_frac
+          threshold: 0.20           # >20% runs EXPLOSION dans le cluster
+          percentile_direction: upper
+          token: "CND!"
+        CND~:
+          condition: condition_final
+          threshold: 1.0e+6
+          percentile_direction: upper
+          token: "CND~"             # Mal conditionné mais pas explosif
+
+    # ── AMP — Amplitude / norme ──────────────────────────────────────────────────
+    AMP:
+      calibrated: true
+      mode: zones               # Zones exclusives — une seule s'applique
+      feature_primary: ps_norm_ratio
+      feature_iqr: ps_frob_delta   # proxy IQR pour zone médiane
+      terms:
+        AMP>>:
+          lo: null
+          hi: null
+          condition: inf_frac_gt_0  # règle spéciale — Inf présents
+          token: "AMP>>"
+        AMP<<:
+          lo: null
+          hi: 0.10
+          percentile_direction: lower
+          token: "AMP<<"
+        AMP~0:
+          lo: 0.10
+          hi: 1.30
+          percentile_direction: null  # conf basée IQR
+          token: "AMP~0"
+        AMP+:
+          lo: 1.30
+          hi: 3.0
+          percentile_direction: upper
+          token: "AMP+"
+        AMP++:
+          lo: 3.0
+          hi: 10.0
+          percentile_direction: upper
+          token: "AMP++"
+        AMP>>>:
+          lo: 10.0
+          hi: null
+          sentinel: 148.413         # tanh saturation — ps_norm_ratio ≈ e^5
+          percentile_direction: upper
+          token: "AMP>>>"
+
+    # ── ENT — Entropie de von Neumann ────────────────────────────────────────────
+    ENT:
+      calibrated: true
+      mode: delta
+      feature_primary: f2_von_neumann_entropy_delta
+      omit_if_neutral: true
+      neutral_threshold: 0.05
+      terms:
+        ENT+:
+          threshold: 0.05
+          percentile_direction: upper
+          token: "ENT+"
+        ENT-:
+          threshold: -0.05
+          percentile_direction: lower
+          token: "ENT-"
+
+    # ── RNK — Rang effectif ──────────────────────────────────────────────────────
+    RNK:
+      calibrated: true
+      mode: delta
+      feature_primary: ps_rank_delta
+      omit_if_neutral: true
+      neutral_threshold: 0.5
+      terms:
+        RNK+:
+          threshold: 0.5
+          percentile_direction: upper
+          token: "RNK+"
+        RNK-:
+          threshold: -0.5
+          percentile_direction: lower
+          token: "RNK-"
+
+    # ── LYA — Exposant de Lyapunov empirique ────────────────────────────────────
+    # mean > 0 → expansion, mean < 0 → contraction, std élevé → alternance
+    LYA:
+      calibrated: true
+      mode: delta
+      feature_primary: f4_lyapunov_empirical_mean
+      feature_std: f4_lyapunov_empirical_std   # std élevé → dynamique mixte
+      omit_if_neutral: true
+      neutral_threshold: 0.05
+      terms:
+        LYA+:
+          threshold: 0.05
+          percentile_direction: upper
+          token: "LYA+"
+        LYA-:
+          threshold: -0.05
+          percentile_direction: lower
+          token: "LYA-"
+        LYA~:
+          # std élevé + mean ≈ 0 → alternance expansion/contraction
+          # détecté en post-eval si mean neutre mais std > seuil
+          std_threshold: 0.3
+          percentile_direction: upper
+          token: "LYA~"            # oscillation Lyapunov — précurseur SEQ
+
+    # ── DMD — Spectre DMD ────────────────────────────────────────────────────────
+    # spectral_radius > 1 → modes amplifiés (instable)
+    # n_complex_pairs > 0 → oscillations présentes
+    DMD:
+      calibrated: true
+      mode: zones
+      feature_primary: f7_dmd_spectral_radius
+      feature_complex: f7_dmd_n_complex_pairs
+      terms:
+        DMD>>:
+          lo: 1.0
+          hi: null
+          percentile_direction: upper
+          token: "DMD>>"           # modes amplifiés — instabilité
+        DMDosc:
+          lo: null
+          hi: null
+          condition: complex_pairs_gt_0   # règle spéciale sur f7_dmd_n_complex_pairs
+          token: "DMDosc"          # modes oscillatoires présents
+        DMD<1:
+          lo: null
+          hi: 1.0
+          percentile_direction: lower
+          token: "DMD<1"           # tous modes amortis — stable
+
+    # ── LAG — Temporalité / premier minimum autocorrélation ─────────────────────
+    # Valeur faible → dynamique rapide, valeur élevée → lente ou périodique
+    # Seuils provisoires — à recalibrer après premier bourrin R0
+    LAG:
+      calibrated: true
+      mode: delta
+      feature_primary: ps_first_min_ac_frob
+      omit_if_neutral: true
+      neutral_threshold: 5.0
+      terms:
+        LAG-:
+          threshold: -5.0          # premier min précoce → dynamique rapide
+          percentile_direction: lower
+          token: "LAG-"
+        LAG+:
+          threshold: 5.0           # premier min tardif → lente / périodique
+          percentile_direction: upper
+          token: "LAG+"
+
+    # ── PNN — Texture / variabilité successions ──────────────────────────────────
+    # pnn40 : fraction pas consécutifs avec delta > 40% std
+    # Valeur haute → chaotique, valeur basse → régulier
+    # Seuils provisoires — à recalibrer après premier bourrin R0
+    PNN:
+      calibrated: true
+      mode: delta
+      feature_primary: ps_pnn40_von_neumann
+      omit_if_neutral: true
+      neutral_threshold: 0.10
+      terms:
+        PNN+:
+          threshold: 0.30          # fraction élevée → chaotique
+          percentile_direction: upper
+          token: "PNN+"
+        PNN-:
+          threshold: 0.05          # fraction faible → régulier / lisse
+          percentile_direction: lower
+          token: "PNN-"
+
+    # ── SEQ — Séquence phasique ──────────────────────────────────────────────────
+    # Non calibré R0 — nécessite F8 features phasiques (R1, max_it≥200)
+    # Inférence partielle possible depuis LYA~ + DMDosc + AMP final
+    # Placeholder documenté — retourne None en R0
+    #
+    # Format cible R1 : SEQ[OSC→STB], SEQ[EXP→AMP<<], SEQ[STB]
+    SEQ:
+      calibrated: false
+      mode: uncalibrated
+      features:
+        lyapunov_std:  f4_lyapunov_empirical_std
+        dmd_complex:   f7_dmd_n_complex_pairs
+        amp_final:     ps_norm_ratio
+        # R1 ajoutera : f8_phase_duration_*, f8_changepoint_*, f8_early_*, f8_late_*
+      note: >
+        Calibration R1 requise. En R0 (max_it=50) les séquences multi-phases
+        ne sont pas observables proprement. LYA~ + DMDosc sont des indices
+        indirects d'oscillation mais insuffisants pour nommer une séquence.

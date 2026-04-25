@@ -15,7 +15,7 @@ import jax
 import jax.numpy as jnp
 
 METADATA = {
-    'jax_vmappable': False,
+    'jax_vmappable': True,
     'id'        : 'RN-002',
     'rank'      : None,
     'stochastic': True,

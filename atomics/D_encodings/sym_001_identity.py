@@ -24,6 +24,7 @@ METADATA = {
     'id'         : 'SYM-001',
     'rank'       : 2,
     'stochastic' : False,    # key ignorée — déterministe pur
+    'jax_vmappable': True,
 }
 
 # ---------------------------------------------------------------------------

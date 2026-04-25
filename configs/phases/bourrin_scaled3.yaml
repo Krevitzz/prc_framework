@@ -1,0 +1,125 @@
+# bourrin_v1.yaml — Couverture totale des atomics (gammas 15, encodings 20, modifiers 3)
+# max_it 200, n_dof 50/100/200/500, seed_CI 0-3, seed_run 0-3
+# 3 variantes de paramètres par atomic (ou plus) pour stresser le pipeline.
+
+phase: bourrin_scaled3
+dmd_rank: 8
+
+# ---------------------------------------------------------------------------
+# Axes structurels
+# ---------------------------------------------------------------------------
+n_dof: [10, 20, 50, 100, 200]
+max_it: [1000]
+seed_CI: [0]
+seed_run: [0]
+
+# ---------------------------------------------------------------------------
+# GAMMAS (15) – avec 3 variantes par paramètre principal
+# ---------------------------------------------------------------------------
+gamma:
+  - id: GAM-001
+    params:
+      beta: [1.0, 2.0, 2.5, 3.0]            # 6% — couplage faible vs fort, collapse à 3.0
+
+  - id: GAM-002
+    params:
+      alpha: [0.05, 0.10, 0.15]         # 2% — couplage rank-2
+
+  - id: GAM-003
+    params:
+      gamma: [0.03]               # fixer — ω²=0%, 100% OK
+
+  - id: GAM-004
+    params:
+      gamma: [0.03,0.05, 0.08]         # 4% — intensité
+
+  - id: GAM-005
+    params:
+      omega: [0, 0.785, 1.571]    # 65% — LE param le plus discriminant du pipeline
+
+  - id: GAM-006
+    params:
+      beta: [1.0, 1.5, 1.75, 2.0]            # 8% — collapse à beta=2
+      alpha: [0.3]                # fixer — ω²=0%
+
+  - id: GAM-007
+    params:
+      epsilon: [0.1, 0.3, 0.6]         # 4% — perturbation non-markovienne
+
+  - id: GAM-008
+    params:
+      gamma: [0.3]                # fixer — ω²=0%, collapse structurel
+      beta: [1.0]                 # fixer — ω²=0.1%
+
+  - id: GAM-009
+    params:
+      beta: [1.0, 2.0, 3.0]            # 6%
+      sigma: [0.01, 0.05, 0.1]          # 2% — frontière élagable, conserver par prudence
+
+  - id: GAM-010
+    params:
+      sigma: [0.01, 0.05, 0.1]          # 2%
+
+  - id: GAM-011
+    params:
+      scale: [0,4,0.8, 1.2]           # 7%
+
+  - id: GAM-012
+    params:
+      beta: [1.0, 2.0, 2.5, 3.0]            # 5% — collapse à 3.0
+
+  # GAM-013 : RETIRÉ — explosion structurelle (hebbien sans dissipation)
+
+  - id: GAM-014
+    params: {}
+
+  - id: GAM-015
+    params:
+      k: [2, 3, 4]                   # 1% — frontière, conserver (troncature SVD)
+# ---------------------------------------------------------------------------
+# ENCODINGS (20) – couverture complète
+# ---------------------------------------------------------------------------
+encoding:
+  - id: SYM-001
+  - id: SYM-002
+  - id: SYM-003
+    params: { sigma: 0.3 }              # fixer — ω²=0%
+  - id: SYM-004
+  - id: SYM-005
+    params: { bandwidth: 2, amplitude: 0.3 }  # fixer
+  - id: SYM-006
+    params: { n_blocks: 4, intra: 0.5, inter: 0.05 }  # fixer (ou varier inter pour A3)
+  - id: SYM-007
+    params: { correlation: 0.3 }         # fixer
+  - id: SYM-008
+    params: { mean: 0.0, std: 0.3 }     # fixer
+
+  - id: ASY-001
+  - id: ASY-002
+  - id: ASY-003
+  - id: ASY-004
+    params: { gradient: 0.1, noise: 0.1 }  # fixer
+  - id: ASY-005
+  - id: ASY-006
+    params: { density: 0.1 }            # fixer
+
+  - id: RN-001
+    params: { rank: 2 ,3}                 # fixer (ou varier pour cross-rank)
+  - id: RN-002
+    params: { rank: 2 ,3}
+  - id: RN-003
+    params: { rank: 2 ,3}
+  - id: RN-004
+    params: { rank: 2 ,3}
+
+  - id: R3-003
+    params: { radius: 1 }               # fixer
+  - id: R3-007
+    params: { n_blocks: 3, intra: 0.6, inter: 0.05 }  # fixer (ou varier inter pour A3)
+
+# ---------------------------------------------------------------------------
+# MODIFIERS (3)
+# ---------------------------------------------------------------------------
+modifier:
+  - id: M0
+    params: {}

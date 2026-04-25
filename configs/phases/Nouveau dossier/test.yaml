@@ -1,0 +1,12 @@
+phase: test_16
+n_dof: [40]
+max_it: [200]
+seed_CI: [0]
+seed_run: [0]          # ← fixe
+gamma:
+  - id: GAM-010
+    params: {sigma: 0.01}
+encoding:
+  - id: SYM-001
+modifier:
+  - id: M0

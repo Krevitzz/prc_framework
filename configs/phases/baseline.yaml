@@ -1,0 +1,78 @@
+# configs/phases/test_v9_baseline.yaml
+# Baseline v9 — validation fonctionnelle + stress-test dimensionnel
+#
+# Couverture fonctionnelle :
+#   - Gammas : markovien, non-markovien, stochastique, non-diff, explosif, prepare_params
+#   - Encodings : sym, asy, rn rank2+3, r3
+#   - Modifiers : baseline, bruit, perturbation
+#   - Rank 2 et 3
+#
+# Stress-test dimensionnel :
+#   - n_dof: [10, 50, 100, 200] — couvre le point de bascule SVD
+#   - max_it: [200] — suffisant pour tester convergence/explosion/oscillation
+#
+# Attendu : ~3000-5000 runs selon les combinaisons
+
+phase: baseline
+
+gamma:
+  # Markovien stable (convergent → K petit, gain v9 max)
+  - id: GAM-001
+    params:
+      beta: [1.0, 3.0]
+
+  # Markovien rank_constraint=2
+  - id: GAM-002
+    params:
+      alpha: [0.05]
+
+  # Explosif (K devrait être cappé par frob non-fini)
+  - id: GAM-003
+    params:
+      gamma: [0.05]
+
+  # Non-markovien oscillant (K élevé, peu de gain v9)
+  - id: GAM-005
+    params:
+      omega: [0.785]
+
+  # Stochastique non-diff (F4 = NaN structurel)
+  - id: GAM-009
+    params:
+      beta: [1.0]
+      sigma: [0.01]
+
+  # Prepare_params
+  - id: GAM-011
+    params:
+      scale: [1.0]
+
+encoding:
+  # Sym rank=2
+  - id: SYM-001
+  - id: SYM-002
+
+  # Asy rank=2
+  - id: ASY-001
+
+  # RN rank=2 et rank=3
+  - id: RN-001
+    params:
+      rank: [2, 3]
+
+  # R3 fixe rank=3
+  - id: R3-003
+    params:
+      radius: [2]
+
+modifier:
+  - id: M0
+  - id: M1
+    params:
+      sigma: [0.05]
+
+# Stress-test dimensionnel : 4 tailles
+n_dof: [10, 50, 100, 200]
+max_it: [200]
+seed_CI: [0, 1]
+seed_run: [null]

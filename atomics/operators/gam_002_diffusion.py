@@ -24,35 +24,30 @@ METADATA = {
     'non_markovian'  : False,
 }
 
-
 def apply(
-    state : jnp.ndarray,
-    params: dict,
-    key   : jax.Array,
+    state      : jnp.ndarray,
+    prev_state : jnp.ndarray,  # ignoré
+    params     : dict,
+    key        : jax.Array,    # ignoré
 ) -> jnp.ndarray:
     """
     Args:
-        state  : Tenseur rang 2 (n, m)
-        params : {'alpha': float}  défaut 0.05, doit être dans (0, 0.25)
-        key    : Ignorée (stochastic: False)
+        state      : Tenseur rang 2 (n, m)
+        prev_state : Ignoré
+        params     : {'alpha': float}  défaut 0.05
+        key        : Ignoré
 
     Returns:
         jnp.ndarray même shape que state
-
-    Raises:
-        ValueError : si state.ndim != 2
     """
-    if state.ndim != 2:
-        raise ValueError(
-            f"GAM-002 applicable rang 2 uniquement, reçu ndim={state.ndim}"
-        )
     alpha = params.get('alpha', 0.05)
 
+    # Utilisation d'axes négatifs pour être générique (ici -2 et -1)
     laplacian = (
-        jnp.roll(state,  1, axis=0) +
-        jnp.roll(state, -1, axis=0) +
-        jnp.roll(state,  1, axis=1) +
-        jnp.roll(state, -1, axis=1) -
+        jnp.roll(state,  1, axis=-2) +
+        jnp.roll(state, -1, axis=-2) +
+        jnp.roll(state,  1, axis=-1) +
+        jnp.roll(state, -1, axis=-1) -
         4.0 * state
     )
     return state + alpha * laplacian
